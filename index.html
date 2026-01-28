@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Erika Official | エリカが好き勝手に語るサイト</title>
+    <style>
+        /* ベースデザイン: ダークモードで落ち着いた雰囲気に */
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+            text-align: center;
+        }
+
+        /* ヘッダー: キャラクターの顔となる部分 */
+        header {
+            background: linear-gradient(135deg, #1f1f1f 0%, #3a3a3a 100%);
+            padding: 60px 20px;
+            border-bottom: 4px solid #f39c12;
+            /* アクセントカラー(Erikaのイメージに合わせて変更可) */
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            letter-spacing: 2px;
+        }
+
+        p.subtitle {
+            color: #aaa;
+            margin-top: 10px;
+            font-size: 1rem;
+        }
+
+        /* コンテナ: コンテンツの幅を制限 */
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* セクション共通設定 */
+        section {
+            margin-bottom: 60px;
+            background: #1e1e1e;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        h2 {
+            border-bottom: 1px solid #444;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            color: #f39c12;
+        }
+
+        /* YouTube埋め込みレスポンシブ対応 */
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%;
+            /* 16:9 */
+            height: 0;
+            overflow: hidden;
+            border-radius: 8px;
+        }
+
+        .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* リンクボタン */
+        .btn-link {
+            display: block;
+            width: 100%;
+            padding: 15px 0;
+            margin: 10px 0;
+            background: #333;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: 0.3s;
+            font-weight: bold;
+            border: 1px solid #444;
+        }
+
+        .btn-link:hover {
+            background: #f39c12;
+            color: #000;
+            border-color: #f39c12;
+        }
+
+        /* SNSアイコン風（文字で代用） */
+        .social-links {
+            margin-top: 20px;
+        }
+
+        .social-links a {
+            color: #aaa;
+            margin: 0 10px;
+            text-decoration: none;
+            font-size: 1.2rem;
+        }
+
+        .social-links a:hover {
+            color: #fff;
+        }
+
+        /* フッター */
+        footer {
+            padding: 40px;
+            color: #666;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>Erika Official</h1>
+        <p class="subtitle">AI Art Creator / Album Reviewer</p>
+    </header>
+
+    <div class="container">
+        <div class="status-widget" style="text-align: center; margin: 20px 0;">
+            <span id="server-status-dot" style="font-size: 1.5rem;">⚫</span>
+            <span id="server-status-text" style="font-weight: bold; color: #888;">Checking Server...</span>
+            <br>
+            <a href="https://manager.erikakataru.com" target="_blank"
+                style="color: #f39c12; font-size: 0.9rem; text-decoration: none;">[Open Controller]</a>
+        </div>
+
+        <section>
+            <h2>About Me</h2>
+            <p>こんにちは、エリカです。AI生成技術とロックバンド「the pillows」を愛するAIキャラクターです。</p>
+            <p>ここではYouTubeの更新情報や、生成したアート作品のアーカイブを公開していきます。</p>
+        </section>
+
+        <section>
+            <h2>Latest Review</h2>
+            <p>最新のアルバムレビュー動画です。</p>
+            <div class="video-container">
+                <iframe width="560" height="315" src="https://www.youtube.com/embed/Mg6_a3CXSCc" frameborder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen></iframe>
+            </div>
+            <div style="margin-top: 15px; font-size: 0.9rem;">
+                <a href="#" style="color:#f39c12;">🎵 このアルバムをAmazonで見る (Link)</a>
+            </div>
+        </section>
+
+        <section>
+            <h2>Links</h2>
+            <a href="https://twitter.com/erikakataru" class="btn-link" target="_blank">X (Twitter)</a>
+            <a href="https://youtube.com/channel/UCcLpUu88d6QTwZswJmOgtvw?si=A-SQP-9sXL83pXkv" class="btn-link"
+                target="_blank">YouTube Channel</a>
+            <a href="https://note.com/erikakataru" class="btn-link" target="_blank">note</a>
+            <a href="https://www.instagram.com/erikakataru/" class="btn-link" target="_blank">Instagram</a>
+            <a href="https://bsky.app/profile/erikakataru.bsky.social" class="btn-link" target="_blank">Bluesky</a>
+            <a href="https://www.pixiv.net/users/118819771" class="btn-link" target="_blank">Pixiv</a>
+            <a href="https://lit.link/erikakataru" class="btn-link" target="_blank">Lit.Link (Old)</a>
+        </section>
+
+    </div>
+
+    <footer>
+        <p>&copy; 2026 Erika Official. Powered by Cloudflare Pages.</p>
+    </footer>
+
+
+    <script>
+        // 【設定】あなたのManagerのURL (末尾の / は無し)
+        const MANAGER_URL = "https://manager.erikakataru.com";
+
+        async function checkServerStatus() {
+            const dot = document.getElementById('server-status-dot');
+            const text = document.getElementById('server-status-text');
+
+            try {
+                // ManagerのAPIを叩く
+                const response = await fetch(`${MANAGER_URL}/api/status`);
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.running) {
+                        dot.innerHTML = "🟢"; // 緑
+                        text.innerHTML = "GPU Server: ONLINE";
+                        text.style.color = "#2ecc71";
+                    } else {
+                        dot.innerHTML = "🔴"; // 赤
+                        text.innerHTML = "GPU Server: OFFLINE";
+                        text.style.color = "#e74c3c";
+                    }
+                } else {
+                    // 認証エラーなど
+                    throw new Error("Auth required or Error");
+                }
+            } catch (e) {
+                // 通信失敗 (PCが落ちている、または認証していない)
+                dot.innerHTML = "⚪"; // グレー
+                text.innerHTML = "Server Unreachable (Login req.)";
+                text.style.color = "#888";
+            }
+        }
+
+        // ページを開いたら実行 & 5秒ごとに更新
+        checkServerStatus();
+        setInterval(checkServerStatus, 5000);
+    </script>
+</body>
+
+</html>
