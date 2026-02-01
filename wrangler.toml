@@ -1,0 +1,9 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "erika-official"
+pages_build_output_dir = "."
+compatibility_date = "2026-02-01"
+
+# ここがKVの設定です（JSONの配列 [[ ]] を TOMLのテーブル形式にします）
+[[kv_namespaces]]
+binding = "KV_BINDING" # プログラム内で使用する名前
+id = "8bd96d4e26724747a6204d8d01d7d689" # あなたがコピーしたID
