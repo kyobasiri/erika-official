@@ -6,8 +6,7 @@ body {
         url('../assets/images/erika-hero.jpg') no-repeat center top;
 
     /* 背景サイズを横幅いっぱいに。縦はアスペクト比を維持して表示 */
-    background-size: 100% auto;
-    background-attachment: scroll;
+    background-size: contain;
     /* fixed から変更 */
 
     color: #e0e0e0;
