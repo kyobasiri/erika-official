@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sound Gear | Erika Project</title>
+    <link rel="stylesheet" href="css/lib/bulma.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* gear.html 固有の背景設定 */
+        body {
+            background:
+                linear-gradient(rgba(18, 18, 18, 0.7), rgba(18, 18, 18, 0.9)),
+                url('assets/images/gear.jpg') no-repeat center top;
+            /* 上端合わせで配置 */
+            background-size: cover;
+            /* 画面いっぱいに広げる（スクロール追従） */
+            background-color: #121212;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* コンテンツが少ない時でもフッターを下に押し下げる */
+        #app {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .section {
+            flex: 1;
+        }
+
+        /* カスタムクラスの補完（style.cssに未定義の場合用） */
+        .border-left-erika {
+            border-left: 4px solid #f39c12;
+            padding-left: 1rem;
+        }
+
+        .tag.is-erika-orange {
+            background-color: #f39c12 !important;
+            color: #000 !important;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app" v-cloak>
+        <nav class="navbar is-transparent p-4">
+            <div class="navbar-brand">
+                <a href="index.html" class="navbar-item has-text-erika font-weight-bold">
+                    ← Back to Top
+                </a>
+            </div>
+        </nav>
+
+        <section class="section pb-6">
+            <div class="container">
+                <h1 class="title is-1 has-text-white has-text-centered mb-6"
+                    style="text-shadow: 0 4px 10px rgba(0,0,0,0.5);">SOUND GEAR</h1>
+
+                <div class="mb-6">
+                    <h2 class="title is-4 has-text-white border-left-erika mb-4">Current Production Core</h2>
+                    <div class="columns is-multiline">
+                        <div class="column is-6">
+                            <div class="card h-100">
+                                <div class="card-content">
+                                    <p class="tag is-dark mb-2">DAW & Composition</p>
+                                    <p class="title is-5 has-text-white">Ableton Live Lite / Scaler 3</p>
+                                    <p class="subtitle is-6 has-text-grey-light">
+                                        エリカの楽曲構成とビートメイクを支えるメインシステム。直感的な操作感と理論支援で、アイデアを迅速に形にする。
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="column is-6">
+                            <div class="card h-100">
+                                <div class="card-content">
+                                    <p class="tag is-dark mb-2">Virtual Instruments</p>
+                                    <p class="title is-5 has-text-white">NI Komplete 15 Select / Electric Storm Deluxe
+                                    </p>
+                                    <p class="subtitle is-6 has-text-grey-light">
+                                        現在の動画におけるサウンドの要。高品質なライブラリが、多様なジャンルの表現を可能にする。
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h2 class="title is-4 has-text-white border-left-erika mb-4">Recording Hardware</h2>
+                    <div class="columns is-multiline">
+                        <div class="column is-6">
+                            <div class="card h-100">
+                                <div class="card-content">
+                                    <p class="tag is-dark mb-2">Audio Interface</p>
+                                    <p class="title is-5 has-text-white">SSL2 MkⅡ (Solid State Logic)</p>
+                                    <p class="subtitle is-6 has-text-grey-light">
+                                        プロスタジオの血統を受け継ぐSSL製インターフェース。圧倒的な解像度とクリアなマイクプリが、宅録環境をプロレベルへ引き上げる。
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="column is-6">
+                            <div class="card h-100">
+                                <div class="card-content">
+                                    <p class="tag is-dark mb-2">Condenser Mic</p>
+                                    <p class="title is-5 has-text-white">Audio-Technica AT2035</p>
+                                    <p class="subtitle is-6 has-text-grey-light">
+                                        フラットで原音に忠実な特性を持つ、エリカの「耳」。ボーカルから楽器まで、空気感そのままに収音する。
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6">
+                    <div class="notification is-dark"
+                        style="background: rgba(243, 156, 18, 0.15); border-left: 4px solid #f39c12;">
+                        <h2 class="title is-4 has-text-erika mb-2">Next Stage: Authentic Electric Arsenal</h2>
+                        <p class="has-text-grey-light">
+                            エリカの表現をより「生」に近づけるために導入された、物理的な機材群。現在はシステムへの統合・サウンド調整中であり、今後の動画作品にて順次解禁予定。
+                        </p>
+                    </div>
+
+                    <div class="columns is-multiline mt-4">
+                        <div class="column is-6">
+                            <div class="card h-100">
+                                <div class="card-content">
+                                    <p class="tag is-erika-orange mb-2">Guitar (Upcoming)</p>
+                                    <p class="title is-5 has-text-white">Squier / Affinity Telecaster Thinline</p>
+                                    <p class="subtitle is-6 has-text-grey-light">
+                                        Fホールの空いたセミホロウボディ。独特のエアー感と軽快な鳴りが特徴。the pillowsサウンドへのリスペクトを体現する一本。
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="column is-6">
+                            <div class="card h-100">
+                                <div class="card-content">
+                                    <p class="tag is-erika-orange mb-2">Guitar (Upcoming)</p>
+                                    <p class="title is-5 has-text-white">SCHECTER / AR-06-2H</p>
+                                    <p class="subtitle is-6 has-text-grey-light">
+                                        ジャガータイプのボディにパワフルな2ハムバッカーを搭載。より攻撃的でオルタナティブな轟音を生み出すための選択。
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="column is-12">
+                            <div class="card">
+                                <div class="card-content">
+                                    <div class="columns is-vcentered">
+                                        <div class="column is-5">
+                                            <p class="tag is-success mb-2">Amp & Cab Core</p>
+                                            <p class="title is-5 has-text-white">BOSS / IR-2</p>
+                                            <p class="subtitle is-7 has-text-grey-light">
+                                                リアルなアンプサウンドをPC(DAW)へ直結する心臓部。RTX 5090搭載の制作環境と物理機材を繋ぐ、最も重要なブリッジ。
+                                            </p>
+                                        </div>
+                                        <div class="column is-7" style="border-left: 1px solid rgba(255,255,255,0.1);">
+                                            <p class="has-text-weight-bold has-text-grey mb-2 is-size-7">ANALOG SIGNAL
+                                                CHAIN:</p>
+                                            <div class="tags mb-2">
+                                                <span class="tag is-dark" style="border: 1px solid #f39c12;">Boost: tc
+                                                    electronic SPARK</span>
+                                                <span class="tag is-dark" style="border: 1px solid #f39c12;">EQ: BOSS
+                                                    GE-7</span>
+                                            </div>
+                                            <p class="is-size-7 has-text-grey-light">
+                                                IR-2の前段でトーンを整えるアナログチェーン。クリーンブースターとイコライザーによる緻密な音作りを担当。
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <footer class="footer p-4 has-text-centered has-text-grey is-size-7">
+            <p>Sound Gear Configured by In-house SE for Erika Project.</p>
+        </footer>
+    </div>
+
+    <script type="module">
+        import { createApp } from './js/lib/vue.esm-browser.js';
+        createApp({}).mount('#app');
+    </script>
+</body>
+
+</html>
