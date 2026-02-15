@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hardware Spec | Erika Project</title>
+    <link rel="stylesheet" href="css/lib/bulma.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* spec.html 固有の背景設定 */
+        body {
+            background:
+                linear-gradient(rgba(18, 18, 18, 0.7), rgba(18, 18, 18, 0.9)),
+                url('assets/images/spec.jpg') no-repeat center center fixed;
+            background-size: cover;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app" v-cloak>
+        <nav class="p-5">
+            <a href="index.html" class="has-text-erika font-weight-bold">← Back to Top</a>
+        </nav>
+
+        <section class="section">
+            <div class="container">
+                <h1 class="title is-1 has-text-white has-text-centered mb-6">HARDWARE SPEC</h1>
+
+                <div class="card mb-6">
+                    <div class="card-content">
+                        <p class="title is-5 has-text-erika">SE's Build Note</p>
+                        <div class="content has-text-grey-light">
+                            <p>
+                                Erika Projectの心臓部。AI生成のさらなる高速化と安定性を求め、構成を再考しました。<br>
+                                特にメモリ周りは当初の予定から<strong>「128GB（64GB×2）」へと買い直し、フル増設</strong>。
+                                RTX 5090の圧倒的なVRAMと合わせ、ローカルLLMや大規模なComfyUIワークフローを余裕をもって回せる環境を構築しています。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="columns is-multiline">
+                    <div class="column is-12">
+                        <div class="card">
+                            <div class="card-content">
+                                <p class="tag is-erika-orange mb-2">Graphic Board</p>
+                                <p class="title is-3 has-text-white">Palit GeForce RTX 5090 GameRock 32GB</p>
+                                <p class="subtitle is-6 has-text-grey">NE75090019R5-GB2020G</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="column is-6">
+                        <div class="card">
+                            <div class="card-content">
+                                <p class="tag is-dark mb-2">CPU</p>
+                                <p class="title is-4 has-text-white">AMD Ryzen 9 9950X</p>
+                                <p class="subtitle is-6 has-text-grey">16 Cores / 32 Threads</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="column is-6">
+                        <div class="card" style="border: 1px solid #f39c12;">
+                            <div class="card-content">
+                                <p class="tag is-erika-orange mb-2">Memory (Upgraded)</p>
+                                <p class="title is-4 has-text-white">Crucial DDR5-6000 128GB</p>
+                                <p class="subtitle is-6 has-text-grey">CP2K32G60C40U5W (64GB kit x2)</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="column is-4">
+                        <div class="card">
+                            <div class="card-content">
+                                <p class="tag is-dark mb-2">Motherboard</p>
+                                <p class="has-text-weight-bold">MSI PRO X870-P WIFI</p>
+                                <hr style="background-color: #333; margin: 10px 0;">
+                                <p class="tag is-dark mb-2">CPU Cooler</p>
+                                <p class="has-text-weight-bold">Noctua NH-D15-CH-BK</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="column is-4">
+                        <div class="card">
+                            <div class="card-content">
+                                <p class="tag is-dark mb-2">Storage (NVMe Gen4/5)</p>
+                                <p class="has-text-weight-bold">ADATA LEGEND 860 2TB</p>
+                                <p class="has-text-weight-bold">ADATA PREMIUM 980 2TB</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="column is-4">
+                        <div class="card">
+                            <div class="card-content">
+                                <p class="tag is-dark mb-2">Power Supply</p>
+                                <p class="has-text-weight-bold">MSI MPG A1250GS (1250W)</p>
+                                <hr style="background-color: #333; margin: 10px 0;">
+                                <p class="tag is-dark mb-2">PC Case</p>
+                                <p class="has-text-weight-bold">NZXT H7 Flow (White)</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="footer has-text-centered has-text-grey">
+            <p>OS: Windows 11 Pro | Built for Erika Project</p>
+        </footer>
+    </div>
+
+    <script type="module">
+        import { createApp } from './js/lib/vue.esm-browser.js';
+        createApp({}).mount('#app');
+    </script>
+</body>
+
+</html>
