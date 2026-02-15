@@ -2,10 +2,14 @@
 body {
     background:
         linear-gradient(rgba(18, 18, 18, 0.7), rgba(18, 18, 18, 0.85)),
-        /* 暗めのオーバーレイ */
-        url('../assets/images/erika-hero.jpg') no-repeat center center fixed;
-    /* 画像を固定 */
+        /* 画像を「上端合わせ(top)」にし、「スクロール可能(scroll)」にする */
+        url('../assets/images/erika-hero.jpg') no-repeat center top;
+
+    /* 背景サイズを横幅いっぱいに。縦はコンテンツに追従 */
     background-size: cover;
+    background-attachment: scroll;
+    /* fixed から変更 */
+
     color: #e0e0e0;
     min-height: 100vh;
 }
