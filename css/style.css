@@ -1,0 +1,36 @@
+/* 1. Vueの読み込み完了まで {{ }} を隠す */
+[v-cloak] {
+    display: none;
+}
+
+/* 2. エリカオレンジの定義 */
+.is-erika-orange {
+    background-color: #f39c12 !important;
+    color: #000 !important;
+    font-weight: bold;
+}
+
+.has-text-erika {
+    color: #f39c12 !important;
+}
+
+/* 3. ダークモードの微調整 */
+body {
+    background-color: #121212;
+}
+
+.card {
+    background-color: #1e1e1e;
+    border: 1px solid #333;
+    transition: transform 0.3s, border-color 0.3s;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    border-color: #f39c12;
+}
+
+.hero {
+    background: linear-gradient(rgba(18, 18, 18, 0.7), rgba(18, 18, 18, 0.9)),
+        url('../assets/images/erika-hero.jpg') no-repeat center center / cover;
+}
