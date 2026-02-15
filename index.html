@@ -11,24 +11,24 @@
 
 <body>
     <div id="app" v-cloak>
-        <section class="hero is-fullheight-with-navbar is-dark">
+        <section class="hero is-fullheight">
             <div class="hero-body">
                 <div class="container has-text-centered">
-                    <p class="is-size-7 has-text-weight-bold has-text-erika is-uppercase tracking-widest mb-4"
+                    <p class="is-size-7 has-text-weight-bold has-text-erika is-uppercase"
                         style="letter-spacing: 0.5em;">
                         AI Artist & Album Reviewer
                     </p>
-                    <h1 class="title is-1 is-spaced has-text-white" style="font-size: 5rem; letter-spacing: -0.05em;">
+                    <h1 class="title is-1 has-text-white" style="font-size: 5rem; font-weight: 900;">
                         ERIKA.
                     </h1>
-
-                    <div class="tags has-addons is-centered mt-6">
-                        <span class="tag is-dark is-medium">GPU SERVER</span>
-                        <span class="tag is-medium" :class="status === 'ONLINE' ? 'is-success' : 'is-danger'">
-                            {{ status }}
-                        </span>
-                    </div>
                 </div>
+            </div>
+
+            <div class="tags has-addons is-centered mt-6">
+                <span class="tag is-dark is-medium">GPU SERVER</span>
+                <span class="tag is-medium" :class="status === 'ONLINE' ? 'is-success' : 'is-danger'">
+                    {{ status }}
+                </span>
             </div>
         </section>
 
@@ -64,8 +64,6 @@
                     </div>
                 </div>
             </div>
-        </section>
-
         </section>
 
         <!-- 最新レビューセクション -->
