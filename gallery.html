@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Gallery | Erika Project</title>
+    <link rel="stylesheet" href="css/lib/bulma.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        body {
+            background: linear-gradient(rgba(18, 18, 18, 0.8), rgba(18, 18, 18, 0.95)),
+                url('assets/images/gallery.jpg') no-repeat center center fixed;
+            background-size: cover;
+        }
+
+        .gallery-item img {
+            border-radius: 10px;
+            transition: transform 0.3s ease;
+            cursor: pointer;
+        }
+
+        .gallery-item img:hover {
+            transform: scale(1.05);
+        }
+
+        .tabs li.is-active a {
+            color: #f39c12 !important;
+            border-bottom-color: #f39c12 !important;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app" v-cloak>
+        <nav class="p-5"><a href="index.html" class="has-text-erika">← Back</a></nav>
+
+        <section class="section">
+            <div class="container">
+                <h1 class="title is-1 has-text-white has-text-centered">ERIKA GALLERY</h1>
+
+                <div class="tabs is-centered is-large mt-6">
+                    <ul>
+                        <li v-for="(images, cat) in galleryData" :key="cat" :class="{'is-active': currentCat === cat}">
+                            <a @click="currentCat = cat" class="has-text-grey-light">{{ cat }}</a>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="columns is-multiline mt-4">
+                    <div v-for="img in galleryData[currentCat]" :key="img" class="column is-3 gallery-item">
+                        <div class="card">
+                            <div class="card-image">
+                                <figure class="image is-4by5">
+                                    <img :src="`assets/images/gallery/${currentCat}/${img}`" :alt="img">
+                                </figure>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script type="module">
+        import { createApp, ref, onMounted } from './js/lib/vue.esm-browser.js';
+        createApp({
+            setup() {
+                const galleryData = ref({});
+                const currentCat = ref('');
+
+                onMounted(async () => {
+                    const res = await fetch('assets/gallery.json');
+                    galleryData.value = await res.json();
+                    currentCat.value = Object.keys(galleryData.value)[0]; // 最初のカテゴリを表示
+                });
+
+                return { galleryData, currentCat };
+            }
+        }).mount('#app');
+    </script>
+</body>
+
+</html>

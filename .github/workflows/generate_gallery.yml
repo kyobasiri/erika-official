@@ -1,0 +1,30 @@
+name: Generate Gallery JSON
+
+on:
+  push:
+    paths:
+      - 'assets/images/gallery/**' # ギャラリー画像が増えた時だけ実行
+
+permissions:
+  contents: write # GitHubが自分自身に書き込む許可
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.*'
+      - name: Generate JSON
+        run: python gallery_gen.py
+
+      - name: Commit and Push if changed
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add assets/gallery.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: auto-generate gallery.json" && git push)
