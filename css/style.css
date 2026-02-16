@@ -25,18 +25,18 @@ body {
 
 /* カードを「グラスモーフィズム（すりガラス）」風にして視認性を確保 */
 .card {
-    background-color: rgba(30, 30, 30, 0.6) !important;
-    /* 半透明の黒 */
+    /* 透明度を上げて、背景のエリカがより透けるように調整 */
+    background-color: rgba(30, 30, 30, 0.4) !important;
     backdrop-filter: blur(10px);
-    /* 背後をぼかす（モダンな演出） */
+    /* すりガラス効果は維持して文字の視認性を確保 */
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 20px;
     transition: all 0.3s ease;
 }
 
 .card:hover {
-    background-color: rgba(243, 156, 18, 0.1) !important;
-    /* ホバー時に少しオレンジ */
+    /* ホバー時も透明感を維持しつつ、わずかに明るく */
+    background-color: rgba(243, 156, 18, 0.15) !important;
     border-color: #f39c12;
     transform: translateY(-8px);
 }
