@@ -64,16 +64,58 @@
                     <!-- 最新レビューセクション -->
                     <section class="section">
                         <div class="container">
-                            <h2 class="title is-4 has-text-erika">Latest Review</h2>
-                            <p class="subtitle is-6">最新のアルバムレビュー動画です。</p>
-                            <div class="video-container mb-4">
-                                <iframe width="560" height="315" src="https://www.youtube.com/embed/Mg6_a3CXSCc"
-                                    title="YouTube video player" style="border: none;"
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                    allowfullscreen></iframe>
-                            </div>
-                            <div class="is-size-6">
-                                <a href="#" class="has-text-erika has-text-weight-bold">🎵 このアルバムをAmazonで見る (Link)</a>
+                            <div class="columns is-variable is-8">
+
+                                <div class="column is-7">
+                                    <h2 class="title is-4 has-text-erika">Latest Review</h2>
+                                    <p class="subtitle is-6 has-text-grey-light">最新のアルバムレビュー</p>
+
+                                    <div class="card" style="overflow: hidden; border-radius: 12px;">
+                                        <div class="card-image">
+                                            <figure class="image is-16by9">
+                                                <iframe class="has-ratio"
+                                                    :src="`https://www.youtube.com/embed/${latestVideo.long.id}`"
+                                                    title="Main Review" frameborder="0" allowfullscreen>
+                                                </iframe>
+                                            </figure>
+                                        </div>
+                                        <div class="card-content has-background-black-ter p-4">
+                                            <p class="title is-6 has-text-white is-text-overflow-ellipsis">
+                                                {{ latestVideo.long.title }}
+                                            </p>
+                                            <a :href="`https://www.youtube.com/watch?v=${latestVideo.long.id}`"
+                                                target="_blank" class="button is-small is-erika-orange is-outlined">
+                                                ▶ Watch on YouTube
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="column is-5">
+                                    <h2 class="title is-4 has-text-erika">Daily Shorts</h2>
+                                    <p class="subtitle is-6 has-text-grey-light">毎日更新中！</p>
+
+                                    <div class="card mx-auto"
+                                        style="max-width: 320px; border-radius: 20px; overflow: hidden;">
+                                        <div class="card-image">
+                                            <div style="position: relative; padding-bottom: 177.7%; height: 0;">
+                                                <iframe :src="`https://www.youtube.com/embed/${latestVideo.short.id}`"
+                                                    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
+                                                    title="Shorts" frameborder="0" allowfullscreen>
+                                                </iframe>
+                                            </div>
+                                        </div>
+                                        <div class="card-content has-background-black-ter p-3 has-text-centered">
+                                            <p class="is-size-7 has-text-grey-light mb-2">{{ latestVideo.short.title }}
+                                            </p>
+                                            <a :href="`https://www.youtube.com/shorts/${latestVideo.short.id}`"
+                                                target="_blank" class="button is-small is-rounded is-dark">
+                                                📱 Open Shorts
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+
                             </div>
                         </div>
                     </section>
@@ -95,16 +137,16 @@
                                         <span>YouTube Channel</span>
                                     </a>
                                 </div>
-                                <div class="column is-4">
+                                <div class="column is-6">
                                     <a href="https://note.com/erikakataru"
                                         class="button is-dark is-outlined is-fullwidth mb-2" target="_blank">note</a>
                                 </div>
-                                <div class="column is-4">
+                                <div class="column is-6">
                                     <a href="https://www.instagram.com/erikakataru/"
                                         class="button is-dark is-outlined is-fullwidth mb-2"
                                         target="_blank">Instagram</a>
                                 </div>
-                                <div class="column is-4">
+                                <div class="column is-6">
                                     <a href="https://bsky.app/profile/erikakataru.bsky.social"
                                         class="button is-dark is-outlined is-fullwidth mb-2" target="_blank">Bluesky</a>
                                 </div>
@@ -152,20 +194,48 @@
 
     <script type="module">
         import { createApp, ref, onMounted, onUnmounted } from './js/lib/vue.esm-browser.js';
-
         createApp({
             setup() {
                 const status = ref('CHECKING...');
-                // 直接Managerを叩くURL（認証が必要な場合やCORSに注意が必要だが、元の実装を尊重）
                 const MANAGER_URL = "https://manager.erikakataru.com";
                 let intervalId = null;
+
+                // ★ここから修正：動画データの入れ物（初期値）
+                const latestVideo = ref({
+                    long: { id: 'kx8JnJVu89I', title: 'Latest Review' },
+                    short: { id: 'PKHHj8DaxXs', title: 'Latest Short' }
+                });
+
+                // ★重要：ここにさっき成功したWorkerのURLを貼ってください！
+                const YOUTUBE_WORKER_URL = "https://erika-youtube-worker.xxxxxx.workers.dev";
+
+                // Workerからデータをもらってくる関数
+                const fetchLatestVideo = async () => {
+                    try {
+                        const res = await fetch(YOUTUBE_WORKER_URL);
+                        if (res.ok) {
+                            const data = await res.json();
+
+                            // 通常動画の更新
+                            if (data.long && !data.long.error) {
+                                latestVideo.value.long = data.long;
+                            }
+                            // ショート動画の更新
+                            if (data.short && !data.short.error) {
+                                latestVideo.value.short = data.short;
+                            }
+                        }
+                    } catch (e) {
+                        console.error("YouTube sync failed", e);
+                    }
+                };
+                // ★ここまで修正
 
                 const checkStatus = async () => {
                     try {
                         const response = await fetch(`${MANAGER_URL}/api/status`);
                         if (response.ok) {
                             const data = await response.json();
-                            // 元のロジック: data.running が true なら ONLINE
                             status.value = data.running ? 'ONLINE' : 'OFFLINE';
                         } else {
                             status.value = 'OFFLINE';
@@ -177,15 +247,16 @@
 
                 onMounted(() => {
                     checkStatus();
-                    // 5秒ごとにポーリング
                     intervalId = setInterval(checkStatus, 5000);
+                    // ★起動時にYouTubeデータを取りに行く
+                    fetchLatestVideo();
                 });
 
                 onUnmounted(() => {
                     if (intervalId) clearInterval(intervalId);
                 });
 
-                return { status };
+                return { status, latestVideo };
             }
         }).mount('#app');
     </script>
