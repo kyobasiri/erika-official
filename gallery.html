@@ -56,7 +56,7 @@
                 </div>
 
                 <div class="columns is-multiline">
-                    <div v-for="img in galleryData[currentCat]" :key="img" class="column is-3 gallery-item">
+                    <div v-for="img in displayedImages" :key="img" class="column is-3 gallery-item">
                         <div class="card" @click="openModal(currentCat, img)">
                             <div class="card-image">
                                 <figure class="image is-4by5">
@@ -65,6 +65,13 @@
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <div class="has-text-centered mt-5 mb-6" v-if="hasMoreImages">
+                    <button class="button is-erika-orange is-medium is-outlined" @click="loadMore"
+                        style="border-width: 2px; border-radius: 8px; font-weight: bold; background-color: rgba(18, 18, 18, 0.8);">
+                        ▼ 続きを表示 (Load More)
+                    </button>
                 </div>
             </div>
         </section>
@@ -93,8 +100,36 @@
                 const currentCat = ref('');
                 const selectedImg = ref(null); // 現在拡大している画像のパス
 
+                // --- 今回追加した「続きを表示」用の設定 ---
+                const INITIAL_LIMIT = 8; // 最初に表示する枚数
+                const LOAD_STEP = 8;     // ボタンを押したときに増える枚数
+                const displayLimit = ref(INITIAL_LIMIT);
+
                 // カテゴリ一覧（JSONのキー）
                 const categories = computed(() => Object.keys(galleryData.value));
+
+                // ★カテゴリ（タブ）を切り替えたら、表示枚数を8枚にリセットする
+                watch(currentCat, () => {
+                    displayLimit.value = INITIAL_LIMIT;
+                });
+
+                // ★実際に画面に表示する画像の配列（上限でカットする）
+                const displayedImages = computed(() => {
+                    if (!galleryData.value[currentCat.value]) return [];
+                    // 0枚目から displayLimit の枚数だけ切り取って返す
+                    return galleryData.value[currentCat.value].slice(0, displayLimit.value);
+                });
+
+                // ★「続きを表示」ボタンを表示するかどうかの判定
+                const hasMoreImages = computed(() => {
+                    if (!galleryData.value[currentCat.value]) return false;
+                    return displayLimit.value < galleryData.value[currentCat.value].length;
+                });
+
+                // ★ボタンを押したときの処理（上限を8増やす）
+                const loadMore = () => {
+                    displayLimit.value += LOAD_STEP;
+                };
 
                 const fetchGallery = async () => {
                     try {
@@ -124,7 +159,10 @@
                     categories,
                     selectedImg,
                     openModal,
-                    closeModal
+                    closeModal,
+                    displayedImages,
+                    hasMoreImages,
+                    loadMore
                 };
             }
         }).mount('#app');
