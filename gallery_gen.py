@@ -1,33 +1,38 @@
 import os
 import json
 
-# 画像が保存されているルートディレクトリ
 BASE_DIR = 'assets/images/gallery'
-# 出力先をassetsフォルダ直下に設定
 OUTPUT_FILE = 'assets/gallery.json'
 
 def generate_gallery_json():
-    gallery_data = {}
+    # JavaScriptの勝手なソートを防ぐため、辞書{}ではなく配列[]を使います
+    gallery_data = []
     
     if not os.path.exists(BASE_DIR):
         print(f"Directory {BASE_DIR} not found. Creating...")
         os.makedirs(BASE_DIR, exist_ok=True)
 
-    # フォルダ（カテゴリ）をスキャン
-    categories = sorted([d for d in os.listdir(BASE_DIR) if os.path.isdir(os.path.join(BASE_DIR, d))])
+    # フォルダ一覧を取得
+    dirs = [d for d in os.listdir(BASE_DIR) if os.path.isdir(os.path.join(BASE_DIR, d))]
+    
+    # ★ポイント：タイムスタンプではなく「フォルダ名」で降順（Z→A、大きい数字→小さい数字）ソート
+    categories = sorted(dirs, reverse=True)
     
     for category in categories:
         cat_path = os.path.join(BASE_DIR, category)
-        # 画像ファイルを取得してソート（名前順）
+        # 画像はファイル名順（昇順）でOK
         images = sorted([f for f in os.listdir(cat_path) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp'))])
+        
         if images:
-            gallery_data[category] = images
+            # カテゴリ名と画像のリストをセットにして配列に追加
+            gallery_data.append({
+                "name": category,
+                "images": images
+            })
 
-    # 出力先フォルダがない場合は作成
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
 
-    # JSONとして保存
-    with os.fdopen(os.open(OUTPUT_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644), 'w', encoding='utf-8') as f:
+    with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
         json.dump(gallery_data, f, indent=4, ensure_ascii=False)
     
     print(f"Generated {OUTPUT_FILE} with {len(gallery_data)} categories.")

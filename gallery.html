@@ -113,34 +113,36 @@
 
         createApp({
             setup() {
-                const galleryData = ref({});
+                // 初期値を配列 [] に変更
+                const galleryData = ref([]);
                 const currentCat = ref('');
-                const selectedImg = ref(null); // 現在拡大している画像のパス
+                const selectedImg = ref(null);
 
-                // --- 今回追加した「続きを表示」用の設定 ---
-                const INITIAL_LIMIT = 8; // 最初に表示する枚数
-                const LOAD_STEP = 8;     // ボタンを押したときに増える枚数
+                const INITIAL_LIMIT = 8;
+                const LOAD_STEP = 8;
                 const displayLimit = ref(INITIAL_LIMIT);
 
-                // カテゴリ一覧（JSONのキー）
-                const categories = computed(() => Object.keys(galleryData.value));
+                // ★カテゴリ一覧の作り方を配列用に変更
+                const categories = computed(() => galleryData.value.map(c => c.name));
 
                 // ★カテゴリ（タブ）を切り替えたら、表示枚数を8枚にリセットする
                 watch(currentCat, () => {
                     displayLimit.value = INITIAL_LIMIT;
                 });
 
-                // ★実際に画面に表示する画像の配列（上限でカットする）
+                // ★画像配列の取り出し方を配列用に変更
                 const displayedImages = computed(() => {
-                    if (!galleryData.value[currentCat.value]) return [];
-                    // 0枚目から displayLimit の枚数だけ切り取って返す
-                    return galleryData.value[currentCat.value].slice(0, displayLimit.value);
+                    // 現在選ばれているカテゴリのデータを探す
+                    const currentData = galleryData.value.find(c => c.name === currentCat.value);
+                    if (!currentData || !currentData.images) return [];
+                    return currentData.images.slice(0, displayLimit.value);
                 });
 
-                // ★「続きを表示」ボタンを表示するかどうかの判定
+                // ★「続きを表示」の判定も配列用に変更
                 const hasMoreImages = computed(() => {
-                    if (!galleryData.value[currentCat.value]) return false;
-                    return displayLimit.value < galleryData.value[currentCat.value].length;
+                    const currentData = galleryData.value.find(c => c.name === currentCat.value);
+                    if (!currentData || !currentData.images) return false;
+                    return displayLimit.value < currentData.images.length;
                 });
 
                 // ★ボタンを押したときの処理（上限を8増やす）
@@ -152,6 +154,7 @@
                     try {
                         const res = await fetch('assets/gallery.json');
                         galleryData.value = await res.json();
+                        // 読み込み直後に、一番最初（最新）のカテゴリを選択状態にする
                         if (categories.value.length > 0) {
                             currentCat.value = categories.value[0];
                         }
