@@ -152,14 +152,27 @@
 
                 const fetchGallery = async () => {
                     try {
-                        const res = await fetch('assets/gallery.json');
-                        galleryData.value = await res.json();
+                        // 改善1：URLの末尾に現在の時刻を付けることで、Cloudflareのキャッシュを強制的に無効化し、常に最新のJSONを取りに行く
+                        const res = await fetch(`assets/gallery.json?t=${new Date().getTime()}`);
+                        let data = await res.json();
+
+                        // 改善2：もしキャッシュやPush漏れで「古い形式（{}）」が読み込まれてしまった場合の自動修復プログラム
+                        if (!Array.isArray(data)) {
+                            console.warn("古い形式のJSONを検知しました。自動修復して表示します。");
+                            data = Object.keys(data).map(key => ({
+                                name: key,
+                                images: data[key]
+                            })).sort((a, b) => b.name.localeCompare(a.name)); // フォルダ名で降順ソート
+                        }
+
+                        galleryData.value = data;
+
                         // 読み込み直後に、一番最初（最新）のカテゴリを選択状態にする
                         if (categories.value.length > 0) {
                             currentCat.value = categories.value[0];
                         }
                     } catch (e) {
-                        console.error("Failed to load gallery data.");
+                        console.error("Failed to load gallery data.", e);
                     }
                 };
 
