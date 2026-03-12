@@ -67,19 +67,19 @@
 
                         // VueがHTMLを描画したあとに、確実にXのスクリプトを起動する
                         nextTick(() => {
-                            setTimeout(() => {
-                                if (window.twttr && window.twttr.widgets) {
-                                    // すでにXの機能が準備できていれば実行
-                                    window.twttr.widgets.load();
-                                } else {
-                                    // 準備できていなければ、ここで強制的にスクリプトを読み込ませる
-                                    const script = document.createElement('script');
-                                    script.src = "https://platform.twitter.com/widgets.js";
-                                    script.charset = "utf-8";
-                                    script.async = true;
-                                    document.body.appendChild(script);
-                                }
-                            }, 100); // 描画から0.1秒だけ待ってから実行（確実性を上げるため）
+                            // 古いXのスクリプトが残っていたら一旦削除する（重複エラー防止）
+                            const existingScript = document.getElementById('twitter-wjs');
+                            if (existingScript) {
+                                existingScript.remove();
+                            }
+
+                            // 強制的にXのスクリプトを新しく読み込んで実行させる
+                            const script = document.createElement('script');
+                            script.id = 'twitter-wjs';
+                            script.src = "https://platform.twitter.com/widgets.js";
+                            script.charset = "utf-8";
+                            script.async = true;
+                            document.body.appendChild(script);
                         });
 
                     } catch (error) {
