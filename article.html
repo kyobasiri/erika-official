@@ -58,18 +58,28 @@
                         let text = await response.text();
 
                         // ★X(Twitter)の自動埋め込みマジック★
-                        // URLだけの行を見つけたら、Twitterの埋め込み用HTMLタグに自動変換する
+                        // 変更点：万が一カード化に失敗してもURLがリンクとして残るように >$1< を追加
                         const xLinkRegex = /^[ \t]*(https?:\/\/(?:x\.com|twitter\.com)\/[a-zA-Z0-9_]+\/status\/\d+)(?:\?[^ \t\n]*)?[ \t]*$/gm;
-                        text = text.replace(xLinkRegex, '<blockquote class="twitter-tweet"><a href="$1"></a></blockquote>');
+                        text = text.replace(xLinkRegex, '<blockquote class="twitter-tweet"><a href="$1">$1</a></blockquote>');
 
                         // MarkdownをHTMLに変換
                         compiledMarkdown.value = marked.parse(text);
 
-                        // VueがHTMLを画面に描画した直後に、Xのスクリプトを起動してカード化する
+                        // VueがHTMLを描画したあとに、確実にXのスクリプトを起動する
                         nextTick(() => {
-                            if (window.twttr) {
-                                window.twttr.widgets.load();
-                            }
+                            setTimeout(() => {
+                                if (window.twttr && window.twttr.widgets) {
+                                    // すでにXの機能が準備できていれば実行
+                                    window.twttr.widgets.load();
+                                } else {
+                                    // 準備できていなければ、ここで強制的にスクリプトを読み込ませる
+                                    const script = document.createElement('script');
+                                    script.src = "https://platform.twitter.com/widgets.js";
+                                    script.charset = "utf-8";
+                                    script.async = true;
+                                    document.body.appendChild(script);
+                                }
+                            }, 100); // 描画から0.1秒だけ待ってから実行（確実性を上げるため）
                         });
 
                     } catch (error) {
