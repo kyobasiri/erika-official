@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <title>記事ページ | エリカ・プロジェクト</title>
+    <link rel="stylesheet" href="/css/lib/bulma.min.css">
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="/js/lib/marked.min.js"></script>
+    <script async src="/js/lib/widgets.js" charset="utf-8"></script>
+</head>
+
+<body>
+    <div id="app" class="container section">
+        <div class="content">
+
+            <div v-html="compiledMarkdown"></div>
+
+            <hr v-if="compiledMarkdown !== '<p>読み込み中...</p>'">
+
+            <div class="columns is-multiline">
+                <div class="column is-half" v-for="n in 10" :key="n" v-show="!imageErrors[n]">
+                    <figure class="image">
+                        <img :src="`/assets/images/gallery/${articleId}/${n}.png`" @error="handleImageError(n)"
+                            alt="エリカ・ギャラリー画像">
+                    </figure>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script type="module">
+        // ローカルのVueを読み込む
+        import { createApp, ref, onMounted, nextTick } from '/js/lib/vue.esm-browser.js';
+
+        createApp({
+            setup() {
+                const articleId = ref('');
+                const compiledMarkdown = ref('<p>読み込み中...</p>');
+                const imageErrors = ref({}); // エラーになった（存在しない）画像番号を記録
+
+                // 画像が存在しない場合は、その番号を記録して画面から隠す（v-showと連動）
+                const handleImageError = (n) => {
+                    imageErrors.value[n] = true;
+                };
+
+                onMounted(async () => {
+                    // URLから ?id=001-test のようなパラメータを取得
+                    const params = new URLSearchParams(window.location.search);
+                    const id = params.get('id') || '001-test'; // ?id= が無い場合は 001-test を表示
+                    articleId.value = id;
+
+                    try {
+                        // Markdownファイルの取得
+                        const response = await fetch(`/articles/${id}.md`);
+                        if (!response.ok) throw new Error('記事が見つかりません');
+                        let text = await response.text();
+
+                        // ★X(Twitter)の自動埋め込みマジック★
+                        // URLだけの行を見つけたら、Twitterの埋め込み用HTMLタグに自動変換する
+                        const xLinkRegex = /^[ \t]*(https?:\/\/(?:x\.com|twitter\.com)\/[a-zA-Z0-9_]+\/status\/\d+)(?:\?[^ \t\n]*)?[ \t]*$/gm;
+                        text = text.replace(xLinkRegex, '<blockquote class="twitter-tweet"><a href="$1"></a></blockquote>');
+
+                        // MarkdownをHTMLに変換
+                        compiledMarkdown.value = marked.parse(text);
+
+                        // VueがHTMLを画面に描画した直後に、Xのスクリプトを起動してカード化する
+                        nextTick(() => {
+                            if (window.twttr) {
+                                window.twttr.widgets.load();
+                            }
+                        });
+
+                    } catch (error) {
+                        compiledMarkdown.value = `<p>記事の読み込みに失敗しました。</p>`;
+                    }
+                });
+
+                return { articleId, compiledMarkdown, imageErrors, handleImageError };
+            }
+        }).mount('#app');
+    </script>
+</body>
+
+</html>
