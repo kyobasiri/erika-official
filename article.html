@@ -46,47 +46,46 @@
                 };
 
                 onMounted(async () => {
-                    // URLから ?id=001-test のようなパラメータを取得
                     const params = new URLSearchParams(window.location.search);
-                    const id = params.get('id') || '001-test'; // ?id= が無い場合は 001-test を表示
+                    const id = params.get('id') || '001-test';
                     articleId.value = id;
 
                     try {
-                        // Markdownファイルの取得
                         const response = await fetch(`/articles/${id}.md`);
                         if (!response.ok) throw new Error('記事が見つかりません');
                         let text = await response.text();
 
-                        // ★X(Twitter)の自動埋め込みマジック★
-                        // 変更点：万が一カード化に失敗してもURLがリンクとして残るように >$1< を追加
-                        const xLinkRegex = /^[ \t]*(https?:\/\/(?:x\.com|twitter\.com)\/[a-zA-Z0-9_]+\/status\/\d+)(?:\?[^ \t\n]*)?[ \t]*$/gm;
+                        // 🌟 修正ポイント1：Windows特有の改行コード(\r)を完全に削除（正規表現の空振りを防ぐ）
+                        text = text.replace(/\r/g, '');
+
+                        // 🌟 修正ポイント2：より強力でシンプルなURL検知（行の最初から最後までがXのURLなら変換）
+                        const xLinkRegex = /^(https?:\/\/(?:x\.com|twitter\.com)\/[a-zA-Z0-9_]+\/status\/\d+.*)$/gm;
                         text = text.replace(xLinkRegex, '<blockquote class="twitter-tweet"><a href="$1">$1</a></blockquote>');
 
                         // MarkdownをHTMLに変換
                         compiledMarkdown.value = marked.parse(text);
 
-                        // VueがHTMLを描画したあとに、確実にXのスクリプトを起動する
+                        // 🌟 修正ポイント3：描画後に確実にXのプログラムを起動する
                         nextTick(() => {
-                            // 古いXのスクリプトが残っていたら一旦削除する（重複エラー防止）
-                            const existingScript = document.getElementById('twitter-wjs');
-                            if (existingScript) {
-                                existingScript.remove();
-                            }
-
-                            // 強制的にXのスクリプトを新しく読み込んで実行させる
-                            const script = document.createElement('script');
-                            script.id = 'twitter-wjs';
-                            script.src = "https://platform.twitter.com/widgets.js";
-                            script.charset = "utf-8";
-                            script.async = true;
-                            document.body.appendChild(script);
+                            setTimeout(() => {
+                                // すでにXの機能があれば実行、なければ強制読み込み
+                                if (window.twttr && window.twttr.widgets) {
+                                    window.twttr.widgets.load();
+                                } else {
+                                    const script = document.createElement('script');
+                                    script.src = "https://platform.twitter.com/widgets.js";
+                                    script.charset = "utf-8";
+                                    script.async = true;
+                                    document.body.appendChild(script);
+                                }
+                            }, 300); // 確実にHTMLが描画されるのを0.3秒だけ待つ
                         });
 
                     } catch (error) {
+                        console.error(error);
                         compiledMarkdown.value = `<p>記事の読み込みに失敗しました。</p>`;
                     }
                 });
-
                 return { articleId, compiledMarkdown, imageErrors, handleImageError };
             }
         }).mount('#app');
