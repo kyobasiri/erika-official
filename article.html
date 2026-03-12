@@ -56,27 +56,18 @@
 
                         // ★超強力版：X(Twitter)の自動埋め込みマジック★
                         // 文章のどこにあっても、XのURLを見つけたら強制的に埋め込みタグ（blockquote）に変換します
-                        const xLinkRegex = /(https?:\/\/(?:x\.com|twitter\.com)\/[a-zA-Z0-9_]+\/status\/\d+[^ \n\r<]*)/g;
-                        text = text.replace(xLinkRegex, '\n\n<blockquote class="twitter-tweet"><a href="$1"></a></blockquote>\n\n');
+                        // ウィジェットが x.com を上手く解釈できないことがあるため、一律 twitter.com に変換します。
+                        const xLinkRegex = /https?:\/\/(?:x\.com|twitter\.com)\/([a-zA-Z0-9_]+\/status\/\d+[^ \n\r<]*)/g;
+                        text = text.replace(xLinkRegex, '\n\n<blockquote class="twitter-tweet"><a href="https://twitter.com/$1"></a></blockquote>\n\n');
 
                         // MarkdownをHTMLに変換
                         compiledMarkdown.value = marked.parse(text);
 
                         // VueがHTMLを画面に描画したあとに、Xのカード化プログラムを起動
                         nextTick(() => {
-                            // 描画から0.5秒待って、確実にXのスクリプトを読み込ませる（確実性重視）
+                            // 描画から0.5秒待って、確実性重視
                             setTimeout(() => {
-                                const existingScript = document.getElementById('twitter-wjs');
-                                if (existingScript) existingScript.remove(); // 古いものを削除
-
-                                const script = document.createElement('script');
-                                script.id = 'twitter-wjs';
-                                script.src = "https://platform.twitter.com/widgets.js";
-                                script.charset = "utf-8";
-                                script.async = true;
-                                document.body.appendChild(script);
-
-                                // もしすでに機能が準備されていれば実行
+                                // すでにウィジェット側の機能が準備されていれば再描画を実行
                                 if (window.twttr && window.twttr.widgets) {
                                     window.twttr.widgets.load();
                                 }
