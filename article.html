@@ -38,9 +38,8 @@
             setup() {
                 const articleId = ref('');
                 const compiledMarkdown = ref('<p>読み込み中...</p>');
-                const imageErrors = ref({}); // エラーになった（存在しない）画像番号を記録
+                const imageErrors = ref({});
 
-                // 画像が存在しない場合は、その番号を記録して画面から隠す（v-showと連動）
                 const handleImageError = (n) => {
                     imageErrors.value[n] = true;
                 };
@@ -55,30 +54,33 @@
                         if (!response.ok) throw new Error('記事が見つかりません');
                         let text = await response.text();
 
-                        // 🌟 修正ポイント1：Windows特有の改行コード(\r)を完全に削除（正規表現の空振りを防ぐ）
-                        text = text.replace(/\r/g, '');
-
-                        // 🌟 修正ポイント2：より強力でシンプルなURL検知（行の最初から最後までがXのURLなら変換）
-                        const xLinkRegex = /^(https?:\/\/(?:x\.com|twitter\.com)\/[a-zA-Z0-9_]+\/status\/\d+.*)$/gm;
-                        text = text.replace(xLinkRegex, '<blockquote class="twitter-tweet"><a href="$1">$1</a></blockquote>');
+                        // ★超強力版：X(Twitter)の自動埋め込みマジック★
+                        // 文章のどこにあっても、XのURLを見つけたら強制的に埋め込みタグ（blockquote）に変換します
+                        const xLinkRegex = /(https?:\/\/(?:x\.com|twitter\.com)\/[a-zA-Z0-9_]+\/status\/\d+[^ \n\r<]*)/g;
+                        text = text.replace(xLinkRegex, '\n\n<blockquote class="twitter-tweet"><a href="$1"></a></blockquote>\n\n');
 
                         // MarkdownをHTMLに変換
                         compiledMarkdown.value = marked.parse(text);
 
-                        // 🌟 修正ポイント3：描画後に確実にXのプログラムを起動する
+                        // VueがHTMLを画面に描画したあとに、Xのカード化プログラムを起動
                         nextTick(() => {
+                            // 描画から0.5秒待って、確実にXのスクリプトを読み込ませる（確実性重視）
                             setTimeout(() => {
-                                // すでにXの機能があれば実行、なければ強制読み込み
+                                const existingScript = document.getElementById('twitter-wjs');
+                                if (existingScript) existingScript.remove(); // 古いものを削除
+
+                                const script = document.createElement('script');
+                                script.id = 'twitter-wjs';
+                                script.src = "https://platform.twitter.com/widgets.js";
+                                script.charset = "utf-8";
+                                script.async = true;
+                                document.body.appendChild(script);
+
+                                // もしすでに機能が準備されていれば実行
                                 if (window.twttr && window.twttr.widgets) {
                                     window.twttr.widgets.load();
-                                } else {
-                                    const script = document.createElement('script');
-                                    script.src = "https://platform.twitter.com/widgets.js";
-                                    script.charset = "utf-8";
-                                    script.async = true;
-                                    document.body.appendChild(script);
                                 }
-                            }, 300); // 確実にHTMLが描画されるのを0.3秒だけ待つ
+                            }, 500);
                         });
 
                     } catch (error) {
@@ -86,6 +88,7 @@
                         compiledMarkdown.value = `<p>記事の読み込みに失敗しました。</p>`;
                     }
                 });
+
                 return { articleId, compiledMarkdown, imageErrors, handleImageError };
             }
         }).mount('#app');
