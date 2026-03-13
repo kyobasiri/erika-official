@@ -56,8 +56,9 @@
                         </a>
                     </div>
 
+
                     <section class="section">
-                        <div class="container" id="recent-blog-app">
+                        <div class="container">
                             <h2 class="title is-4">エリカの活動記録（最新記事）</h2>
 
                             <div class="content" v-if="recentArticles.length === 0">
@@ -69,7 +70,7 @@
                                     <div class="card" style="height: 100%;">
                                         <div class="card-content">
                                             <p class="title is-5" style="line-height: 1.4;">
-                                                <a :href="`/article.html?id=${article.id}`" class="has-text-link">
+                                                <a :href="`./article.html?id=${article.id}`" class="has-text-link">
                                                     {{ article.title }}
                                                 </a>
                                             </p>
@@ -82,7 +83,7 @@
                             </div>
 
                             <div class="has-text-right mt-5">
-                                <a href="/blog.html" class="button is-link is-outlined">
+                                <a href="./blog.html" class="button is-link is-outlined">
                                     <strong>すべての記事を読む →</strong>
                                 </a>
                             </div>
@@ -278,13 +279,14 @@
                 </a>
             </div>
         </footer>
-    </div>
-
+        </footer>
+    </div> <!-- Main #app ends here -->
     <script type="module">
         import { createApp, ref, onMounted, onUnmounted } from './js/lib/vue.esm-browser.js';
         createApp({
             setup() {
                 const status = ref('CHECKING...');
+                const recentArticles = ref([]);
                 const MANAGER_URL = "https://manager.erikakataru.com";
                 let intervalId = null;
 
@@ -333,46 +335,36 @@
                     }
                 };
 
+                const fetchRecentArticles = async () => {
+                    try {
+                        const response = await fetch(`./assets/articles.json?t=${new Date().getTime()}`);
+                        if (response.ok) {
+                            const allArticles = await response.json();
+                            recentArticles.value = allArticles.slice(0, 3);
+                        }
+                    } catch (error) {
+                        console.error("記事データの取得に失敗しました:", error);
+                    }
+                };
+
                 onMounted(() => {
                     checkStatus();
                     intervalId = setInterval(checkStatus, 5000);
                     // ★起動時にYouTubeデータを取りに行く
                     fetchLatestVideo();
+                    fetchRecentArticles();
                 });
 
                 onUnmounted(() => {
                     if (intervalId) clearInterval(intervalId);
                 });
 
-                return { status, latestVideo };
+                return { status, latestVideo, recentArticles };
             }
         }).mount('#app');
     </script>
 
-    <script type="module">
-        import { createApp, ref, onMounted } from '/js/lib/vue.esm-browser.js';
 
-        createApp({
-            setup() {
-                const recentArticles = ref([]);
-
-                onMounted(async () => {
-                    try {
-                        const response = await fetch('/assets/articles.json');
-                        if (response.ok) {
-                            const allArticles = await response.json();
-                            // ★ slice(0, 3) で、配列の最初から3件だけを切り取って表示用に入れます
-                            recentArticles.value = allArticles.slice(0, 3);
-                        }
-                    } catch (error) {
-                        console.error("記事データの取得に失敗しました:", error);
-                    }
-                });
-
-                return { recentArticles };
-            }
-        }).mount('#recent-blog-app');
-    </script>
 </body>
 
 </html>
