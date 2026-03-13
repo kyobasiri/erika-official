@@ -77,24 +77,28 @@
                         if (!response.ok) throw new Error('記事が見つかりません');
                         let text = await response.text();
 
-                        // ★超強力版：X(Twitter)の自動埋め込みマジック★
-                        // 文章のどこにあっても、XのURLを見つけたら強制的に埋め込みタグ（blockquote）に変換します
-                        // ウィジェットが x.com を上手く解釈できないことがあるため、一律 twitter.com に変換します。
-                        const xLinkRegex = /https?:\/\/(?:x\.com|twitter\.com)\/([a-zA-Z0-9_]+\/status\/\d+[^ \n\r<]*)/g;
+                        // ★追加：Windowsの改行コード(\r)を完全に削除し、誤作動を防ぐ
+                        text = text.replace(/\r/g, '');
+
+                        // ① X(Twitter)の自動埋め込み
+                        // 「行の先頭からURLだけで構成されている場合」のみ変換
+                        const xLinkRegex = /^[ \t]*https?:\/\/(?:x\.com|twitter\.com)\/([a-zA-Z0-9_]+\/status\/\d+)[^\s<]*[ \t]*$/gm;
                         text = text.replace(xLinkRegex, '\n\n<blockquote class="twitter-tweet"><a href="https://twitter.com/$1"></a></blockquote>\n\n');
 
-                        // ★YouTubeの自動埋め込みマジック★ (通常動画 ＆ ショート動画対応)
-                        const youtubeRegex = /https?:\/\/(?:www\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]+)[^\s<]*/g;
-                        text = text.replace(youtubeRegex, '\n\n<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; margin: 1.5rem 0; border-radius: 8px;"><iframe src="https://www.youtube.com/embed/$1" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>\n\n');
+                        // ② YouTube【ショート動画】の自動埋め込み（縦長サイズ）
+                        const ytShortsRegex = /^[ \t]*https?:\/\/(?:www\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]+)[^\s<]*[ \t]*$/gm;
+                        text = text.replace(ytShortsRegex, '\n\n<div style="max-width: 320px; margin: 1.5rem auto; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1);"><div style="position: relative; padding-bottom: 177.77%; height: 0;"><iframe src="https://www.youtube.com/embed/$1" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" allowfullscreen></iframe></div></div>\n\n');
+
+                        // ③ YouTube【通常動画】の自動埋め込み（横長サイズ）
+                        const ytNormalRegex = /^[ \t]*https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)[^\s<]*[ \t]*$/gm;
+                        text = text.replace(ytNormalRegex, '\n\n<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; margin: 1.5rem 0; border-radius: 8px;"><iframe src="https://www.youtube.com/embed/$1" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" allowfullscreen></iframe></div>\n\n');
 
                         // MarkdownをHTMLに変換
                         compiledMarkdown.value = marked.parse(text);
 
-                        // VueがHTMLを画面に描画したあとに、Xのカード化プログラムを起動
+                        // VueがHTMLを描画したあとに、Xのカード化プログラムを起動
                         nextTick(() => {
-                            // 描画から0.5秒待って、確実性重視
                             setTimeout(() => {
-                                // すでにウィジェット側の機能が準備されていれば再描画を実行
                                 if (window.twttr && window.twttr.widgets) {
                                     window.twttr.widgets.load();
                                 }
