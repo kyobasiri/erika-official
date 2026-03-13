@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'assets/images/gallery/**'
+      - 'articles/**'
   workflow_dispatch: # ← これを1行追加するだけ！
 
 permissions:
@@ -28,5 +29,5 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add assets/gallery.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: auto-generate gallery.json" && git push)
+          git add assets/gallery.json assets/articles.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: auto-generate json data" && git push)
