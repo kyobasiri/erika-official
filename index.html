@@ -56,6 +56,39 @@
                         </a>
                     </div>
 
+                    <section class="section">
+                        <div class="container" id="recent-blog-app">
+                            <h2 class="title is-4">エリカの活動記録（最新記事）</h2>
+
+                            <div class="content" v-if="recentArticles.length === 0">
+                                <p>記事を読み込んでいます...</p>
+                            </div>
+
+                            <div class="columns is-multiline">
+                                <div class="column is-one-third" v-for="article in recentArticles" :key="article.id">
+                                    <div class="card" style="height: 100%;">
+                                        <div class="card-content">
+                                            <p class="title is-5" style="line-height: 1.4;">
+                                                <a :href="`/article.html?id=${article.id}`" class="has-text-link">
+                                                    {{ article.title }}
+                                                </a>
+                                            </p>
+                                            <p class="subtitle is-6 has-text-grey mt-2">
+                                                {{ article.id }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="has-text-right mt-5">
+                                <a href="/blog.html" class="button is-link is-outlined">
+                                    <strong>すべての記事を読む →</strong>
+                                </a>
+                            </div>
+                        </div>
+                    </section>
+
 
                     <section class="section">
                         <div class="container">
@@ -314,6 +347,31 @@
                 return { status, latestVideo };
             }
         }).mount('#app');
+    </script>
+
+    <script type="module">
+        import { createApp, ref, onMounted } from '/js/lib/vue.esm-browser.js';
+
+        createApp({
+            setup() {
+                const recentArticles = ref([]);
+
+                onMounted(async () => {
+                    try {
+                        const response = await fetch('/assets/articles.json');
+                        if (response.ok) {
+                            const allArticles = await response.json();
+                            // ★ slice(0, 3) で、配列の最初から3件だけを切り取って表示用に入れます
+                            recentArticles.value = allArticles.slice(0, 3);
+                        }
+                    } catch (error) {
+                        console.error("記事データの取得に失敗しました:", error);
+                    }
+                });
+
+                return { recentArticles };
+            }
+        }).mount('#recent-blog-app');
     </script>
 </body>
 

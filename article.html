@@ -44,6 +44,12 @@
                 </div>
             </div>
 
+            <div class="has-text-centered" style="margin-top: 3rem;">
+                <a href="/blog.html" class="button is-link is-outlined">
+                    <strong>← 記事一覧に戻る</strong>
+                </a>
+            </div>
+
         </div>
     </div>
 
@@ -76,6 +82,10 @@
                         // ウィジェットが x.com を上手く解釈できないことがあるため、一律 twitter.com に変換します。
                         const xLinkRegex = /https?:\/\/(?:x\.com|twitter\.com)\/([a-zA-Z0-9_]+\/status\/\d+[^ \n\r<]*)/g;
                         text = text.replace(xLinkRegex, '\n\n<blockquote class="twitter-tweet"><a href="https://twitter.com/$1"></a></blockquote>\n\n');
+
+                        // ★YouTubeの自動埋め込みマジック★
+                        const youtubeRegex = /https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)[^\s<]*/g;
+                        text = text.replace(youtubeRegex, '\n\n<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; margin: 1.5rem 0; border-radius: 8px;"><iframe src="https://www.youtube.com/embed/$1" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>\n\n');
 
                         // MarkdownをHTMLに変換
                         compiledMarkdown.value = marked.parse(text);
