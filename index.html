@@ -61,7 +61,7 @@
                         <div class="container">
                             <h2 class="title is-4">エリカの活動記録（最新記事）</h2>
 
-                            <div class="content" v-if="recentArticles.length === 0">
+                            <div class="content" v-if="recentArticles?.length === 0">
                                 <p>記事を読み込んでいます...</p>
                             </div>
 
@@ -279,8 +279,8 @@
                 </a>
             </div>
         </footer>
-        </footer>
     </div> <!-- Main #app ends here -->
+
     <script type="module">
         import { createApp, ref, onMounted, onUnmounted } from './js/lib/vue.esm-browser.js';
         createApp({
