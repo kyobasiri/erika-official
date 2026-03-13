@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <title>記事一覧 | エリカ・プロジェクト</title>
-    <link rel="stylesheet" href="/css/lib/bulma.min.css">
-    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="./css/lib/bulma.min.css">
+    <link rel="stylesheet" href="./css/style.css">
     <link rel="icon" href="assets/images/icon.png" type="image/png">
     <link rel="apple-touch-icon" href="assets/images/icon.png">
     <meta property="og:type" content="website">
@@ -38,7 +38,7 @@
                         <div class="media-content">
                             <div class="content">
                                 <p>
-                                    <a :href="`/article.html?id=${article.id}`" class="title is-5 has-text-link">
+                                    <a :href="`./article.html?id=${article.id}`" class="title is-5 has-text-link">
                                         {{ article.title }}
                                     </a>
                                     <br>
@@ -54,7 +54,7 @@
     </section>
 
     <script type="module">
-        import { createApp, ref, onMounted } from '/js/lib/vue.esm-browser.js';
+        import { createApp, ref, onMounted } from './js/lib/vue.esm-browser.js';
 
         createApp({
             setup() {
@@ -63,7 +63,8 @@
                 onMounted(async () => {
                     try {
                         // Pythonが作った articles.json を読み込む
-                        const response = await fetch('/assets/articles.json');
+                        // キャッシュ対策で末尾に現在時刻を付与
+                        const response = await fetch(`assets/articles.json?t=${new Date().getTime()}`);
                         if (!response.ok) throw new Error('Network response was not ok');
 
                         articles.value = await response.json();

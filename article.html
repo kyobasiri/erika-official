@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <title>記事ページ | エリカ・プロジェクト</title>
-    <link rel="stylesheet" href="/css/lib/bulma.min.css">
-    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="./css/lib/bulma.min.css">
+    <link rel="stylesheet" href="./css/style.css">
     <link rel="icon" href="assets/images/icon.png" type="image/png">
     <link rel="apple-touch-icon" href="assets/images/icon.png">
     <meta property="og:type" content="website">
@@ -23,7 +23,7 @@
 
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9959522790700122"
         crossorigin="anonymous"></script>
-    <script src="/js/lib/marked.min.js"></script>
+    <script src="./js/lib/marked.min.js"></script>
     <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 </head>
 
@@ -49,7 +49,7 @@
 
     <script type="module">
         // ローカルのVueを読み込む
-        import { createApp, ref, onMounted, nextTick } from '/js/lib/vue.esm-browser.js';
+        import { createApp, ref, onMounted, nextTick } from './js/lib/vue.esm-browser.js';
 
         createApp({
             setup() {
@@ -67,7 +67,7 @@
                     articleId.value = id;
 
                     try {
-                        const response = await fetch(`/articles/${id}.md`);
+                        const response = await fetch(`./articles/${id}.md`);
                         if (!response.ok) throw new Error('記事が見つかりません');
                         let text = await response.text();
 
