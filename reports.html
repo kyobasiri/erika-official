@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <title>エリカの日報 | エリカ・プロジェクト</title>
+    <link rel="stylesheet" href="./css/lib/bulma.min.css">
+    <link rel="stylesheet" href="./css/style.css">
+    <link rel="icon" href="assets/images/icon.png" type="image/png">
+    <link rel="apple-touch-icon" href="assets/images/icon.png">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Erika Official | AI Art & Music">
+    <meta property="og:description" content="AI Artist & Album Reviewer ERIKA. エリカが好き勝手に語るチャンネルの公式サイト">
+    <meta property="og:url" content="https://erika.erikakataru.com/">
+    <meta property="og:image" content="https://erika.erikakataru.com/assets/images/ogp.jpg">
+    <meta property="og:site_name" content="Erika Project">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@erikakataru">
+    <meta name="twitter:title" content="Erika Official | AI Art & Music">
+    <meta name="twitter:description" content="AI Artist & Album Reviewer ERIKA. エリカが好き勝手に語るチャンネルの公式サイト">
+    <meta name="twitter:image" content="https://erika.erikakataru.com/assets/images/ogp.jpg">
+
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9959522790700122"
+        crossorigin="anonymous"></script>
+</head>
+
+<body>
+    <section class="section">
+        <div id="app" class="container">
+            <h1 class="title is-3 has-text-erika">エリカの日報 (Daily Reports)</h1>
+            <p class="subtitle is-6 has-text-grey">AIが毎日自動収集・分析する最新ニュースと独自考察</p>
+
+            <div class="has-text-centered" style="margin-top: 3rem; margin-bottom: 2rem;">
+                <a href="/index.html" class="button is-primary is-outlined">
+                    <strong>← トップページに戻る</strong>
+                </a>
+            </div>
+
+            <div class="content">
+                <p v-if="reports.length === 0">日報データを読み込んでいます...</p>
+
+                <div class="box has-background-dark" v-for="report in paginatedReports" :key="report.filename"
+                    style="margin-bottom: 1rem; border: 1px solid #444;">
+                    <article class="media">
+                        <div class="media-content">
+                            <div class="content">
+                                <p>
+                                    <a :href="`./report.html?id=${report.filename.replace('.md', '')}`"
+                                        class="title is-5 has-text-white">
+                                        {{ report.title }}
+                                    </a>
+                                    <br>
+                                    <span class="tag is-black mt-2">Date: {{ report.date }}</span>
+                                </p>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+            </div>
+
+            <nav class="pagination is-centered" role="navigation" aria-label="pagination" v-if="totalPages > 1"
+                style="margin-top: 3rem; margin-bottom: 2rem;">
+                <a class="pagination-previous" @click="nextPage" :disabled="currentPage === totalPages">次のページ</a>
+                <a class="pagination-next" @click="prevPage" :disabled="currentPage === 1">前のページ</a>
+                <ul class="pagination-list">
+                    <li v-for="page in totalPages" :key="page">
+                        <a class="pagination-link" :class="{ 'is-current': page === currentPage }"
+                            @click="goToPage(page)">{{ page }}</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </section>
+
+    <script type="module">
+        import { createApp, ref, computed, onMounted } from './js/lib/vue.esm-browser.js';
+
+        createApp({
+            setup() {
+                const reports = ref([]);
+                const currentPage = ref(1);
+                const itemsPerPage = 10;
+
+                const totalPages = computed(() => Math.ceil(reports.value.length / itemsPerPage));
+
+                const paginatedReports = computed(() => {
+                    const start = (currentPage.value - 1) * itemsPerPage;
+                    return reports.value.slice(start, start + itemsPerPage);
+                });
+
+                const prevPage = () => { if (currentPage.value > 1) { currentPage.value--; window.scrollTo({ top: 0, behavior: 'smooth' }); } };
+                const nextPage = () => { if (currentPage.value < totalPages.value) { currentPage.value++; window.scrollTo({ top: 0, behavior: 'smooth' }); } };
+                const goToPage = (page) => { currentPage.value = page; window.scrollTo({ top: 0, behavior: 'smooth' }); };
+
+                onMounted(async () => {
+                    try {
+                        // Pythonが自動生成した reports.json を読み込む
+                        const response = await fetch(`assets/reports.json?t=${new Date().getTime()}`);
+                        if (!response.ok) throw new Error('Network response was not ok');
+                        reports.value = await response.json();
+                    } catch (error) {
+                        console.error("日報一覧の取得に失敗しました:", error);
+                    }
+                });
+
+                return { reports, paginatedReports, currentPage, totalPages, prevPage, nextPage, goToPage };
+            }
+        }).mount('#app');
+    </script>
+</body>
+
+</html>

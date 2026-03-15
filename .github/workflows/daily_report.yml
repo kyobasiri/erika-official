@@ -1,0 +1,50 @@
+name: エリカの自動日報生成
+
+# 実行されるタイミングの設定
+on:
+  schedule:
+    # 毎日日本時間の朝7:00（UTCの22:00）に自動実行
+    - cron: '0 22 * * *'
+  workflow_dispatch:
+    # GitHubの画面から手動で実行するためのボタンも有効化
+
+jobs:
+  generate-report:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. リポジトリのコードを読み込む
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Pythonの環境を準備する
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10' # 安定しているバージョンを指定
+
+      # 3. 必要なライブラリをインストールする
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install openai feedparser
+
+      # 4. エリカに日報を書かせる（Pythonスクリプトの実行）
+      - name: Run report generation script
+        env:
+          # ステップ1で登録したSecretsからAPIキーを読み込んで渡す
+          SAKURA_API_KEY: ${{ secrets.SAKURA_API_KEY }}
+        run: python report_gen.py
+
+      # 5. 生成されたファイル（MarkdownとJSON）をGitHubに自動保存（コミット＆プッシュ）
+      - name: Commit and Push changes
+        run: |
+          # GitHub ActionsのBotとして名前を設定
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          # 生成・更新されたファイルを指定
+          git add reports/ assets/reports.json
+          
+          # 変更があった場合のみコミットしてプッシュする
+          git diff --quiet && git diff --staged --quiet || (git commit -m "エリカが本日の日報を自動生成しました 📝" && git push)
