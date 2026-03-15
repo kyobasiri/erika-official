@@ -67,14 +67,27 @@
             <div class="container">
                 <h1 class="title is-1 has-text-white has-text-centered mb-6">ERIKA GALLERY</h1>
 
-                <div class="tabs is-centered is-large mb-6" v-if="categories.length > 0">
-                    <ul>
-                        <li v-for="cat in categories" :key="cat" :class="{'is-active': currentCat === cat}">
-                            <a @click="currentCat = cat"
-                                :class="currentCat === cat ? 'has-text-white has-text-weight-bold' : 'has-text-grey-light'">{{
-                                cat }}</a>
-                        </li>
-                    </ul>
+                <!-- 上部フォルダナビゲーション -->
+                <div class="folder-navigation mb-6" v-if="categories.length > 0">
+                    <nav class="pagination is-centered mb-4" role="navigation" aria-label="pagination" v-if="catTotalPages > 1">
+                        <a class="pagination-previous" @click="prevCatPage" :disabled="catCurrentPage === 1">前のフォルダ群</a>
+                        <a class="pagination-next" @click="nextCatPage" :disabled="catCurrentPage === catTotalPages">次のフォルダ群</a>
+                        <ul class="pagination-list">
+                            <li v-for="page in catTotalPages" :key="page">
+                                <a class="pagination-link" :class="{ 'is-current': page === catCurrentPage }" @click="goToCatPage(page)">{{ page }}</a>
+                            </li>
+                        </ul>
+                    </nav>
+
+                    <div class="tabs is-centered is-large">
+                        <ul>
+                            <li v-for="cat in paginatedCategories" :key="cat" :class="{'is-active': currentCat === cat}">
+                                <a @click="changeCategory(cat)"
+                                    :class="currentCat === cat ? 'has-text-white has-text-weight-bold' : 'has-text-grey-light'">{{
+                                    cat }}</a>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
 
                 <div class="columns is-multiline">
@@ -95,6 +108,32 @@
                         ▼ 続きを表示 (Load More)
                     </button>
                 </div>
+
+                <!-- 下部フォルダナビゲーション -->
+                <div class="folder-navigation mt-6 mb-6" v-if="categories.length > 0">
+                    <hr style="background-color: #333; margin-bottom: 2rem;">
+                    <p class="has-text-white has-text-centered mb-4">別のフォルダを見る</p>
+                    <nav class="pagination is-centered mb-4" role="navigation" aria-label="pagination" v-if="catTotalPages > 1">
+                        <a class="pagination-previous" @click="prevCatPage" :disabled="catCurrentPage === 1">前のフォルダ群</a>
+                        <a class="pagination-next" @click="nextCatPage" :disabled="catCurrentPage === catTotalPages">次のフォルダ群</a>
+                        <ul class="pagination-list">
+                            <li v-for="page in catTotalPages" :key="page">
+                                <a class="pagination-link" :class="{ 'is-current': page === catCurrentPage }" @click="goToCatPage(page)">{{ page }}</a>
+                            </li>
+                        </ul>
+                    </nav>
+
+                    <div class="tabs is-centered is-large">
+                        <ul>
+                            <li v-for="cat in paginatedCategories" :key="cat" :class="{'is-active': currentCat === cat}">
+                                <a @click="changeCategory(cat)"
+                                    :class="currentCat === cat ? 'has-text-white has-text-weight-bold' : 'has-text-grey-light'">{{
+                                    cat }}</a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
             </div>
         </section>
 
@@ -130,6 +169,40 @@
                 // ★カテゴリ一覧の作り方を配列用に変更
                 const categories = computed(() => galleryData.value.map(c => c.name));
 
+                // ★カテゴリ（フォルダ）のページネーションロジック（8個単位）
+                const catCurrentPage = ref(1);
+                const catsPerPage = 8;
+                
+                const catTotalPages = computed(() => Math.ceil(categories.value.length / catsPerPage));
+                
+                const paginatedCategories = computed(() => {
+                    const start = (catCurrentPage.value - 1) * catsPerPage;
+                    return categories.value.slice(start, start + catsPerPage);
+                });
+
+                const prevCatPage = () => {
+                    if (catCurrentPage.value > 1) {
+                        catCurrentPage.value--;
+                        // ページ遷移時は少し上にスクロールした方が自然であればこちらに処理を書く
+                    }
+                };
+
+                const nextCatPage = () => {
+                    if (catCurrentPage.value < catTotalPages.value) {
+                        catCurrentPage.value++;
+                    }
+                };
+
+                const goToCatPage = (page) => {
+                    catCurrentPage.value = page;
+                };
+
+                // フォルダ変更時に画面上部へスクロール
+                const changeCategory = (cat) => {
+                    currentCat.value = cat;
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                };
+
                 // ★カテゴリ（タブ）を切り替えたら、表示枚数を8枚にリセットする
                 watch(currentCat, () => {
                     displayLimit.value = INITIAL_LIMIT;
@@ -157,23 +230,31 @@
 
                 const fetchGallery = async () => {
                     try {
-                        // 改善1：URLの末尾に現在の時刻を付けることで、Cloudflareのキャッシュを強制的に無効化し、常に最新のJSONを取りに行く
                         const res = await fetch(`assets/gallery.json?t=${new Date().getTime()}`);
                         let data = await res.json();
 
-                        // 改善2：もしキャッシュやPush漏れで「古い形式（{}）」が読み込まれてしまった場合の自動修復プログラム
                         if (!Array.isArray(data)) {
                             console.warn("古い形式のJSONを検知しました。自動修復して表示します。");
                             data = Object.keys(data).map(key => ({
                                 name: key,
                                 images: data[key]
-                            })).sort((a, b) => b.name.localeCompare(a.name)); // フォルダ名で降順ソート
+                            })).sort((a, b) => b.name.localeCompare(a.name));
                         }
 
                         galleryData.value = data;
 
-                        // 読み込み直後に、一番最初（最新）のカテゴリを選択状態にする
-                        if (categories.value.length > 0) {
+                        // URLからクエリパラメータ 'folder' を取得
+                        const params = new URLSearchParams(window.location.search);
+                        const targetFolder = params.get('folder');
+
+                        // 該当するカテゴリが存在すればそれを開く、無ければ一番最初を選ぶ
+                        if (targetFolder && categories.value.includes(targetFolder)) {
+                            currentCat.value = targetFolder;
+                            
+                            // 必要に応じて、開いたフォルダが含まれるページへとページネーションを移動
+                            const catIndex = categories.value.indexOf(targetFolder);
+                            catCurrentPage.value = Math.floor(catIndex / catsPerPage) + 1;
+                        } else if (categories.value.length > 0) {
                             currentCat.value = categories.value[0];
                         }
                     } catch (e) {
@@ -195,6 +276,13 @@
                     galleryData,
                     currentCat,
                     categories,
+                    paginatedCategories,
+                    catCurrentPage,
+                    catTotalPages,
+                    prevCatPage,
+                    nextCatPage,
+                    goToCatPage,
+                    changeCategory,
                     selectedImg,
                     openModal,
                     closeModal,

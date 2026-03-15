@@ -44,11 +44,37 @@
                 </div>
             </div>
 
-            <div class="has-text-centered" style="margin-top: 3rem;">
-                <a href="/blog.html" class="button is-link is-outlined">
-                    <strong>← 記事一覧に戻る</strong>
+            <div v-if="hasGallery" class="has-text-centered" style="margin-top: 2rem;">
+                <a :href="`./gallery.html?folder=${articleId}`" class="button is-warning is-rounded is-medium" style="box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+                    <strong>📸 すべての画像を見る（ギャラリーへ）</strong>
                 </a>
             </div>
+
+            <hr style="margin-top: 3rem; margin-bottom: 3rem; background-color: #333;">
+
+            <nav class="pagination is-centered" role="navigation" aria-label="pagination">
+                <a v-if="prevArticle" :href="`./article.html?id=${prevArticle.id}`" class="pagination-previous has-background-dark has-text-white" style="border-color: #555;">
+                    &laquo; 前の記事
+                </a>
+                <a v-else class="pagination-previous is-disabled has-background-dark has-text-grey" style="border-color: #555;" disabled>
+                    &laquo; 前の記事
+                </a>
+
+                <ul class="pagination-list">
+                    <li>
+                        <a href="/blog.html" class="button is-link is-outlined">
+                            <strong>記事一覧に戻る</strong>
+                        </a>
+                    </li>
+                </ul>
+
+                <a v-if="nextArticle" :href="`./article.html?id=${nextArticle.id}`" class="pagination-next has-background-dark has-text-white" style="border-color: #555;">
+                    次の記事 &raquo;
+                </a>
+                <a v-else class="pagination-next is-disabled has-background-dark has-text-grey" style="border-color: #555;" disabled>
+                    次の記事 &raquo;
+                </a>
+            </nav>
 
         </div>
     </div>
@@ -62,6 +88,9 @@
                 const articleId = ref('');
                 const compiledMarkdown = ref('<p>読み込み中...</p>');
                 const imageErrors = ref({});
+                const hasGallery = ref(false);
+                const prevArticle = ref(null);
+                const nextArticle = ref(null);
 
                 const handleImageError = (n) => {
                     imageErrors.value[n] = true;
@@ -71,6 +100,40 @@
                     const params = new URLSearchParams(window.location.search);
                     const id = params.get('id') || '001-test';
                     articleId.value = id;
+
+                    // ギャラリーの存在チェック
+                    try {
+                        const galleryRes = await fetch(`assets/gallery.json?t=${new Date().getTime()}`);
+                        if (galleryRes.ok) {
+                            let galleryData = await galleryRes.json();
+                            if (!Array.isArray(galleryData)) {
+                                galleryData = Object.keys(galleryData).map(key => ({ name: key }));
+                            }
+                            hasGallery.value = galleryData.some(folder => folder.name === id);
+                        }
+                    } catch (e) {
+                        console.error("Gallery list could not be fetched", e);
+                    }
+
+                    // 前/次の記事を取得
+                    try {
+                        const articlesRes = await fetch(`assets/articles.json?t=${new Date().getTime()}`);
+                        if (articlesRes.ok) {
+                            const articles = await articlesRes.json();
+                            const currentIndex = articles.findIndex(a => a.id === id);
+                            if (currentIndex !== -1) {
+                                // articles配列は新しい記事が先頭()なので、前の記事＝次のインデックス、次の記事＝前のインデックス
+                                if (currentIndex < articles.length - 1) {
+                                    prevArticle.value = articles[currentIndex + 1];
+                                }
+                                if (currentIndex > 0) {
+                                    nextArticle.value = articles[currentIndex - 1];
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.error("Articles list could not be fetched", e);
+                    }
 
                     try {
                         const response = await fetch(`./articles/${id}.md`);
@@ -83,7 +146,7 @@
                         // ① X(Twitter)の自動埋め込み
                         // 「行の先頭からURLだけで構成されている場合」のみ変換
                         const xLinkRegex = /^[ \t]*https?:\/\/(?:x\.com|twitter\.com)\/([a-zA-Z0-9_]+\/status\/\d+)[^\s<]*[ \t]*$/gm;
-                        text = text.replace(xLinkRegex, '\n\n<blockquote class="twitter-tweet"><a href="https://twitter.com/$1"></a></blockquote>\n\n');
+                        text = text.replace(xLinkRegex, '\n\n<div style="display: flex; justify-content: center;"><blockquote class="twitter-tweet" data-align="center"><a href="https://twitter.com/$1"></a></blockquote></div>\n\n');
 
                         // ② YouTube【ショート動画】の自動埋め込み（縦長サイズ）
                         const ytShortsRegex = /^[ \t]*https?:\/\/(?:www\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]+)[^\s<]*[ \t]*$/gm;
@@ -111,7 +174,15 @@
                     }
                 });
 
-                return { articleId, compiledMarkdown, imageErrors, handleImageError };
+                return {
+                    articleId,
+                    compiledMarkdown,
+                    imageErrors,
+                    handleImageError,
+                    hasGallery,
+                    prevArticle,
+                    nextArticle
+                };
             }
         }).mount('#app');
     </script>

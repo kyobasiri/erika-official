@@ -39,7 +39,7 @@
             <div class="content">
                 <p v-if="articles.length === 0">記事を読み込んでいます...</p>
 
-                <div class="box" v-for="article in articles" :key="article.id" style="margin-bottom: 1rem;">
+                <div class="box" v-for="article in paginatedArticles" :key="article.id" style="margin-bottom: 1rem;">
                     <article class="media">
                         <div class="media-content">
                             <div class="content">
@@ -56,15 +56,53 @@
                 </div>
             </div>
 
+            <nav class="pagination is-centered" role="navigation" aria-label="pagination" v-if="totalPages > 1" style="margin-top: 3rem; margin-bottom: 2rem;">
+                <a class="pagination-previous" @click="prevPage" :disabled="currentPage === 1">前のページ</a>
+                <a class="pagination-next" @click="nextPage" :disabled="currentPage === totalPages">次のページ</a>
+                <ul class="pagination-list">
+                    <li v-for="page in totalPages" :key="page">
+                        <a class="pagination-link" :class="{ 'is-current': page === currentPage }" @click="goToPage(page)">{{ page }}</a>
+                    </li>
+                </ul>
+            </nav>
+
         </div>
     </section>
 
     <script type="module">
-        import { createApp, ref, onMounted } from './js/lib/vue.esm-browser.js';
+        import { createApp, ref, computed, onMounted } from './js/lib/vue.esm-browser.js';
 
         createApp({
             setup() {
                 const articles = ref([]); // 記事リストを入れる配列
+                const currentPage = ref(1);
+                const itemsPerPage = 10;
+
+                const totalPages = computed(() => Math.ceil(articles.value.length / itemsPerPage));
+                
+                const paginatedArticles = computed(() => {
+                    const start = (currentPage.value - 1) * itemsPerPage;
+                    return articles.value.slice(start, start + itemsPerPage);
+                });
+
+                const prevPage = () => {
+                    if (currentPage.value > 1) {
+                        currentPage.value--;
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                };
+
+                const nextPage = () => {
+                    if (currentPage.value < totalPages.value) {
+                        currentPage.value++;
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                };
+
+                const goToPage = (page) => {
+                    currentPage.value = page;
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                };
 
                 onMounted(async () => {
                     try {
@@ -79,7 +117,7 @@
                     }
                 });
 
-                return { articles };
+                return { articles, paginatedArticles, currentPage, totalPages, prevPage, nextPage, goToPage };
             }
         }).mount('#app');
     </script>
