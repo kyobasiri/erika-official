@@ -57,8 +57,8 @@
             </div>
 
             <nav class="pagination is-centered" role="navigation" aria-label="pagination" v-if="totalPages > 1" style="margin-top: 3rem; margin-bottom: 2rem;">
-                <a class="pagination-previous" @click="prevPage" :disabled="currentPage === 1">前のページ</a>
-                <a class="pagination-next" @click="nextPage" :disabled="currentPage === totalPages">次のページ</a>
+                <a class="pagination-previous" @click="nextPage" :disabled="currentPage === totalPages">次のページ</a>
+                <a class="pagination-next" @click="prevPage" :disabled="currentPage === 1">前のページ</a>
                 <ul class="pagination-list">
                     <li v-for="page in totalPages" :key="page">
                         <a class="pagination-link" :class="{ 'is-current': page === currentPage }" @click="goToPage(page)">{{ page }}</a>

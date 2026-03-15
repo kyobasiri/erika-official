@@ -70,8 +70,8 @@
                 <!-- 上部フォルダナビゲーション -->
                 <div class="folder-navigation mb-6" v-if="categories.length > 0">
                     <nav class="pagination is-centered mb-4" role="navigation" aria-label="pagination" v-if="catTotalPages > 1">
-                        <a class="pagination-previous" @click="prevCatPage" :disabled="catCurrentPage === 1">前のフォルダ群</a>
-                        <a class="pagination-next" @click="nextCatPage" :disabled="catCurrentPage === catTotalPages">次のフォルダ群</a>
+                        <a class="pagination-previous" @click="nextCatPage" :disabled="catCurrentPage === catTotalPages">次の項目へ</a>
+                        <a class="pagination-next" @click="prevCatPage" :disabled="catCurrentPage === 1">前の項目へ</a>
                         <ul class="pagination-list">
                             <li v-for="page in catTotalPages" :key="page">
                                 <a class="pagination-link" :class="{ 'is-current': page === catCurrentPage }" @click="goToCatPage(page)">{{ page }}</a>
@@ -114,8 +114,8 @@
                     <hr style="background-color: #333; margin-bottom: 2rem;">
                     <p class="has-text-white has-text-centered mb-4">別のフォルダを見る</p>
                     <nav class="pagination is-centered mb-4" role="navigation" aria-label="pagination" v-if="catTotalPages > 1">
-                        <a class="pagination-previous" @click="prevCatPage" :disabled="catCurrentPage === 1">前のフォルダ群</a>
-                        <a class="pagination-next" @click="nextCatPage" :disabled="catCurrentPage === catTotalPages">次のフォルダ群</a>
+                        <a class="pagination-previous" @click="nextCatPage" :disabled="catCurrentPage === catTotalPages">次の項目へ</a>
+                        <a class="pagination-next" @click="prevCatPage" :disabled="catCurrentPage === 1">前の項目へ</a>
                         <ul class="pagination-list">
                             <li v-for="page in catTotalPages" :key="page">
                                 <a class="pagination-link" :class="{ 'is-current': page === catCurrentPage }" @click="goToCatPage(page)">{{ page }}</a>

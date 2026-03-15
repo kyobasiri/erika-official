@@ -53,11 +53,11 @@
             <hr style="margin-top: 3rem; margin-bottom: 3rem; background-color: #333;">
 
             <nav class="pagination is-centered" role="navigation" aria-label="pagination">
-                <a v-if="prevArticle" :href="`./article.html?id=${prevArticle.id}`" class="pagination-previous has-background-dark has-text-white" style="border-color: #555;">
-                    &laquo; 前の記事
+                <a v-if="nextArticle" :href="`./article.html?id=${nextArticle.id}`" class="pagination-previous has-background-dark has-text-white" style="border-color: #555;">
+                    &laquo; 次の記事
                 </a>
                 <a v-else class="pagination-previous is-disabled has-background-dark has-text-grey" style="border-color: #555;" disabled>
-                    &laquo; 前の記事
+                    &laquo; 次の記事
                 </a>
 
                 <ul class="pagination-list">
@@ -68,11 +68,11 @@
                     </li>
                 </ul>
 
-                <a v-if="nextArticle" :href="`./article.html?id=${nextArticle.id}`" class="pagination-next has-background-dark has-text-white" style="border-color: #555;">
-                    次の記事 &raquo;
+                <a v-if="prevArticle" :href="`./article.html?id=${prevArticle.id}`" class="pagination-next has-background-dark has-text-white" style="border-color: #555;">
+                    前の記事 &raquo;
                 </a>
                 <a v-else class="pagination-next is-disabled has-background-dark has-text-grey" style="border-color: #555;" disabled>
-                    次の記事 &raquo;
+                    前の記事 &raquo;
                 </a>
             </nav>
 
