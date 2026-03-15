@@ -46,3 +46,15 @@ body {
 .subtitle {
     text-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
 }
+
+/* 記事ページ（article.html）のフォントサイズ・行間調整（スマホ向け） */
+@media screen and (max-width: 768px) {
+    #app .content {
+        font-size: 1.1rem; /* スマホでの基準文字サイズを少し大きく */
+        line-height: 1.8;  /* 行間を広げて読みやすく */
+    }
+    
+    #app .content h1 { font-size: 1.75rem; }
+    #app .content h2 { font-size: 1.5rem; }
+    #app .content h3 { font-size: 1.25rem; }
+}
