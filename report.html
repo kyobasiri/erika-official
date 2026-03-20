@@ -30,6 +30,15 @@
     <div id="app" class="container section">
         <div class="content">
 
+            <div v-if="audioUrl" class="box has-background-dark has-text-centered mb-5" style="border-color: #555;">
+                <p class="has-text-white is-size-6 mb-3">🎧 エリカの音声ダイジェスト</p>
+                <audio controls :src="audioUrl" style="width: 100%; max-width: 500px; outline: none;"></audio>
+                <p class="is-size-7 has-text-grey mt-2">
+                    ※音声生成: <a href="https://voicevox.hiroshiba.jp/" target="_blank" class="has-text-grey-light"
+                        style="text-decoration: underline;">VOICEVOX:冥鳴ひまり</a>
+                </p>
+            </div>
+
             <div class="box has-background-black-ter has-text-white"
                 style="border: 1px solid #555; padding: 2.5rem; border-radius: 12px;">
                 <div v-html="compiledMarkdown"></div>
@@ -79,6 +88,7 @@
                 const compiledMarkdown = ref('<p>読み込み中...</p>');
                 const prevReport = ref(null);
                 const nextReport = ref(null);
+                const audioUrl = ref(null);
 
                 onMounted(async () => {
                     const params = new URLSearchParams(window.location.search);
@@ -88,6 +98,17 @@
                         return;
                     }
                     reportId.value = id;
+
+                    const potentialAudioPath = `./assets/audio/${id}-report.wav`;
+                    try {
+                        // HEADリクエストでファイルが存在するか確認
+                        const audioRes = await fetch(potentialAudioPath, { method: 'HEAD' });
+                        if (audioRes.ok) {
+                            audioUrl.value = potentialAudioPath;
+                        }
+                    } catch (e) {
+                        console.log("音声ファイルが見つかりません（テキストのみの日報です）");
+                    }
 
                     // 前/次の日報を取得 (reports.json から)
                     try {

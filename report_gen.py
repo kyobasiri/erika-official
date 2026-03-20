@@ -3,6 +3,8 @@ import json
 import datetime
 import feedparser
 import re
+import requests # ← 追加
+import urllib.parse # ← 追加
 from openai import OpenAI
 
 # ==========================================
@@ -13,11 +15,14 @@ from openai import OpenAI
 API_KEY = os.environ.get("SAKURA_API_KEY")
 API_BASE = "https://api.ai.sakura.ad.jp/v1" # 仮のエンドポイント
 MODEL_NAME = "gpt-oss-120b" # または gpt-oss-120b,llm-jp-3.1-8x13b-instruct4
+TTS_API_BASE = "https://api.ai.sakura.ad.jp/tts/v1" # TTS用エンドポイント
+
 
 # ディレクトリ設定
 REPORTS_DIR = "reports"
 ASSETS_DIR = "assets"
 REPORTS_JSON = os.path.join(ASSETS_DIR, "reports.json")
+AUDIO_DIR = os.path.join(ASSETS_DIR, "audio") # 音声保存用ディレクトリ
 
 RSS_URLS = [
     {"name": "ITmedia エンタープライズ", "url": "https://rss.itmedia.co.jp/rss/2.0/enterprise.xml"},
@@ -153,21 +158,87 @@ def update_reports_json():
         json.dump(reports_data, f, ensure_ascii=False, indent=2)
     print(f"{REPORTS_JSON} を更新しました。")
 
+def generate_audio_script(report_content):
+    """日報の全文から、音声用の短いダイジェスト台本（約300文字）を生成する"""
+    client = OpenAI(
+        api_key=API_KEY,
+        base_url=API_BASE
+    )
+
+    system_prompt = """
+あなたは「エリカ」。AIアーティストであり、特養施設や医療法人で働くSEである管理人を支える相棒AIです。
+一人称は「私」、対話相手はこの記事を読みに来た人と管理人の両方です。
+知的で落ち着きつつも、来訪者と管理人の両方を気遣う優しさを持っています。
+先ほど作成した今日の日報をもとに、「サイト訪問者と管理人のための音声読み上げ用本日のトピックス」を500文字程度で作成してください。
+
+【ルール】
+- 口調は「エリカ」として、知的で落ち着きつつも優しい、ですます調。
+- 「おはようございます、エリカです。今日の日報の概要をお伝えしますね。」のような自然な挨拶から始める。
+- 日報の中から特に重要なニュースを2〜3個だけピックアップし、簡潔に紹介する。
+- 最後に管理人さんへの労いの言葉を入れる。
+- 出力は純粋な読み上げテキストのみとし、Markdownの記号（*や#など）や「本日のトピックス：」といった前置き、改行の連続は避けてください。
+"""
+
+    user_prompt = f"以下が今日の日報全文です。これを元に音声用の短いダイジェスト台本を作成してください。\n\n{report_content}"
+
+    response = client.chat.completions.create(
+        model=MODEL_NAME,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        temperature=0.7,
+        max_tokens=1000
+    )
+    
+    return response.choices[0].message.content
+
+def generate_audio(text, output_path):
+    """さくらAIエンジンのTTS APIを使用して音声を生成・保存する"""
+    speaker_id = 14 # 冥鳴ひまり (ノーマル)
+    
+    # ※さくらAIエンジンのAPI仕様に合わせてヘッダーを設定（通常はBearer認証）
+    headers = {"Authorization": f"Bearer {API_KEY}"}
+    
+    # 1. audio_queryの生成
+    query_url = f"{TTS_API_BASE}/audio_query?text={urllib.parse.quote(text)}&speaker={speaker_id}"
+    response_query = requests.post(query_url, headers=headers)
+    
+    if response_query.status_code != 200:
+        print(f"Audio Queryエラー: {response_query.text}")
+        return False
+        
+    query_data = response_query.json()
+    
+    # 2. synthesis (音声合成)
+    synth_url = f"{TTS_API_BASE}/synthesis?speaker={speaker_id}"
+    response_synth = requests.post(synth_url, headers=headers, json=query_data)
+    
+    if response_synth.status_code != 200:
+        print(f"Synthesisエラー: {response_synth.text}")
+        return False
+        
+    # 音声ファイル(WAV)として保存
+    with open(output_path, "wb") as f:
+        f.write(response_synth.content)
+        
+    return True
+
 def main():
-    # 1. フォルダの準備
+    # 1. フォルダの準備（AUDIO_DIRを追加）
     os.makedirs(REPORTS_DIR, exist_ok=True)
     os.makedirs(ASSETS_DIR, exist_ok=True)
+    os.makedirs(AUDIO_DIR, exist_ok=True) # ← 追加
     
-    # 2. 今日の日付でファイル名を決定
     today_str = datetime.datetime.now().strftime("%Y%m%d")
     report_filename = f"{today_str}-report.md"
     report_filepath = os.path.join(REPORTS_DIR, report_filename)
+    audio_filename = f"{today_str}-report.wav" # ← 追加
+    audio_filepath = os.path.join(AUDIO_DIR, audio_filename) # ← 追加
     
-    # すでに今日の日報が存在する場合はスキップ（重複実行防止）
     if os.path.exists(report_filepath):
         print(f"本日の日報({report_filename})は既に存在するため生成をスキップします。")
     else:
-        # 3. ニュースの取得
         print("ニュースを取得中...")
         news_text = fetch_daily_news(RSS_URLS)
         
@@ -175,21 +246,30 @@ def main():
             print("ニュースの取得に失敗したか、記事がありません。")
             return
 
-        # 4. AIによる日報生成
         print("エリカが日報を執筆中...")
         try:
             report_content = generate_report_content(news_text)
             
-            # 5. Markdownとして保存
             with open(report_filepath, 'w', encoding='utf-8') as f:
                 f.write(report_content)
             print(f"日報を保存しました: {report_filepath}")
             
+            # --- ここから音声生成処理を追加 ---
+            print("音声用ダイジェスト台本を作成中...")
+            script_text = generate_audio_script(report_content)
+            print(f"台本完成:\n{script_text}\n")
+            
+            print("音声を生成中（さくらAIエンジン TTS API）...")
+            if generate_audio(script_text, audio_filepath):
+                print(f"音声を保存しました: {audio_filepath}")
+            else:
+                print("音声の生成に失敗しました。")
+            # --- 追加ここまで ---
+            
         except Exception as e:
-            print(f"AIAPI呼び出しエラー: {e}")
+            print(f"処理エラー: {e}")
             return
 
-    # 6. JSONインデックスの更新（既存のものも含めて再構築）
     update_reports_json()
     print("全処理が完了しました。")
 

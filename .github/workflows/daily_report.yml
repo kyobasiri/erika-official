@@ -30,7 +30,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install openai feedparser
+          pip install openai feedparser requests
 
       # 4. エリカに日報を書かせる（Pythonスクリプトの実行）
       - name: Run report generation script
@@ -39,15 +39,13 @@ jobs:
           SAKURA_API_KEY: ${{ secrets.SAKURA_API_KEY }}
         run: python report_gen.py
 
-      # 5. 生成されたファイル（MarkdownとJSON）をGitHubに自動保存（コミット＆プッシュ）
+     # 5. 生成されたファイル（MarkdownとJSON、そして音声）をGitHubに自動保存
       - name: Commit and Push changes
         run: |
-          # GitHub ActionsのBotとして名前を設定
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          
-          # 生成・更新されたファイルを指定
-          git add reports/ assets/reports.json
-          
-          # 変更があった場合のみコミットしてプッシュする
-          git diff --quiet && git diff --staged --quiet || (git commit -m "エリカが本日の日報を自動生成しました 📝" && git push)
+
+          # 生成・更新されたファイルを指定（assets/audio/ を追加）
+          git add reports/ assets/reports.json assets/audio/ 
+
+          git diff --quiet && git diff --staged --quiet || (git commit -m "エリカが本日の日報と音声を自動生成しました 📝🎧" && git push)
