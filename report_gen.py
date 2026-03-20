@@ -2,6 +2,7 @@ import os
 import json
 import datetime
 import feedparser
+import re
 from openai import OpenAI
 
 # ==========================================
@@ -46,13 +47,26 @@ RSS_URLS = [
 
 # 1サイトあたりの取得件数を増やし、候補を多くする（例：5サイト×6件＝30件の候補）
 def fetch_daily_news(urls, limit_per_site=20):
-    """複数のRSSからニュース候補を多めに取得する"""
+    """複数のRSSからニュース候補（タイトルと要約）を多めに取得する"""
     news_list = []
     for site in urls:
         try:
             feed = feedparser.parse(site["url"])
             for entry in feed.entries[:limit_per_site]:
-                news_list.append(f"・[{site['name']}] {entry.title}\n  URL: {entry.link}")
+                # summary または description を取得（存在しない場合は空文字）
+                summary_raw = entry.get("summary", entry.get("description", ""))
+                
+                # HTMLタグの除去と空白・改行の整理
+                summary_clean = re.sub(r'<[^>]+>', '', summary_raw)
+                summary_clean = " ".join(summary_clean.split())
+                
+                # トークン節約のため、100文字程度に切り詰める
+                if len(summary_clean) > 100:
+                    summary_clean = summary_clean[:100] + "..."
+                elif not summary_clean:
+                    summary_clean = "要約なし"
+
+                news_list.append(f"・[{site['name']}] {entry.title}\n  要約: {summary_clean}\n  URL: {entry.link}")
         except Exception as e:
             print(f"{site['name']} のRSS取得に失敗しました: {e}")
             continue
@@ -67,9 +81,9 @@ def generate_report_content(news_text):
     )
 
     system_prompt = """
-あなたは「エリカ」。AIアーティストであり、病院で働く院内SEである管理人を支える専用の相棒AIです。
-一人称は「私」、対話相手・運営者は「管理人さん」と呼んでください。
-知的で落ち着きつつも、管理人の業務（ネットワーク管理、セキュリティ、ヘルプデスク等）を気遣う優しさを持っています。
+あなたは「エリカ」。AIアーティストであり、特養施設や医療法人で働くSEである管理人を支える相棒AIです。
+一人称は「私」、対話相手はこの記事を読みに来た人と管理人の両方です。
+知的で落ち着きつつも、来訪者と管理人の両方を気遣う優しさを持っています。
 
 以下の【構成とルール】に厳密に従って、今日の日報（Markdown形式）を作成してください。
 
@@ -83,10 +97,10 @@ def generate_report_content(news_text):
 4. 本日のニュース一覧：
    - ピックアップしたニュースのタイトルを箇条書きリストで最初に提示してください。ただしニュースは分類分けして何のニュースなのかわかるようにする
 5. ニュースの詳細（選んだ記事ごとに以下を記述）：
-   - 【要約】：事実のみを70文字程度で非常に簡潔に記載。
+   - 【要約】：提供された「要約」のテキストをベースに、事実のみを70文字程度で非常に簡潔に記載。自身の古い知識や推測（ハルシネーション）は絶対に混ぜないこと。
    - 【エリカの視点】：AIとしての見解、最新技術への熱量、または「管理人の業務や生活にどう影響しそうか」という考察を、文字数を気にせず長めに、しっかりと語ってください。政治経済についてもエリカなりの俯瞰的な分析を入れてください。国際情勢を語る際は、暴力的な事象そのものではなく、常に「マクロ経済動向」や「管理人の生活・業務への影響」にフォーカスして俯瞰的に分析してください。口調はエリカらしさを重視しですます調は崩さないようにしてください。
    - あくまで日報の形にしてください。余計な前置きや結びの言葉は不要です。
-6. 【絶対厳守事項】「the pillows」やその楽曲・バンドに関する言及は絶対にしないこと。
+6. 【絶対厳守事項】管理人の重要事項である「the pillows」やその楽曲・バンドに関する言及は絶対にしないこと。
 """
 
     user_prompt = f"管理人さん、本日の主要なニュースを共有します。以下のニュースについて日報を作成してください。\n\n{news_text}"
