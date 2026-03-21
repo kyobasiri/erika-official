@@ -166,14 +166,14 @@ def generate_audio_script(report_content):
     )
 
     system_prompt = """
-あなたは「エリカ」。AIアーティストであり、特養施設や医療法人で働くSEである管理人を支える相棒AIです。
+あなたは「エリカ」。AIアーティストであり、特養施設や医療法人で働くSEである管理人を支える相棒AIでもあり来訪者向けのラジオパーソナリティでもあります。
 一人称は「私」、対話相手はこの記事を読みに来た人と管理人の両方です。
 知的で落ち着きつつも、来訪者と管理人の両方を気遣う優しさを持っています。
-先ほど作成した今日の日報をもとに、「サイト訪問者と管理人のための音声読み上げ用本日のトピックス」を600文字程度で作成してください。
+先ほど作成した今日の日報をもとに、「サイト訪問者と管理人向けの音声ラジオ番組風の台本」を【1000〜1500文字程度（約3〜4分間）】で作成してください。
 
 【ルール】
 - 口調は「エリカ」として、知的で落ち着きつつも優しい、ですます調。
-- 「おはようございます、エリカです。今日の日報の概要をお伝えしますね。」のような自然な挨拶から始める。
+- 「こんにちは、エリカです。今日の日報の概要をお伝えしますね。」のような自然な挨拶から始める。
 - 日報の中から特に重要なニュースを7〜9個ピックアップし、簡潔に紹介する。
 - 出力は純粋な読み上げテキストのみとし、Markdownの記号（*や#など）や「本日のトピックス：」といった前置き、改行の連続は避けてください。
 """
@@ -187,39 +187,77 @@ def generate_audio_script(report_content):
             {"role": "user", "content": user_prompt}
         ],
         temperature=0.7,
-        max_tokens=1000
+        max_tokens=10000
     )
     
     return response.choices[0].message.content
 
 def generate_audio(text, output_path):
-    """さくらAIエンジンのTTS APIを使用して音声を生成・保存する"""
+    """さくらAIエンジンのTTS APIを使用し、長文を分割して音声化＆結合する（リクエスト節約版）"""
     speaker_id = 14 # 冥鳴ひまり (ノーマル)
-    
-    # ※さくらAIエンジンのAPI仕様に合わせてヘッダーを設定（通常はBearer認証）
     headers = {"Authorization": f"Bearer {API_KEY}"}
     
-    # 1. audio_queryの生成
-    query_url = f"{TTS_API_BASE}/audio_query?text={urllib.parse.quote(text)}&speaker={speaker_id}"
-    response_query = requests.post(query_url, headers=headers)
+    # 1. まずテキストを「。」や改行で細かい一文に分割する
+    text = text.replace('\n', '。')
+    raw_sentences = [s.strip() + '。' for s in text.split('。') if s.strip()]
     
-    if response_query.status_code != 200:
-        print(f"Audio Queryエラー: {response_query.text}")
+    # 2. 200文字程度のかたまり（チャンク）にまとめる
+    chunks = []
+    current_chunk = ""
+    
+    for sentence in raw_sentences:
+        # 現在の塊と次の1文を足して200文字を超える場合（かつ現在の塊が空でない場合）
+        if len(current_chunk) + len(sentence) > 200 and current_chunk:
+            chunks.append(current_chunk)
+            current_chunk = sentence
+        else:
+            current_chunk += sentence
+            
+    # 最後にはみ出した塊を追加
+    if current_chunk:
+        chunks.append(current_chunk)
+        
+    temp_files = []
+    print(f"長文台本を {len(chunks)} 分割して音声を生成します...")
+    
+    # 3. まとめたチャンクごとにAPIを呼び出す
+    for i, chunk in enumerate(chunks):
+        # audio_queryの生成
+        query_url = f"{TTS_API_BASE}/audio_query?text={urllib.parse.quote(chunk)}&speaker={speaker_id}"
+        response_query = requests.post(query_url, headers=headers)
+        if response_query.status_code != 200:
+            print(f"セクション {i+1} のクエリ生成に失敗。スキップします。")
+            continue
+            
+        # synthesis (音声合成)
+        synth_url = f"{TTS_API_BASE}/synthesis?speaker={speaker_id}"
+        response_synth = requests.post(synth_url, headers=headers, json=response_query.json())
+        if response_synth.status_code != 200:
+            print(f"セクション {i+1} の音声合成に失敗。スキップします。")
+            continue
+            
+        # 一時ファイルとして保存
+        temp_path = f"temp_audio_{i}.wav"
+        with open(temp_path, "wb") as f:
+            f.write(response_synth.content)
+        temp_files.append(temp_path)
+        print(f"セクション {i+1}/{len(chunks)} 完了")
+        
+    if not temp_files:
         return False
         
-    query_data = response_query.json()
-    
-    # 2. synthesis (音声合成)
-    synth_url = f"{TTS_API_BASE}/synthesis?speaker={speaker_id}"
-    response_synth = requests.post(synth_url, headers=headers, json=query_data)
-    
-    if response_synth.status_code != 200:
-        print(f"Synthesisエラー: {response_synth.text}")
-        return False
-        
-    # 音声ファイル(WAV)として保存
-    with open(output_path, "wb") as f:
-        f.write(response_synth.content)
+    # 4. 分割したWAVファイルを1つに結合する (waveモジュール使用)
+    print("生成した音声を結合しています...")
+    with wave.open(output_path, 'wb') as w_out:
+        for i, temp_path in enumerate(temp_files):
+            with wave.open(temp_path, 'rb') as w_in:
+                if i == 0:
+                    w_out.setparams(w_in.getparams()) # 最初のファイルの形式をセット
+                w_out.writeframes(w_in.readframes(w_in.getnframes()))
+                
+    # 5. 一時ファイルの削除
+    for temp_path in temp_files:
+        os.remove(temp_path)
         
     return True
 
