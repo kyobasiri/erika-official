@@ -5,6 +5,7 @@ import feedparser
 import re
 import requests # ← 追加
 import urllib.parse # ← 追加
+import wave
 from openai import OpenAI
 
 # ==========================================
