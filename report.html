@@ -101,13 +101,22 @@
 
                     const potentialAudioPath = `./assets/audio/${id}.wav`;
                     try {
-                        // HEADリクエストでファイルが存在するか確認
-                        const audioRes = await fetch(potentialAudioPath, { method: 'HEAD' });
-                        if (audioRes.ok) {
+                        if (window.location.protocol === 'file:') {
+                            // ローカル環境(file://)ではfetchが失敗するため直接セット
                             audioUrl.value = potentialAudioPath;
+                        } else {
+                            // HEADリクエストでファイルが存在するか確認
+                            const audioRes = await fetch(potentialAudioPath, { method: 'HEAD' });
+                            if (audioRes.ok) {
+                                audioUrl.value = potentialAudioPath;
+                            }
                         }
                     } catch (e) {
-                        console.log("音声ファイルが見つかりません（テキストのみの日報です）");
+                        console.log("音声ファイルが見つからないか、通信エラーです。");
+                        // ローカルからのアクセスなどでエラーになった場合のフォールバック
+                        if (window.location.protocol === 'file:') {
+                            audioUrl.value = potentialAudioPath;
+                        }
                     }
 
                     // 前/次の日報を取得 (reports.json から)

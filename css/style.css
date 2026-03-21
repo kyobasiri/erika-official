@@ -58,3 +58,26 @@ body {
     #app .content h2 { font-size: 1.5rem; }
     #app .content h3 { font-size: 1.25rem; }
 }
+
+/* --- 日報・記事のMarkdownコンテンツ向けダークモード対応 --- */
+.box.has-background-black-ter .content h1,
+.box.has-background-black-ter .content h2,
+.box.has-background-black-ter .content h3,
+.box.has-background-black-ter .content h4,
+.box.has-background-black-ter .content h5,
+.box.has-background-black-ter .content h6,
+.box.has-background-black-ter .content p,
+.box.has-background-black-ter .content li,
+.box.has-background-black-ter .content strong,
+.box.has-background-black-ter .content blockquote {
+    color: #e0e0e0 !important;
+}
+
+.box.has-background-black-ter .content a {
+    color: #82aaff;
+}
+
+.box.has-background-black-ter .content blockquote {
+    background-color: #2a2a2a;
+    border-left: 5px solid #555;
+}
