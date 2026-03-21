@@ -30,7 +30,22 @@
     <div id="app" class="container section">
         <div class="content">
 
-            <div v-if="audioUrl" class="box has-background-dark has-text-centered mb-5" style="border-color: #555;">
+            <div v-if="youtubeId" class="box has-background-dark has-text-centered mb-5" style="border-color: #555;">
+                <p class="has-text-white is-size-6 mb-3">📺 エリカのニュースダイジェスト</p>
+                <div
+                    style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 800px; margin: 0 auto; border-radius: 8px;">
+                    <iframe :src="'https://www.youtube.com/embed/' + youtubeId"
+                        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;"
+                        allowfullscreen></iframe>
+                </div>
+                <p class="is-size-7 has-text-grey mt-2">
+                    ※音声生成: <a href="https://voicevox.hiroshiba.jp/" target="_blank" class="has-text-grey-light"
+                        style="text-decoration: underline;">VOICEVOX:冥鳴ひまり</a>
+                </p>
+            </div>
+
+            <div v-else-if="audioUrl" class="box has-background-dark has-text-centered mb-5"
+                style="border-color: #555;">
                 <p class="has-text-white is-size-6 mb-3">🎧 エリカの音声ダイジェスト</p>
                 <audio controls :src="audioUrl" style="width: 100%; max-width: 500px; outline: none;"></audio>
                 <p class="is-size-7 has-text-grey mt-2">
@@ -89,6 +104,7 @@
                 const prevReport = ref(null);
                 const nextReport = ref(null);
                 const audioUrl = ref(null);
+                const youtubeId = ref(null);
 
                 onMounted(async () => {
                     const params = new URLSearchParams(window.location.search);
@@ -99,6 +115,16 @@
                     }
                     reportId.value = id;
 
+                    // ▼▼▼ 追加：YouTube動画IDの存在チェック ▼▼▼
+                    try {
+                        const ytRes = await fetch(`./reports/${id}-youtube.txt`);
+                        if (ytRes.ok) {
+                            youtubeId.value = (await ytRes.text()).trim();
+                        }
+                    } catch (e) {
+                        console.log("YouTube IDファイルが見つかりません");
+                    }
+                    // ▲▲▲ 追加ここまで ▲▲▲
                     const potentialAudioPath = `./assets/audio/${id}.wav`;
                     try {
                         if (window.location.protocol === 'file:') {
@@ -160,7 +186,7 @@
                     }
                 });
 
-                return { reportId, compiledMarkdown, prevReport, nextReport, audioUrl };
+                return { reportId, compiledMarkdown, prevReport, nextReport, audioUrl, youtubeId };
             }
         }).mount('#app');
     </script>

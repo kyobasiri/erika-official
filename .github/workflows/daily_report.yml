@@ -29,14 +29,15 @@ jobs:
       # 3. 必要なライブラリをインストールする
       - name: Install dependencies
         run: |
+          sudo apt-get update && sudo apt-get install -y ffmpeg  # ←この1行を一番上に追加
           python -m pip install --upgrade pip
-          pip install openai feedparser requests
+          pip install openai feedparser requests google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
 
       # 4. エリカに日報を書かせる（Pythonスクリプトの実行）
       - name: Run report generation script
         env:
-          # ステップ1で登録したSecretsからAPIキーを読み込んで渡す
           SAKURA_API_KEY: ${{ secrets.SAKURA_API_KEY }}
+          YOUTUBE_TOKEN: ${{ secrets.YOUTUBE_TOKEN }} # ← この1行を追加！
         run: python report_gen.py
 
      # 5. 生成されたファイル（MarkdownとJSON、そして音声）をGitHubに自動保存

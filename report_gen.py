@@ -6,6 +6,12 @@ import re
 import requests # ← 追加
 import urllib.parse # ← 追加
 import wave
+import subprocess
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
+from googleapiclient.errors import HttpError
+
 from openai import OpenAI
 
 # ==========================================
@@ -50,6 +56,14 @@ RSS_URLS = [
 # ==========================================
 # 処理関数
 # ==========================================
+
+def format_srt_time(seconds):
+    """秒数をSRT字幕のタイムコード形式（HH:MM:SS,mmm）に変換する"""
+    m, s = divmod(seconds, 60)
+    h, m = divmod(m, 60)
+    ms = int((seconds - int(seconds)) * 1000)
+    return f"{int(h):02d}:{int(m):02d}:{int(s):02d},{ms:03d}"
+
 
 # 1サイトあたりの取得件数を増やし、候補を多くする（例：5サイト×6件＝30件の候補）
 def fetch_daily_news(urls, limit_per_site=20):
@@ -193,74 +207,192 @@ def generate_audio_script(report_content):
     
     return response.choices[0].message.content
 
-def generate_audio(text, output_path):
-    """さくらAIエンジンのTTS APIを使用し、長文を分割して音声化＆結合する（リクエスト節約版）"""
+def generate_audio(text, output_path, output_srt_path):
+    """さくらAIエンジンのTTS APIを使用し、長文を分割して音声化＆SRT字幕ファイルを生成する"""
     speaker_id = 14 # 冥鳴ひまり (ノーマル)
     headers = {"Authorization": f"Bearer {API_KEY}"}
     
-    # 1. まずテキストを「。」や改行で細かい一文に分割する
     text = text.replace('\n', '。')
     raw_sentences = [s.strip() + '。' for s in text.split('。') if s.strip()]
     
-    # 2. 200文字程度のかたまり（チャンク）にまとめる
     chunks = []
     current_chunk = ""
-    
     for sentence in raw_sentences:
-        # 現在の塊と次の1文を足して200文字を超える場合（かつ現在の塊が空でない場合）
         if len(current_chunk) + len(sentence) > 200 and current_chunk:
             chunks.append(current_chunk)
             current_chunk = sentence
         else:
             current_chunk += sentence
-            
-    # 最後にはみ出した塊を追加
     if current_chunk:
         chunks.append(current_chunk)
         
     temp_files = []
-    print(f"長文台本を {len(chunks)} 分割して音声を生成します...")
+    srt_content = ""
+    current_time_sec = 0.0 # 字幕の開始時間
+    srt_index = 0 # ← 追加：字幕の通し番号
     
-    # 3. まとめたチャンクごとにAPIを呼び出す
+    print(f"長文台本を {len(chunks)} 分割して音声と字幕を生成します...")
+    
     for i, chunk in enumerate(chunks):
-        # audio_queryの生成
         query_url = f"{TTS_API_BASE}/audio_query?text={urllib.parse.quote(chunk)}&speaker={speaker_id}"
         response_query = requests.post(query_url, headers=headers)
-        if response_query.status_code != 200:
-            print(f"セクション {i+1} のクエリ生成に失敗。スキップします。")
-            continue
+        if response_query.status_code != 200: continue
             
-        # synthesis (音声合成)
         synth_url = f"{TTS_API_BASE}/synthesis?speaker={speaker_id}"
         response_synth = requests.post(synth_url, headers=headers, json=response_query.json())
-        if response_synth.status_code != 200:
-            print(f"セクション {i+1} の音声合成に失敗。スキップします。")
-            continue
+        if response_synth.status_code != 200: continue
             
         # 一時ファイルとして保存
         temp_path = f"temp_audio_{i}.wav"
         with open(temp_path, "wb") as f:
             f.write(response_synth.content)
         temp_files.append(temp_path)
+        
+        # ▼▼▼ 修正：文字数に応じて字幕をさらに細かく分割してタイムコードを計算 ▼▼▼
+        with wave.open(temp_path, 'rb') as w:
+            frames = w.getnframes()
+            rate = w.getframerate()
+            duration = frames / float(rate) # このチャンク（200文字）の総秒数
+            
+        # 1文字あたりの表示時間（秒）を計算
+        time_per_char = duration / len(chunk)
+        
+        # 25文字ずつに分割して字幕ブロックを作る
+        MAX_CHARS = 25
+        chunk_start_sec = current_time_sec
+        
+        for j in range(0, len(chunk), MAX_CHARS):
+            sub_text = chunk[j:j+MAX_CHARS]
+            sub_duration = time_per_char * len(sub_text)
+            
+            start_time_str = format_srt_time(chunk_start_sec)
+            end_time_str = format_srt_time(chunk_start_sec + sub_duration)
+            
+            srt_index += 1
+            srt_content += f"{srt_index}\n{start_time_str} --> {end_time_str}\n{sub_text}\n\n"
+            
+            chunk_start_sec += sub_duration # 次の細かいブロックの開始時間を進める
+            
+        current_time_sec += duration # 次のチャンク用にメインタイマーを更新
+        # ▲▲▲ 修正ここまで ▲▲▲
+
         print(f"セクション {i+1}/{len(chunks)} 完了")
         
-    if not temp_files:
-        return False
+    if not temp_files: return False
         
-    # 4. 分割したWAVファイルを1つに結合する (waveモジュール使用)
+    # 音声の結合
     print("生成した音声を結合しています...")
     with wave.open(output_path, 'wb') as w_out:
         for i, temp_path in enumerate(temp_files):
             with wave.open(temp_path, 'rb') as w_in:
                 if i == 0:
-                    w_out.setparams(w_in.getparams()) # 最初のファイルの形式をセット
+                    w_out.setparams(w_in.getparams())
                 w_out.writeframes(w_in.readframes(w_in.getnframes()))
                 
-    # 5. 一時ファイルの削除
+    # 一時ファイルの削除
     for temp_path in temp_files:
         os.remove(temp_path)
+
+    # ▼▼▼ 追加：完成したSRT字幕ファイルを保存 ▼▼▼
+    with open(output_srt_path, "w", encoding="utf-8") as f:
+        f.write(srt_content)
         
     return True
+
+def generate_video(audio_path, srt_path, output_video_path):
+    """FFmpegを使用して、静止画と音声、字幕(SRT)を結合しMP4動画を生成する"""
+    image_path = os.path.join(ASSETS_DIR, "images", "ogp.jpg") 
+    if not os.path.exists(image_path):
+        print(f"エラー: 背景画像が見つかりません ({image_path})")
+        return False
+
+    print("FFmpegで動画(MP4)と字幕を生成しています...")
+    
+    # Windowsパスのバックスラッシュ(\)をスラッシュ(/)に変換（FFmpegエラー対策）
+    srt_path_fw = srt_path.replace('\\', '/')
+    
+    # force_styleで字幕の見た目を調整（フォントサイズ24、白文字、黒の太い縁取り）
+    subtitle_filter = f"subtitles={srt_path_fw}:force_style='FontSize=24,PrimaryColour=&H00FFFFFF,OutlineColour=&H000000,BorderStyle=1,Outline=2,MarginV=20'"
+
+    command = [
+        "ffmpeg",
+        "-y",
+        "-loop", "1",
+        "-i", image_path,
+        "-i", audio_path,
+        "-vf", subtitle_filter, # 字幕フィルタを追加
+        "-c:v", "libx264",
+        "-tune", "stillimage",
+        "-c:a", "aac",
+        "-b:a", "192k",
+        "-pix_fmt", "yuv420p",
+        "-shortest",
+        output_video_path
+    ]
+    
+    try:
+        subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"FFmpegエラー: {e.stderr.decode('utf-8', errors='ignore')}")
+        return False
+    except FileNotFoundError:
+        print("エラー: FFmpegがインストールされていないか、パスが通っていません。")
+        return False
+
+def upload_to_youtube(video_path, title, description):
+    """生成したMP4動画をYouTubeに自動アップロードする"""
+    print(f"YouTubeへ動画をアップロードしています...\nタイトル: {title}")
+    
+    # ▼▼▼ 変更：環境変数(GitHub Actions)とローカル(token.json)の両方に対応 ▼▼▼
+    token_env = os.environ.get("YOUTUBE_TOKEN")
+    
+    if token_env:
+        # GitHub Actions環境：Secretsから読み込む
+        token_info = json.loads(token_env)
+        creds = Credentials.from_authorized_user_info(token_info, ["https://www.googleapis.com/auth/youtube.upload"])
+    elif os.path.exists('token.json'):
+        # ローカル環境：ファイルから読み込む
+        creds = Credentials.from_authorized_user_file('token.json', ["https://www.googleapis.com/auth/youtube.upload"])
+    else:
+        print("エラー: トークン(YOUTUBE_TOKEN または token.json)が見つかりません。")
+        return False
+    # ▲▲▲ 変更ここまで ▲▲▲
+    youtube = build('youtube', 'v3', credentials=creds)
+    
+    # 動画のメタデータ（タイトル、説明、タグなど）
+    body = {
+        'snippet': {
+            'title': title,
+            'description': description,
+            'tags': ['AI', 'エリカ', 'ニュース', '日報', 'VOICEVOX', '冥鳴ひまり'],
+            'categoryId': '28' # 28 = Science & Technology (テクノロジー)
+        },
+        'status': {
+            # ▼▼ テスト中は 'unlisted'(限定公開) または 'private'(非公開) がおすすめ ▼▼
+            # 本番稼働時に 'public'(公開) に変更してください。
+            'privacyStatus': 'public', 
+            'selfDeclaredMadeForKids': False
+        }
+    }
+    
+    # 動画ファイルの読み込み
+    media = MediaFileUpload(video_path, chunksize=-1, resumable=True, mimetype='video/mp4')
+    
+    try:
+        # アップロード実行
+        request = youtube.videos().insert(
+            part="snippet,status",
+            body=body,
+            media_body=media
+        )
+        response = request.execute()
+        video_id = response['id'] # ← 動画IDを取得
+        print(f"アップロード完了！ 動画URL: https://youtu.be/{video_id}")
+        return video_id # ← True ではなく video_id を返すように変更
+    except HttpError as e:
+        print(f"YouTube APIエラー: {e}")
+        return None # ← False ではなく None を返すように変更
 
 def main():
     # 1. フォルダの準備（AUDIO_DIRを追加）
@@ -273,7 +405,11 @@ def main():
     report_filepath = os.path.join(REPORTS_DIR, report_filename)
     audio_filename = f"{today_str}-report.wav" # ← 追加
     audio_filepath = os.path.join(AUDIO_DIR, audio_filename) # ← 追加
-    
+    srt_filename = f"{today_str}-report.srt" # ← 追加
+    srt_filepath = os.path.join(AUDIO_DIR, srt_filename) # ← 追加
+    video_filename = f"{today_str}-report.mp4" # ← 追加
+    video_filepath = os.path.join(AUDIO_DIR, video_filename) # ← 追加
+
     if os.path.exists(report_filepath):
         print(f"本日の日報({report_filename})は既に存在するため生成をスキップします。")
     else:
@@ -295,11 +431,47 @@ def main():
             # --- ここから音声生成処理を追加 ---
             print("音声用ダイジェスト台本を作成中...")
             script_text = generate_audio_script(report_content)
+
+            # ▼▼▼ 追加：クレジットの定型文を末尾に結合 ▼▼▼
+            script_text += "。なお、本日の音声は、VOICEVOX、冥鳴ひまり でお送りしました。"
+            # ▲▲▲ 追加ここまで ▲▲▲
+
             print(f"台本完成:\n{script_text}\n")
             
             print("音声を生成中（さくらAIエンジン TTS API）...")
-            if generate_audio(script_text, audio_filepath):
-                print(f"音声を保存しました: {audio_filepath}")
+            # 引数に srt_filepath を追加
+            if generate_audio(script_text, audio_filepath, srt_filepath):
+                print(f"音声と字幕(SRT)を保存しました: {audio_filepath}")
+                
+                # 動画生成（srt_filepathを渡す）
+                if generate_video(audio_filepath, srt_filepath, video_filepath):
+                    print(f"字幕付き動画を保存しました: {video_filepath}")
+                    # ▼▼▼ 追加：YouTubeへアップロード ▼▼▼
+                    # 日付を見やすい形式にする（例：2026年3月21日）
+                    display_date = f"{today_str[:4]}年{today_str[4:6]}月{today_str[6:]}日"
+                    youtube_title = f"【AI日報】{display_date}の主要ニュース | エリカ"
+                    
+                    youtube_desc = (
+                        f"エリカがお届けする本日のIT・経済ニュース日報です。\n\n"
+                        f"■ エリカ・プロジェクト公式サイト\n"
+                        f"https://erika.erikakataru.com/\n\n"
+                        f"※本動画の音声はVOICEVOXを使用しています。\n"
+                        f"音声生成: VOICEVOX:冥鳴ひまり\n"
+                        f"https://voicevox.hiroshiba.jp/\n"
+                    )
+                    
+                    video_id = upload_to_youtube(video_filepath, youtube_title, youtube_desc)
+                    
+                    if video_id:
+                        # 動画IDをテキストファイルとして保存（フロントエンドで読み込むため）
+                        youtube_id_filepath = os.path.join(REPORTS_DIR, f"{today_str}-report-youtube.txt")
+                        with open(youtube_id_filepath, "w") as f:
+                            f.write(video_id)
+                        print(f"YouTube IDを記録しました: {youtube_id_filepath}")
+                    else:
+                        print("YouTubeへのアップロードに失敗しました。")
+                else:
+                    print("動画の生成に失敗しました。")
             else:
                 print("音声の生成に失敗しました。")
             # --- 追加ここまで ---
