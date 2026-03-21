@@ -99,7 +99,7 @@
                     }
                     reportId.value = id;
 
-                    const potentialAudioPath = `./assets/audio/${id}-report.wav`;
+                    const potentialAudioPath = `./assets/audio/${id}.wav`;
                     try {
                         // HEADリクエストでファイルが存在するか確認
                         const audioRes = await fetch(potentialAudioPath, { method: 'HEAD' });
