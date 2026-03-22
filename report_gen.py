@@ -312,7 +312,7 @@ def generate_video(audio_path, srt_path, output_video_path):
     srt_path_fw = srt_path.replace('\\', '/')
     
     # force_styleで字幕の見た目を調整（フォントサイズ24、白文字、黒の太い縁取り）
-    subtitle_filter = f"subtitles={srt_path_fw}:force_style='FontSize=24,PrimaryColour=&H00FFFFFF,OutlineColour=&H000000,BorderStyle=1,Outline=2,MarginV=20'"
+    subtitle_filter = f"subtitles={srt_path_fw}:force_style='Fontname=Noto Sans CJK JP,FontSize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H000000,BorderStyle=1,Outline=2,MarginV=20'"
 
     command = [
         "ffmpeg",

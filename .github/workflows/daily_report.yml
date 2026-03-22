@@ -29,7 +29,7 @@ jobs:
       # 3. 必要なライブラリをインストールする
       - name: Install dependencies
         run: |
-          sudo apt-get update && sudo apt-get install -y ffmpeg  # ←この1行を一番上に追加
+          sudo apt-get update && sudo apt-get install -y ffmpeg fonts-noto-cjk  # ←この1行を一番上に追加
           python -m pip install --upgrade pip
           pip install openai feedparser requests google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
 
