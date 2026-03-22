@@ -472,6 +472,21 @@ def main():
                         with open(youtube_id_filepath, "w") as f:
                             f.write(video_id)
                         print(f"YouTube IDを記録しました: {youtube_id_filepath}")
+                        
+                        # ▼▼▼ 追加：Cloudflare Pages容量制限対策（ファイルの自動削除） ▼▼▼
+                        print("ストレージ容量節約のため、ローカルのメディアファイルを削除します...")
+                        try:
+                            if os.path.exists(video_filepath):
+                                os.remove(video_filepath)
+                            if os.path.exists(audio_filepath):
+                                os.remove(audio_filepath)
+                            if os.path.exists(srt_filepath):
+                                os.remove(srt_filepath)
+                            print("不要なメディアファイルの削除が完了しました。")
+                        except Exception as e:
+                            print(f"ファイル削除中にエラーが発生しました: {e}")
+                        # ▲▲▲ 追加ここまで ▲▲▲
+                        
                     else:
                         print("YouTubeへのアップロードに失敗しました。")
                 else:
