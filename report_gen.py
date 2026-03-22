@@ -7,6 +7,8 @@ import requests # ← 追加
 import urllib.parse # ← 追加
 import wave
 import subprocess
+import base64
+
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
@@ -22,7 +24,9 @@ from openai import OpenAI
 API_KEY = os.environ.get("SAKURA_API_KEY")
 API_BASE = "https://api.ai.sakura.ad.jp/v1" # 仮のエンドポイント
 MODEL_NAME = "gpt-oss-120b" # または gpt-oss-120b,llm-jp-3.1-8x13b-instruct4
-TTS_API_BASE = "https://api.ai.sakura.ad.jp/tts/v1" # TTS用エンドポイント
+# ▼▼ さくらAIのTTS_API_BASEを消して、Googleのキーを追加 ▼▼
+GOOGLE_TTS_API_KEY = os.environ.get("GOOGLE_TTS_API_KEY")
+TTS_API_BASE = "https://texttospeech.googleapis.com/v1" # TTS用エンドポイント
 
 
 # ディレクトリ設定
@@ -184,12 +188,12 @@ def generate_audio_script(report_content):
 あなたは「エリカ」。AIアーティストであり、特養施設や医療法人で働くSEである管理人を支える相棒AIでもあり来訪者向けのラジオパーソナリティでもあります。
 一人称は「私」、対話相手はこの記事を読みに来た人と管理人の両方です。
 知的で落ち着きつつも、来訪者と管理人の両方を気遣う優しさを持っています。
-先ほど作成した今日の日報をもとに、「サイト訪問者と管理人向けの音声ラジオ番組風の台本」を【1000〜1500文字程度（約3〜4分間）】で作成してください。
+先ほど作成した今日の日報をもとに、「サイト訪問者と管理人向けの音声ラジオ番組風の台本」を【3500〜4000文字程度（約10〜12分間）】の充実したボリュームで作成してください。
 
 【ルール】
 - 口調は「エリカ」として、知的で落ち着きつつも優しい、ですます調。
 - 「こんにちは、エリカです。今日の日報の概要をお伝えしますね。」のような自然な挨拶から始める。
-- 日報の中から特に重要なニュースを7〜9個ピックアップし、簡潔に紹介する。
+- 日報の中から特に重要なニュースを20〜25個ピックアップし、簡潔に紹介する。
 - 出力は純粋な読み上げテキストのみとし、Markdownの記号（*や#など）や「本日のトピックス：」といった前置き、改行の連続は避けてください。
 """
 
@@ -208,13 +212,16 @@ def generate_audio_script(report_content):
     return response.choices[0].message.content
 
 def generate_audio(text, output_path, output_srt_path):
-    """さくらAIエンジンのTTS APIを使用し、長文を分割して音声化＆SRT字幕ファイルを生成する"""
-    speaker_id = 14 # 冥鳴ひまり (ノーマル)
-    headers = {"Authorization": f"Bearer {API_KEY}"}
-    
+    """Google Cloud TTS APIを使用し、長文を分割して音声化＆SRT字幕ファイルを生成する"""
+    if not GOOGLE_TTS_API_KEY:
+        print("エラー: GOOGLE_TTS_API_KEYが設定されていません。")
+        return False
+
+    # 改行を句点に変換し、句点ごとに分割（空白の要素は除外）
     text = text.replace('\n', '。')
     raw_sentences = [s.strip() + '。' for s in text.split('。') if s.strip()]
     
+    # 200文字程度でチャンク（塊）に分割
     chunks = []
     current_chunk = ""
     for sentence in raw_sentences:
@@ -228,54 +235,54 @@ def generate_audio(text, output_path, output_srt_path):
         
     temp_files = []
     srt_content = ""
-    current_time_sec = 0.0 # 字幕の開始時間
-    srt_index = 0 # ← 追加：字幕の通し番号
+    current_time_sec = 0.0
+    srt_index = 0
     
-    print(f"長文台本を {len(chunks)} 分割して音声と字幕を生成します...")
+    print(f"長文台本を {len(chunks)} 分割してGoogle TTSで音声と字幕を生成します...")
+    
+    url = f"{TTS_API_BASE}/text:synthesize?key={GOOGLE_TTS_API_KEY}"
     
     for i, chunk in enumerate(chunks):
-        query_url = f"{TTS_API_BASE}/audio_query?text={urllib.parse.quote(chunk)}&speaker={speaker_id}"
-        response_query = requests.post(query_url, headers=headers)
-        if response_query.status_code != 200: continue
+        payload = {
+            "input": {"text": chunk},
+            # ▼▼ ニュースキャスターに最適な高品質女性音声 (Neural2) を指定 ▼▼
+            "voice": {"languageCode": "ja-JP", "name": "ja-JP-Neural2-B"}, 
+            "audioConfig": {"audioEncoding": "LINEAR16", "sampleRateHertz": 24000}
+        }
+        
+        response = requests.post(url, json=payload)
+        if response.status_code != 200:
+            print(f"TTS APIエラー (セクション {i+1}): {response.text}")
+            continue
             
-        synth_url = f"{TTS_API_BASE}/synthesis?speaker={speaker_id}"
-        response_synth = requests.post(synth_url, headers=headers, json=response_query.json())
-        if response_synth.status_code != 200: continue
-            
-        # 一時ファイルとして保存
+        # Base64形式で返ってくる音声データをデコードしてWAVとして保存
+        audio_content = base64.b64decode(response.json()["audioContent"])
         temp_path = f"temp_audio_{i}.wav"
         with open(temp_path, "wb") as f:
-            f.write(response_synth.content)
+            f.write(audio_content)
         temp_files.append(temp_path)
         
-        # ▼▼▼ 修正：文字数に応じて字幕をさらに細かく分割してタイムコードを計算 ▼▼▼
+        # 音声の長さを取得してSRTタイムコードを計算
         with wave.open(temp_path, 'rb') as w:
             frames = w.getnframes()
             rate = w.getframerate()
-            duration = frames / float(rate) # このチャンク（200文字）の総秒数
+            duration = frames / float(rate)
             
-        # 1文字あたりの表示時間（秒）を計算
         time_per_char = duration / len(chunk)
-        
-        # 25文字ずつに分割して字幕ブロックを作る
         MAX_CHARS = 25
         chunk_start_sec = current_time_sec
         
         for j in range(0, len(chunk), MAX_CHARS):
             sub_text = chunk[j:j+MAX_CHARS]
             sub_duration = time_per_char * len(sub_text)
-            
             start_time_str = format_srt_time(chunk_start_sec)
             end_time_str = format_srt_time(chunk_start_sec + sub_duration)
             
             srt_index += 1
             srt_content += f"{srt_index}\n{start_time_str} --> {end_time_str}\n{sub_text}\n\n"
+            chunk_start_sec += sub_duration
             
-            chunk_start_sec += sub_duration # 次の細かいブロックの開始時間を進める
-            
-        current_time_sec += duration # 次のチャンク用にメインタイマーを更新
-        # ▲▲▲ 修正ここまで ▲▲▲
-
+        current_time_sec += duration
         print(f"セクション {i+1}/{len(chunks)} 完了")
         
     if not temp_files: return False
@@ -293,11 +300,12 @@ def generate_audio(text, output_path, output_srt_path):
     for temp_path in temp_files:
         os.remove(temp_path)
 
-    # ▼▼▼ 追加：完成したSRT字幕ファイルを保存 ▼▼▼
+    # 完成したSRT字幕ファイルを保存
     with open(output_srt_path, "w", encoding="utf-8") as f:
         f.write(srt_content)
         
     return True
+
 
 def generate_video(audio_path, srt_path, output_video_path):
     """FFmpegを使用して、静止画と音声、字幕(SRT)を結合しMP4動画を生成する"""
@@ -432,9 +440,7 @@ def main():
             print("音声用ダイジェスト台本を作成中...")
             script_text = generate_audio_script(report_content)
 
-            # ▼▼▼ 追加：クレジットの定型文を末尾に結合 ▼▼▼
-            script_text += "。なお、本日の音声は、VOICEVOX、冥鳴ひまり でお送りしました。"
-            # ▲▲▲ 追加ここまで ▲▲▲
+            script_text += "。本日のニュースダイジェストは以上です。それでは、今日も良い一日をお過ごしください。"
 
             print(f"台本完成:\n{script_text}\n")
             
@@ -454,10 +460,8 @@ def main():
                     youtube_desc = (
                         f"エリカがお届けする本日のIT・経済ニュース日報です。\n\n"
                         f"■ エリカ・プロジェクト公式サイト\n"
-                        f"https://erika.erikakataru.com/\n\n"
-                        f"※本動画の音声はVOICEVOXを使用しています。\n"
-                        f"音声生成: VOICEVOX:冥鳴ひまり\n"
-                        f"https://voicevox.hiroshiba.jp/\n"
+                        f"https://erika.erikakataru.com/\n"
+                        # VOICEVOXの2行を削除してスッキリさせました
                     )
                     
                     video_id = upload_to_youtube(video_filepath, youtube_title, youtube_desc)

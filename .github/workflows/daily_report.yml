@@ -37,7 +37,8 @@ jobs:
       - name: Run report generation script
         env:
           SAKURA_API_KEY: ${{ secrets.SAKURA_API_KEY }}
-          YOUTUBE_TOKEN: ${{ secrets.YOUTUBE_TOKEN }} # ← この1行を追加！
+          GOOGLE_TTS_API_KEY: ${{ secrets.GOOGLE_TTS_API_KEY }} 
+          YOUTUBE_TOKEN: ${{ secrets.YOUTUBE_TOKEN }} 
         run: python report_gen.py
 
      # 5. 生成されたファイル（MarkdownとJSON、そして音声）をGitHubに自動保存
