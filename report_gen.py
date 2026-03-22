@@ -301,7 +301,7 @@ def generate_audio(text, output_path, output_srt_path):
 
 def generate_video(audio_path, srt_path, output_video_path):
     """FFmpegを使用して、静止画と音声、字幕(SRT)を結合しMP4動画を生成する"""
-    image_path = os.path.join(ASSETS_DIR, "images", "ogp.jpg") 
+    image_path = os.path.join(ASSETS_DIR, "images", "news.png") 
     if not os.path.exists(image_path):
         print(f"エラー: 背景画像が見つかりません ({image_path})")
         return False
