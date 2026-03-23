@@ -357,7 +357,7 @@ def generate_video(audio_path, srt_path, output_video_path):
         # 映像(0)、主音声(1)、BGM(2) を合成
         # [2:a]volume=0.1 : BGMの音量を10%に下げる（大きすぎる場合は 0.05 などに調整）
         # amix=inputs=2:duration=first : 主音声(1)の長さに合わせてBGMをカット
-        filter_complex = "[2:a]volume=0.1[bgm];[1:a][bgm]amix=inputs=2:duration=first:dropout_transition=2[aout]"
+        filter_complex = "[2:a]volume=0.4[bgm];[1:a][bgm]amix=inputs=2:duration=first:dropout_transition=2[aout]"
         
         command = [
             "ffmpeg",
