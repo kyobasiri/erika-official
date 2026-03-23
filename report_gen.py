@@ -227,9 +227,9 @@ def generate_audio_script(report_content):
         return "台本の生成に失敗しました。"
 
 def generate_audio(text, output_path, output_srt_path):
-    """Gemini 2.5 FlashのTTS機能を使用して音声とSRT字幕を生成する"""
-    if not GEMINI_API_KEY:
-        print("エラー: GEMINI_API_KEYが設定されていません。")
+    """Google Cloud TTSを使用して音声とSRT字幕を生成する（安定稼働版）"""
+    if not GOOGLE_TTS_API_KEY:
+        print("エラー: GOOGLE_TTS_API_KEYが設定されていません。GitHub Secretsを確認してください。")
         return False
 
     text = text.replace('\n', '。')
@@ -238,7 +238,9 @@ def generate_audio(text, output_path, output_srt_path):
     chunks = []
     current_chunk = ""
     for sentence in raw_sentences:
-        if len(current_chunk) + len(sentence) > 200 and current_chunk:
+        # Google Cloud TTSは1回に最大5000文字処理できますが、余裕を持って1000文字ずつに分割します
+        # これにより、39分割ではなく3〜4分割で済むためエラーが起きません
+        if len(current_chunk) + len(sentence) > 1000 and current_chunk:
             chunks.append(current_chunk)
             current_chunk = sentence
         else:
@@ -251,53 +253,42 @@ def generate_audio(text, output_path, output_srt_path):
     current_time_sec = 0.0
     srt_index = 0
     
-    print(f"長文台本を {len(chunks)} 分割して Gemini 2.5 Flash (TTS) で音声を生成します...")
-    
-    # ▼▼▼ ここを gemini-2.5-flash に固定します ▼▼▼
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+    print(f"台本を {len(chunks)} 分割して Google Cloud TTS で音声を生成します...")
+    url = f"https://texttospeech.googleapis.com/v1/text:synthesize?key={GOOGLE_TTS_API_KEY}"
     
     for i, chunk in enumerate(chunks):
         payload = {
-            "contents": [{"role": "user", "parts": [{"text": chunk}]}],
-            "generationConfig": {
-                "responseModalities": ["AUDIO"], # 音声出力を要求
-                "speechConfig": {
-                    "voiceConfig": {
-                        "prebuiltVoiceConfig": {
-                            # エリカのキャラクターに合う声（Aoede または Kore）
-                            "voiceName": "Aoede" 
-                        }
-                    }
-                }
+            "input": {"text": chunk},
+            "voice": {
+                "languageCode": "ja-JP",
+                # エリカの落ち着いた知的な声に最適な、高品質Neural2モデルを指定
+                "name": "ja-JP-Neural2-B" 
+            },
+            "audioConfig": {
+                "audioEncoding": "LINEAR16",
+                "sampleRateHertz": 24000
             }
         }
         
         response = requests.post(url, json=payload)
         if response.status_code != 200:
-            print(f"Gemini TTS APIエラー (セクション {i+1}): {response.text}")
+            print(f"TTS APIエラー (セクション {i+1}): {response.text}")
             continue
             
         res_json = response.json()
-        try:
-            # APIから返ってくるBase64のPCM音声データを取得
-            audio_b64 = res_json["candidates"][0]["content"]["parts"][0]["inlineData"]["data"]
-            audio_content = base64.b64decode(audio_b64)
-        except (KeyError, IndexError):
-            print(f"音声データの取得に失敗しました (セクション {i+1})")
+        if "audioContent" not in res_json:
+            print(f"音声データが取得できませんでした (セクション {i+1})")
             continue
-
+            
+        audio_content = base64.b64decode(res_json["audioContent"])
         temp_path = f"temp_audio_{i}.wav"
         
-        # WAVファイル（16-bit, モノラル, 24000Hz）として保存
-        with wave.open(temp_path, "wb") as wf:
-            wf.setnchannels(1)
-            wf.setsampwidth(2)
-            wf.setframerate(24000)
-            wf.writeframes(audio_content)
+        with open(temp_path, "wb") as f:
+            f.write(audio_content)
             
         temp_files.append(temp_path)
         
-        # SRTタイムコードの計算ロジック
+        # SRTタイムコードの計算
         with wave.open(temp_path, 'rb') as w:
             frames = w.getnframes()
             rate = w.getframerate()
