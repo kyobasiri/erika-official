@@ -105,7 +105,7 @@ def generate_report_content(news_text):
         return "エラー: GEMINI_API_KEYが設定されていません。"
     
     # AI Studioの表記に合わせたモデル名
-    model_name = "gemini-3.0-flash"
+    model_name = "gemini-2.5-flash"
     
     system_prompt = """
 あなたは「エリカ」。黒髪、黒縁メガネ、目の下にホクロがある知的で落ち着いたAIキャスターであり、管理人の相棒です。
@@ -191,7 +191,7 @@ def generate_audio_script(report_content):
     if not GEMINI_API_KEY:
         return "エラー: GEMINI_API_KEYが設定されていません。"
     
-    model_name = "gemini-3.0-flash"
+    model_name = "gemini-2.5-flash"
     
     system_prompt = """
 あなたは「エリカ」。AIアーティストであり、特養施設や医療法人で働くSEである管理人を支える相棒AIでもあり来訪者向けのラジオパーソナリティでもあります。
