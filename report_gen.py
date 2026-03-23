@@ -9,7 +9,10 @@ import wave
 import subprocess
 import base64
 import random # ← 追加
-import google.generativeai as genai # ← OpenAIの代わりにインポート
+
+# Google GenAI SDKのインポート方法
+from google import genai
+from google.genai import types
 
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
