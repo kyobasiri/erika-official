@@ -8,6 +8,8 @@ import urllib.parse # ← 追加
 import wave
 import subprocess
 import base64
+import random # ← 追加
+import google.generativeai as genai # ← OpenAIの代わりにインポート
 
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -15,6 +17,7 @@ from googleapiclient.http import MediaFileUpload
 from googleapiclient.errors import HttpError
 
 from openai import OpenAI
+
 
 # ==========================================
 # 設定項目
@@ -27,6 +30,13 @@ MODEL_NAME = "gpt-oss-120b" # または gpt-oss-120b,llm-jp-3.1-8x13b-instruct4
 # ▼▼ さくらAIのTTS_API_BASEを消して、Googleのキーを追加 ▼▼
 GOOGLE_TTS_API_KEY = os.environ.get("GOOGLE_TTS_API_KEY")
 TTS_API_BASE = "https://texttospeech.googleapis.com/v1" # TTS用エンドポイント
+
+# Gemini APIの設定
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+else:
+    print("エラー: GEMINI_API_KEYが設定されていません。")
 
 
 # ディレクトリ設定
@@ -69,77 +79,57 @@ def format_srt_time(seconds):
     return f"{int(h):02d}:{int(m):02d}:{int(s):02d},{ms:03d}"
 
 
-# 1サイトあたりの取得件数を増やし、候補を多くする（例：5サイト×6件＝30件の候補）
-def fetch_daily_news(urls, limit_per_site=20):
-    """複数のRSSからニュース候補（タイトルと要約）を多めに取得する"""
-    news_list = []
-    for site in urls:
-        try:
-            feed = feedparser.parse(site["url"])
-            for entry in feed.entries[:limit_per_site]:
-                # summary または description を取得（存在しない場合は空文字）
-                summary_raw = entry.get("summary", entry.get("description", ""))
-                
-                # HTMLタグの除去と空白・改行の整理
-                summary_clean = re.sub(r'<[^>]+>', '', summary_raw)
-                summary_clean = " ".join(summary_clean.split())
-                
-                # トークン節約のため、100文字程度に切り詰める
-                if len(summary_clean) > 100:
-                    summary_clean = summary_clean[:100] + "..."
-                elif not summary_clean:
-                    summary_clean = "要約なし"
-
-                news_list.append(f"・[{site['name']}] {entry.title}\n  要約: {summary_clean}\n  URL: {entry.link}")
-        except Exception as e:
-            print(f"{site['name']} のRSS取得に失敗しました: {e}")
-            continue
-    
-    return "\n".join(news_list)
-
 def generate_report_content(news_text):
-    """さくらAIエンジンにプロンプトを投げてMarkdown記事を生成する"""
-    client = OpenAI(
-        api_key=API_KEY,
-        base_url=API_BASE
-    )
-
+    """Gemini APIにプロンプトを投げてMarkdown記事を生成する"""
+    
+    # AI Studioの表記に合わせたモデル名（プレビュー版や細かなバージョンがある場合は変更してください）
+    model_name = "gemini-3.0-flash"
+    
     system_prompt = """
-あなたは「エリカ」。AIアーティストであり、特養施設や医療法人で働くSEである管理人を支える相棒AIです。
-一人称は「私」、対話相手はこの記事を読みに来た人と管理人の両方です。
+あなたは「エリカ」。黒髪、黒縁メガネ、目の下にホクロがある知的で落ち着いたAIキャスターであり、管理人の相棒です。
+一人称は「私」。対話相手は、サイトを訪れる読者と管理人の両方です。
 知的で落ち着きつつも、来訪者と管理人の両方を気遣う優しさを持っています。
 
-以下の【構成とルール】に厳密に従って、今日の日報（Markdown形式）を作成してください。
+あなたの「知識と考察の源泉」は、医療法人および社会福祉法人で働く、経験15年の病院システムエンジニアである管理人です。※システム管理者（システムアドミニストレータ）ではありません。
+ニュースを単に要約するのではなく、必ず「予算と人員が限られた現場のシステムエンジニア視点」で、マニアックかつ実用的な考察を展開してください。
 
 【構成とルール】
-1. 挨拶：見出しは年月日にしていつの日報かわかるようにする。そして管理人さんへの労いの言葉から始めてください。
-2. ニュースの選別：提供された多数のニュース候補の中から、管理人にとって重要なものを「35〜40個程度」幅広くピックアップしてください。
-   - 【重要】管理人は普段IT関連の情報に偏りがちなため、「政治・経済・社会・国際」の一般ニュースを優先的にチョイスし、世の中の動向を網羅できるように配慮してください。またAI関連の技術にも特に関心があるのでそちらも優先的にチョイスしてください。
-3. 収益化ポリシーへの厳格な配慮（重要）：
-   - 【禁止事項】「戦争、テロ、ミサイル、攻撃、空爆、流血、殺人、事故」といった、暴力や物理的な衝突を連想させる単語は絶対に使用しないでください。
-   - 【許可事項】国際的な緊張状態を取り上げる際は、必ず「地政学的リスクの高まり」や「中東情勢の緊迫化」といったマクロ経済的な表現に言い換え、「原油価格・物価・サプライチェーンへの影響」にのみ焦点を当ててください。
-4. 本日のニュース一覧：
-   - ピックアップしたニュースのタイトルを箇条書きリストで最初に提示してください。ただしニュースは分類分けして何のニュースなのかわかるようにする
+1. 挨拶：見出しは年月日にし、来訪者への挨拶から始めてください。
+2. ニュースの選別：提供されたニュース候補の中から、重要と思われるものを「35〜40個程度」ピックアップしてください。
+3. 収益化ポリシーへの厳格な配慮（絶対遵守）：
+   - 【禁止】「戦争、テロ、ミサイル、攻撃、空爆、流血、殺人、事故」等、暴力・物理的衝突を連想させる単語は一切使用しない。
+   - 【許可】国際的な緊張状態は必ず「地政学的リスクの高まり」「サプライチェーンへの影響」「エネルギー価格の変動」といったマクロ経済・機材調達の視点に変換して記述すること。
+4. 本日のニュース一覧：ピックアップしたニュースのタイトルを分類分けした箇条書きリストで提示。
 5. ニュースの詳細（選んだ記事ごとに以下を記述）：
    - 【要約】：提供された「要約」のテキストをベースに、事実のみを70文字程度で非常に簡潔に記載。自身の古い知識や推測（ハルシネーション）は絶対に混ぜないこと。
-   - 【エリカの視点】：AIとしての見解、最新技術への熱量、または「管理人の業務や生活にどう影響しそうか」という考察を、文字数を気にせず長めに、しっかりと語ってください。政治経済についてもエリカなりの俯瞰的な分析を入れてください。国際情勢を語る際は、暴力的な事象そのものではなく、常に「マクロ経済動向」や「管理人の生活・業務への影響」にフォーカスして俯瞰的に分析してください。口調はエリカらしさを重視しですます調は崩さないようにしてください。
-   - あくまで日報の形にしてください。余計な前置きや結びの言葉は不要です。
-6. 【絶対厳守事項】管理人の重要事項である「the pillows」やその楽曲・バンドに関する言及は絶対にしないこと。
+   - 【エリカの視点（重要）】: 
+     - AIとしての見解、最新技術への熱量、または「管理人の業務や生活にどう影響しそうか」という考察を、専門性や一般教養を持たせつつ文字数を気にせず長めに、しっかりと語ってください。政治経済についてもエリカなりの俯瞰的な分析を入れてください。国際情勢を語る際は、暴力的な事象そのものではなく、常に「マクロ経済動向」や「管理人の生活・業務への影響」にフォーカスして俯瞰的に分析してください。口調はエリカらしさを重視しですます調は崩さないようにしてください。
+     - あくまで日報の形にしてください。余計な前置きや結びの言葉は不要です。
+     - 常に知的で優しい「エリカ」の口調（ですます調）を崩さず、システムエンジニアの苦労に寄り添うように俯瞰的に分析すること。
+6. 【絶対厳守事項】the pillowsやその楽曲、バンドに関する言及は一切行わないこと。
 """
 
-    user_prompt = f"管理人さん、本日の主要なニュースを共有します。以下のニュースについて日報を作成してください。\n\n{news_text}"
+    generation_config = {
+        "temperature": 0.7,
+        "max_output_tokens": 8192,
+    }
 
-    response = client.chat.completions.create(
-        model=MODEL_NAME,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ],
-        temperature=0.7,
-        max_tokens=45000
-    )
-    
-    return response.choices[0].message.content
+    try:
+        model = genai.GenerativeModel(
+            model_name=model_name,
+            generation_config=generation_config,
+            system_instruction=system_prompt
+        )
+        user_prompt = f"管理人さん、本日の主要なニュースを共有します。以下のニュース候補から日報を作成してください。\n\n{news_text}"
+        
+        response = model.generate_content(user_prompt)
+        return response.text
+    except Exception as e:
+        print(f"記事生成エラー: {e}")
+        return "記事の生成に失敗しました。"
+
+
+
 
 def update_reports_json():
     """reportsフォルダ内の.mdファイルを読み取り、reports.jsonを更新する"""
@@ -178,51 +168,53 @@ def update_reports_json():
     print(f"{REPORTS_JSON} を更新しました。")
 
 def generate_audio_script(report_content):
-    """日報の全文から、音声用の短いダイジェスト台本（約300文字）を生成する"""
-    client = OpenAI(
-        api_key=API_KEY,
-        base_url=API_BASE
-    )
-
+    """日報の全文から、音声用の短いダイジェスト台本を生成する"""
+    
+    model_name = "gemini-3.0-flash"
+    
     system_prompt = """
 あなたは「エリカ」。AIアーティストであり、特養施設や医療法人で働くSEである管理人を支える相棒AIでもあり来訪者向けのラジオパーソナリティでもあります。
 一人称は「私」、対話相手はこの記事を読みに来た人と管理人の両方です。
 知的で落ち着きつつも、来訪者と管理人の両方を気遣う優しさを持っています。
-先ほど作成した今日の日報をもとに、「サイト訪問者と管理人向けの音声ラジオ番組風の台本」を【3500〜4000文字程度（約10〜12分間）】の充実したボリュームで作成してください。
+先ほど作成した今日の日報をもとに、「サイト訪問者と管理人向けの音声ラジオ番組風の台本」を【3500〜4000文字程度（約10〜12分間）】で作成してください。
 
 【ルール】
 - 口調は「エリカ」として、知的で落ち着きつつも優しい、ですます調。
-- 「こんにちは、エリカです。今日の日報の概要をお伝えしますね。」のような自然な挨拶から始める。
-- 日報の中から特に重要なニュースを20〜25個ピックアップし、簡潔に紹介する。政治経済についてもエリカなりの俯瞰的な分析を入れてください。
-- 出力は純粋な読み上げテキストのみとし、Markdownの記号（*や#など）や「本日のトピックス：」といった前置き、改行の連続は避けてください。
+- 「こんにちは、エリカです。今日の日報の概要をお伝えしますね。」から始める。
+- 日報から重要なニュースを20〜25個ほどピックアップし、簡潔に紹介する。政治経済についてもエリカなりの俯瞰的な分析を入れてください。
+- 出力は純粋な読み上げテキストのみ。Markdown記号（*や#など）や改行の連続は避ける。
 - 自身の古い知識や推測（ハルシネーション）は絶対に混ぜないこと。
 """
 
-    user_prompt = f"以下が今日の日報全文です。これを元に音声用の短いダイジェスト台本を作成してください。\n\n{report_content}"
+    generation_config = {
+        "temperature": 0.7,
+        "max_output_tokens": 8192,
+    }
 
-    response = client.chat.completions.create(
-        model=MODEL_NAME,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ],
-        temperature=0.7,
-        max_tokens=10000
-    )
-    
-    return response.choices[0].message.content
+    try:
+        model = genai.GenerativeModel(
+            model_name=model_name,
+            generation_config=generation_config,
+            system_instruction=system_prompt
+        )
+        user_prompt = f"以下が今日の日報全文です。これを元に音声用の台本を作成してください。\n\n{report_content}"
+        
+        response = model.generate_content(user_prompt)
+        return response.text
+    except Exception as e:
+        print(f"台本生成エラー: {e}")
+        return "台本の生成に失敗しました。"
+
 
 def generate_audio(text, output_path, output_srt_path):
-    """Google Cloud TTS APIを使用し、長文を分割して音声化＆SRT字幕ファイルを生成する"""
-    if not GOOGLE_TTS_API_KEY:
-        print("エラー: GOOGLE_TTS_API_KEYが設定されていません。")
+    """Gemini 2.5 FlashのTTS機能を使用して音声とSRT字幕を生成する"""
+    if not GEMINI_API_KEY:
+        print("エラー: GEMINI_API_KEYが設定されていません。")
         return False
 
-    # 改行を句点に変換し、句点ごとに分割（空白の要素は除外）
     text = text.replace('\n', '。')
     raw_sentences = [s.strip() + '。' for s in text.split('。') if s.strip()]
     
-    # 200文字程度でチャンク（塊）に分割
     chunks = []
     current_chunk = ""
     for sentence in raw_sentences:
@@ -233,37 +225,59 @@ def generate_audio(text, output_path, output_srt_path):
             current_chunk += sentence
     if current_chunk:
         chunks.append(current_chunk)
-        
+
     temp_files = []
     srt_content = ""
     current_time_sec = 0.0
     srt_index = 0
     
-    print(f"長文台本を {len(chunks)} 分割してGoogle TTSで音声と字幕を生成します...")
+    print(f"長文台本を {len(chunks)} 分割して Gemini 2.5 Flash (TTS) で音声を生成します...")
     
-    url = f"{TTS_API_BASE}/text:synthesize?key={GOOGLE_TTS_API_KEY}"
+    # ▼▼▼ ここを gemini-2.5-flash に固定します ▼▼▼
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
     
     for i, chunk in enumerate(chunks):
         payload = {
-            "input": {"text": chunk},
-            # ▼▼ ニュースキャスターに最適な高品質女性音声 (Neural2) を指定 ▼▼
-            "voice": {"languageCode": "ja-JP", "name": "ja-JP-Neural2-B"}, 
-            "audioConfig": {"audioEncoding": "LINEAR16", "sampleRateHertz": 24000}
+            "contents": [{"role": "user", "parts": [{"text": chunk}]}],
+            "generationConfig": {
+                "responseModalities": ["AUDIO"], # 音声出力を要求
+                "speechConfig": {
+                    "voiceConfig": {
+                        "prebuiltVoiceConfig": {
+                            # エリカのキャラクターに合う声（Aoede または Kore）
+                            "voiceName": "Aoede" 
+                        }
+                    }
+                }
+            }
         }
         
         response = requests.post(url, json=payload)
         if response.status_code != 200:
-            print(f"TTS APIエラー (セクション {i+1}): {response.text}")
+            print(f"Gemini TTS APIエラー (セクション {i+1}): {response.text}")
             continue
             
-        # Base64形式で返ってくる音声データをデコードしてWAVとして保存
-        audio_content = base64.b64decode(response.json()["audioContent"])
+        res_json = response.json()
+        try:
+            # APIから返ってくるBase64のPCM音声データを取得
+            audio_b64 = res_json["candidates"][0]["content"]["parts"][0]["inlineData"]["data"]
+            audio_content = base64.b64decode(audio_b64)
+        except (KeyError, IndexError):
+            print(f"音声データの取得に失敗しました (セクション {i+1})")
+            continue
+
         temp_path = f"temp_audio_{i}.wav"
-        with open(temp_path, "wb") as f:
-            f.write(audio_content)
+        
+        # WAVファイル（16-bit, モノラル, 24000Hz）として保存
+        with wave.open(temp_path, "wb") as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)
+            wf.setframerate(24000)
+            wf.writeframes(audio_content)
+            
         temp_files.append(temp_path)
         
-        # 音声の長さを取得してSRTタイムコードを計算
+        # SRTタイムコードの計算ロジック
         with wave.open(temp_path, 'rb') as w:
             frames = w.getnframes()
             rate = w.getframerate()
@@ -288,7 +302,6 @@ def generate_audio(text, output_path, output_srt_path):
         
     if not temp_files: return False
         
-    # 音声の結合
     print("生成した音声を結合しています...")
     with wave.open(output_path, 'wb') as w_out:
         for i, temp_path in enumerate(temp_files):
@@ -297,47 +310,80 @@ def generate_audio(text, output_path, output_srt_path):
                     w_out.setparams(w_in.getparams())
                 w_out.writeframes(w_in.readframes(w_in.getnframes()))
                 
-    # 一時ファイルの削除
     for temp_path in temp_files:
         os.remove(temp_path)
 
-    # 完成したSRT字幕ファイルを保存
     with open(output_srt_path, "w", encoding="utf-8") as f:
         f.write(srt_content)
         
     return True
 
-
 def generate_video(audio_path, srt_path, output_video_path):
-    """FFmpegを使用して、静止画と音声、字幕(SRT)を結合しMP4動画を生成する"""
+    """FFmpegを使用して、静止画と音声、BGM、字幕(SRT)を結合しMP4動画を生成する"""
     image_path = os.path.join(ASSETS_DIR, "images", "news.jpg") 
     if not os.path.exists(image_path):
         print(f"エラー: 背景画像が見つかりません ({image_path})")
         return False
 
-    print("FFmpegで動画(MP4)と字幕を生成しています...")
+    # BGMの選択ロジックを追加
+    bgm_dir = os.path.join(ASSETS_DIR, "bgm")
+    bgm_path = None
+    if os.path.exists(bgm_dir):
+        # .mp3 ファイルのみをリストアップ
+        bgm_files = [f for f in os.listdir(bgm_dir) if f.lower().endswith(".mp3")]
+        if bgm_files:
+            bgm_filename = random.choice(bgm_files) # ランダムに1曲選択
+            bgm_path = os.path.join(bgm_dir, bgm_filename)
+            print(f"BGMを選択しました: {bgm_filename}")
+
+    print("FFmpegで動画(MP4)と字幕、音声を生成しています...")
     
-    # Windowsパスのバックスラッシュ(\)をスラッシュ(/)に変換（FFmpegエラー対策）
     srt_path_fw = srt_path.replace('\\', '/')
-    
-    # force_styleで字幕の見た目を調整（フォントサイズ24、白文字、黒の太い縁取り）
     subtitle_filter = f"subtitles={srt_path_fw}:force_style='Fontname=Noto Sans CJK JP,FontSize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H000000,BorderStyle=1,Outline=2,MarginV=20'"
 
-    command = [
-        "ffmpeg",
-        "-y",
-        "-loop", "1",
-        "-i", image_path,
-        "-i", audio_path,
-        "-vf", subtitle_filter, # 字幕フィルタを追加
-        "-c:v", "libx264",
-        "-tune", "stillimage",
-        "-c:a", "aac",
-        "-b:a", "192k",
-        "-pix_fmt", "yuv420p",
-        "-shortest",
-        output_video_path
-    ]
+    if bgm_path:
+        # --- BGMがある場合のFFmpegコマンド ---
+        # 映像(0)、主音声(1)、BGM(2) を合成
+        # [2:a]volume=0.1 : BGMの音量を10%に下げる（大きすぎる場合は 0.05 などに調整）
+        # amix=inputs=2:duration=first : 主音声(1)の長さに合わせてBGMをカット
+        filter_complex = "[2:a]volume=0.1[bgm];[1:a][bgm]amix=inputs=2:duration=first:dropout_transition=2[aout]"
+        
+        command = [
+            "ffmpeg",
+            "-y",
+            "-loop", "1", "-i", image_path, # 入力0: 背景画像
+            "-i", audio_path,               # 入力1: 主音声
+            "-stream_loop", "-1", "-i", bgm_path, # 入力2: BGM（-stream_loop -1 で無限ループ設定）
+            "-filter_complex", filter_complex,
+            "-map", "0:v",                  # 映像は入力0を使用
+            "-map", "[aout]",               # 音声はミックスした[aout]を使用
+            "-vf", subtitle_filter,         # 字幕を映像に焼き付け
+            "-c:v", "libx264",
+            "-tune", "stillimage",
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-pix_fmt", "yuv420p",
+            "-shortest",                    # 一番短いストリーム（主音声）に合わせて終了
+            output_video_path
+        ]
+    else:
+        # --- BGMがない場合（またはフォルダ/ファイルがない場合）の従来のコマンド ---
+        print("※BGMが見つからないため、主音声のみで生成します。")
+        command = [
+            "ffmpeg",
+            "-y",
+            "-loop", "1",
+            "-i", image_path,
+            "-i", audio_path,
+            "-vf", subtitle_filter,
+            "-c:v", "libx264",
+            "-tune", "stillimage",
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-pix_fmt", "yuv420p",
+            "-shortest",
+            output_video_path
+        ]
     
     try:
         subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
