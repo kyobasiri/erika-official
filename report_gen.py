@@ -77,6 +77,27 @@ def format_srt_time(seconds):
     ms = int((seconds - int(seconds)) * 1000)
     return f"{int(h):02d}:{int(m):02d}:{int(s):02d},{ms:03d}"
 
+def fetch_daily_news(urls, limit_per_site=20):
+    """複数のRSSからニュース候補を取得する"""
+    news_list = []
+    for site in urls:
+        try:
+            feed = feedparser.parse(site["url"])
+            for entry in feed.entries[:limit_per_site]:
+                summary_raw = entry.get("summary", entry.get("description", ""))
+                summary_clean = re.sub(r'<[^>]+>', '', summary_raw)
+                summary_clean = " ".join(summary_clean.split())
+                
+                if len(summary_clean) > 100:
+                    summary_clean = summary_clean[:100] + "..."
+                elif not summary_clean:
+                    summary_clean = "要約なし"
+
+                news_list.append(f"・[{site['name']}] {entry.title}\n  要約: {summary_clean}\n  URL: {entry.link}")
+        except Exception as e:
+            print(f"{site['name']} のRSS取得に失敗しました: {e}")
+            continue
+    return "\n".join(news_list)
 
 def generate_report_content(news_text):
     """Gemini APIにプロンプトを投げてMarkdown記事を生成する"""
