@@ -135,8 +135,9 @@ def generate_report_content(news_text):
     }
 
     try:
-        model = genai.GenerativeModel(
-            model_name=model_name,
+        client = genai.Client(api_key=GEMINI_API_KEY)
+        response = client.models.generate_content(
+            model=model_name,
             generation_config=generation_config,
             system_instruction=system_prompt
         )
@@ -212,8 +213,9 @@ def generate_audio_script(report_content):
     }
 
     try:
-        model = genai.GenerativeModel(
-            model_name=model_name,
+        client = genai.Client(api_key=GEMINI_API_KEY)
+        response = client.models.generate_content(
+            model=model_name,
             generation_config=generation_config,
             system_instruction=system_prompt
         )
