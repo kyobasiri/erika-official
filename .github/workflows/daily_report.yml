@@ -31,7 +31,7 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y ffmpeg fonts-noto-cjk  # ←この1行を一番上に追加
           python -m pip install --upgrade pip
-          pip install openai feedparser requests google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
+          pip install openai feedparser requests google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client google-generativeai
 
       # 4. エリカに日報を書かせる（Pythonスクリプトの実行）
       - name: Run report generation script
@@ -39,6 +39,7 @@ jobs:
           SAKURA_API_KEY: ${{ secrets.SAKURA_API_KEY }}
           GOOGLE_TTS_API_KEY: ${{ secrets.GOOGLE_TTS_API_KEY }} 
           YOUTUBE_TOKEN: ${{ secrets.YOUTUBE_TOKEN }} 
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python report_gen.py
 
      # 5. 生成されたファイル（MarkdownとJSON、そして音声）をGitHubに自動保存
