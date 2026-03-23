@@ -101,8 +101,10 @@ def fetch_daily_news(urls, limit_per_site=20):
 
 def generate_report_content(news_text):
     """Gemini APIにプロンプトを投げてMarkdown記事を生成する"""
+    if not GEMINI_API_KEY:
+        return "エラー: GEMINI_API_KEYが設定されていません。"
     
-    # AI Studioの表記に合わせたモデル名（プレビュー版や細かなバージョンがある場合は変更してください）
+    # AI Studioの表記に合わせたモデル名
     model_name = "gemini-3.0-flash"
     
     system_prompt = """
@@ -129,28 +131,24 @@ def generate_report_content(news_text):
 6. 【絶対厳守事項】the pillowsやその楽曲、バンドに関する言及は一切行わないこと。
 """
 
-    generation_config = {
-        "temperature": 0.7,
-        "max_output_tokens": 8192,
-    }
-
     try:
         client = genai.Client(api_key=GEMINI_API_KEY)
-        response = client.models.generate_content(
-            model=model_name,
-            generation_config=generation_config,
-            system_instruction=system_prompt
-        )
         user_prompt = f"管理人さん、本日の主要なニュースを共有します。以下のニュース候補から日報を作成してください。\n\n{news_text}"
         
-        response = model.generate_content(user_prompt)
+        # 新しいSDKの正しい呼び出し方
+        response = client.models.generate_content(
+            model=model_name,
+            contents=user_prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                temperature=0.7,
+                max_output_tokens=8192,
+            )
+        )
         return response.text
     except Exception as e:
         print(f"記事生成エラー: {e}")
         return "記事の生成に失敗しました。"
-
-
-
 
 def update_reports_json():
     """reportsフォルダ内の.mdファイルを読み取り、reports.jsonを更新する"""
@@ -190,6 +188,8 @@ def update_reports_json():
 
 def generate_audio_script(report_content):
     """日報の全文から、音声用の短いダイジェスト台本を生成する"""
+    if not GEMINI_API_KEY:
+        return "エラー: GEMINI_API_KEYが設定されていません。"
     
     model_name = "gemini-3.0-flash"
     
@@ -207,26 +207,24 @@ def generate_audio_script(report_content):
 - 自身の古い知識や推測（ハルシネーション）は絶対に混ぜないこと。
 """
 
-    generation_config = {
-        "temperature": 0.7,
-        "max_output_tokens": 8192,
-    }
-
     try:
         client = genai.Client(api_key=GEMINI_API_KEY)
-        response = client.models.generate_content(
-            model=model_name,
-            generation_config=generation_config,
-            system_instruction=system_prompt
-        )
         user_prompt = f"以下が今日の日報全文です。これを元に音声用の台本を作成してください。\n\n{report_content}"
         
-        response = model.generate_content(user_prompt)
+        # 新しいSDKの正しい呼び出し方
+        response = client.models.generate_content(
+            model=model_name,
+            contents=user_prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                temperature=0.7,
+                max_output_tokens=8192,
+            )
+        )
         return response.text
     except Exception as e:
         print(f"台本生成エラー: {e}")
         return "台本の生成に失敗しました。"
-
 
 def generate_audio(text, output_path, output_srt_path):
     """Gemini 2.5 FlashのTTS機能を使用して音声とSRT字幕を生成する"""
