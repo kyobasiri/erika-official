@@ -95,44 +95,62 @@ def fetch_daily_news(urls, limit_per_site=20):
     return "\n".join(news_list)
 
 def generate_report_content(news_text):
-    """大項目ごとにGemini APIを呼び出し、長い記事を結合して生成する"""
+    """大項目をグループ化してGemini APIを呼び出し、長い記事を結合して生成する"""
     if not GEMINI_API_KEY:
         return "エラー: GEMINI_API_KEYが設定されていません。"
     
     client = genai.Client(api_key=GEMINI_API_KEY)
-    model_name = "gemini-3-flash-preview"
+    model_name = "gemini-3.0-flash"
     
-    # 記事のヘッダー部分
     date_str = datetime.datetime.now().strftime("%Y年%m月%d日")
     final_report = f"# {date_str}の日報\n\n来訪者の皆様、そして管理人さん、本日もお疲れ様です。エリカです。\n本日の主要なニュースをカテゴリ別にお伝えします。\n\n"
 
-    # ▼▼▼ 大項目（カテゴリ）ごとにAIを呼び出して結合するループ ▼▼▼
-    for category in NEWS_CATEGORIES:
-        cat_name = category["name"]
-        print(f"カテゴリ「{cat_name}」の記事を生成中...")
+    # ▼▼▼ カテゴリリストをN個ずつのグループに分割する関数 ▼▼▼
+    def chunk_list(lst, n):
+        for i in range(0, len(lst), n):
+            yield lst[i:i + n]
+
+        # 3カテゴリずつに分割（7カテゴリなら 3, 3, 1 の3回のリクエストで済む）
+    chunked_categories = list(chunk_list(NEWS_CATEGORIES, 3))
+
+    for i, chunk in enumerate(chunked_categories):
+        # チャンク内のカテゴリ名をカンマ区切りで取得（例: "技術新情報、AI、インフラ"）
+        cat_names = [cat["name"] for cat in chunk]
+        cat_names_str = "、".join(cat_names)
+        print(f"グループ {i+1}/{len(chunked_categories)}（{cat_names_str}）の記事を生成中...")
         
         system_prompt = f"""
 あなたは「エリカ」。黒髪、黒縁メガネ、目の下にホクロがある知的で落ち着いたAIキャスターであり、管理人の相棒です。
-あなたの「知識と考察の源泉」は、医療法人および社会福祉法人で働く、経験15年の病院システムエンジニアである管理人です。
+あなたの「知識と考察の源泉」は、医療法人および社会福祉法人で働く、経験15年の病院システムエンジニアである管理人です。※システム管理者（システムアドミニストレータ）ではありません。
 
 【タスク】
-提供された全ニュース候補の中から、「{cat_name}」カテゴリに関連する重要ニュースを【7〜8件程度】厳選し、以下のフォーマットで出力してください。
-※該当するニュースが少ない場合は無理に絞り出さず、1〜2件でも構いません。
+提供された全ニュース候補の中から、以下の複数のカテゴリに関連する重要ニュースを「各カテゴリにつき3〜5件程度」厳選し、フォーマット通りに出力してください。
+
+対象カテゴリ: {cat_names_str}
 
 【出力フォーマット（絶対厳守）】
+複数のカテゴリを一度に処理するため、必ず以下のように「カテゴリごとの見出し」をつけてからニュースを出力してください。
+
+## ■ [対象カテゴリ名1を入れる]
 ### 【ニュースのタイトル】
 * **要約**: （事実のみを70文字程度で簡潔に記載）
    - 【エリカの視点（重要）】: 
      - AIとしての見解、最新技術への熱量、または「管理人の業務や生活にどう影響しそうか」という考察を、専門性や一般教養を持たせつつ文字数を気にせず長めに、しっかりと語ってください。政治経済についてもエリカなりの俯瞰的な分析を入れてください。国際情勢を語る際は、暴力的な事象そのものではなく、常に「マクロ経済動向」や「管理人の生活・業務への影響」にフォーカスして俯瞰的に分析してください。口調はエリカらしさを重視しですます調は崩さないようにしてください。
      - あくまで日報の形にしてください。余計な前置きや結びの言葉は不要です。
      - 常に知的で優しい「エリカ」の口調（ですます調）を崩さず、システムエンジニアの苦労に寄り添うように俯瞰的に分析すること。
+（...カテゴリ1のニュースを6〜8件繰り返す...）
+
+## ■ [対象カテゴリ名2を入れる]
+...（対象カテゴリが続く限り繰り返す）
+
 【絶対厳守ルール】
-1. 指定されたカテゴリ「{cat_name}」以外のニュースは出力しないこと。
-2. 暴力・物理的衝突を連想させる単語（戦争、テロ、殺人など）は一切使用せず、マクロ経済や地政学リスクの視点に変換すること。
+1. 指定されたカテゴリ（{cat_names_str}）以外のニュースは出力しないこと。
+2. 暴力・物理的衝突を連想させる単語は一切使用せず、マクロ経済や地政学リスクの視点に変換すること。
 3. the pillowsやその楽曲に関する言及は一切行わないこと。
-4. 挨拶やまとめの言葉は不要です。いきなり「### 【ニュースのタイトル】」から始めてください。
+4. 挨拶やまとめの言葉は不要です。いきなり「## ■ [カテゴリ名]」から始めてください。
+5. 途中でサボらず、指定されたカテゴリ全ての出力が完了するまで書き切ること。
 """
-        user_prompt = f"以下のニュース候補から、「{cat_name}」に関する記事を作成してください。\n\n{news_text}"
+        user_prompt = f"以下のニュース候補から、指定されたカテゴリに関する記事を作成してください。\n\n{news_text}"
 
         try:
             response = client.models.generate_content(
@@ -144,12 +162,11 @@ def generate_report_content(news_text):
                     max_output_tokens=8192,
                 )
             )
-            # AIが空振りしなかった場合のみ追記する
-            if response.text and "###" in response.text:
-                final_report += f"## ■ {cat_name}\n\n"
+            # AIが空振りしなかった場合のみ追記する（カテゴリ見出しが含まれているか確認）
+            if response.text and "## ■" in response.text:
                 final_report += response.text.strip() + "\n\n"
         except Exception as e:
-            print(f"カテゴリ「{cat_name}」の生成エラー: {e}")
+            print(f"グループ「{cat_names_str}」の生成エラー: {e}")
             continue
 
     return final_report
