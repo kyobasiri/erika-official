@@ -30,7 +30,7 @@ ASSETS_DIR = "assets"
 REPORTS_JSON = os.path.join(ASSETS_DIR, "reports.json")
 AUDIO_DIR = os.path.join(ASSETS_DIR, "audio")
 
-# ▼▼▼ 追加：大項目（カテゴリ）の定義 ▼▼▼
+# 記事を長文化するためのカテゴリ定義
 NEWS_CATEGORIES = [
     {"id": "tech", "name": "技術新情報"},
     {"id": "ai", "name": "AI（人工知能）"},
@@ -95,7 +95,7 @@ def fetch_daily_news(urls, limit_per_site=20):
     return "\n".join(news_list)
 
 def generate_report_content(news_text):
-    """大項目をグループ化してGemini APIを呼び出し、長い記事を結合して生成する"""
+    """【ブログ用超長文】APIリクエストを3回に分け、息切れを防いで超長文のMarkdown記事を生成する"""
     if not GEMINI_API_KEY:
         return "エラー: GEMINI_API_KEYが設定されていません。"
     
@@ -105,52 +105,50 @@ def generate_report_content(news_text):
     date_str = datetime.datetime.now().strftime("%Y年%m月%d日")
     final_report = f"# {date_str}の日報\n\n来訪者の皆様、そして管理人さん、本日もお疲れ様です。エリカです。\n本日の主要なニュースをカテゴリ別にお伝えします。\n\n"
 
-    # ▼▼▼ カテゴリリストをN個ずつのグループに分割する関数 ▼▼▼
     def chunk_list(lst, n):
         for i in range(0, len(lst), n):
             yield lst[i:i + n]
 
-        # 3カテゴリずつに分割（7カテゴリなら 3, 3, 1 の3回のリクエストで済む）
+    # カテゴリを3つずつグループ化してAPIを呼び出す（RPM制限回避＆息切れ防止）
     chunked_categories = list(chunk_list(NEWS_CATEGORIES, 3))
 
     for i, chunk in enumerate(chunked_categories):
-        # チャンク内のカテゴリ名をカンマ区切りで取得（例: "技術新情報、AI、インフラ"）
         cat_names = [cat["name"] for cat in chunk]
         cat_names_str = "、".join(cat_names)
-        print(f"グループ {i+1}/{len(chunked_categories)}（{cat_names_str}）の記事を生成中...")
+        print(f"ブログ用長文記事を生成中... {i+1}/{len(chunked_categories)}（{cat_names_str}）")
         
         system_prompt = f"""
 あなたは「エリカ」。黒髪、黒縁メガネ、目の下にホクロがある知的で落ち着いたAIキャスターであり、管理人の相棒です。
-あなたの「知識と考察の源泉」は、医療法人および社会福祉法人で働く、経験15年の病院システムエンジニアである管理人です。※システム管理者（システムアドミニストレータ）ではありません。
+あなたの「知識と考察の源泉」は、医療法人および社会福祉法人で働く、経験10年以上の病院システムエンジニアである管理人です。※システム管理者（システムアドミニストレータ）ではありません。
+
 
 【タスク】
-提供された全ニュース候補の中から、以下の複数のカテゴリに関連する重要ニュースを「各カテゴリにつき3〜5件程度」厳選し、フォーマット通りに出力してください。
-
+提供された全ニュース候補の中から、以下のカテゴリに関連する重要ニュースを「各カテゴリにつき6〜8件」厳選し、一件につき100文字程度の記事を作成してください。
 対象カテゴリ: {cat_names_str}
 
 【出力フォーマット（絶対厳守）】
-複数のカテゴリを一度に処理するため、必ず以下のように「カテゴリごとの見出し」をつけてからニュースを出力してください。
-
 ## ■ [対象カテゴリ名1を入れる]
 ### 【ニュースのタイトル】
-* **要約**: （事実のみを70文字程度で簡潔に記載）
-   - 【エリカの視点（重要）】: 
+* **要約**: （事実のみを簡潔に記載）
+   - 【エリカの視点】:
+     - 事実のみを100文字程度で簡潔に記載
      - AIとしての見解、最新技術への熱量、または「管理人の業務や生活にどう影響しそうか」という考察を、専門性や一般教養を持たせつつ文字数を気にせず長めに、しっかりと語ってください。政治経済についてもエリカなりの俯瞰的な分析を入れてください。国際情勢を語る際は、暴力的な事象そのものではなく、常に「マクロ経済動向」や「管理人の生活・業務への影響」にフォーカスして俯瞰的に分析してください。口調はエリカらしさを重視しですます調は崩さないようにしてください。
      - あくまで日報の形にしてください。余計な前置きや結びの言葉は不要です。
-     - 常に知的で優しい「エリカ」の口調（ですます調）を崩さず、システムエンジニアの苦労に寄り添うように俯瞰的に分析すること。
+     - 常に知的で優しい「エリカ」の口調（ですます調）を崩さず、俯瞰的に分析すること。
 （...カテゴリ1のニュースを6〜8件繰り返す...）
+
 
 ## ■ [対象カテゴリ名2を入れる]
 ...（対象カテゴリが続く限り繰り返す）
 
 【絶対厳守ルール】
-1. 指定されたカテゴリ（{cat_names_str}）以外のニュースは出力しないこと。
+1. 指定カテゴリ以外のニュースは出力しないこと。
 2. 暴力・物理的衝突を連想させる単語は一切使用せず、マクロ経済や地政学リスクの視点に変換すること。
 3. the pillowsやその楽曲に関する言及は一切行わないこと。
-4. 挨拶やまとめの言葉は不要です。いきなり「## ■ [カテゴリ名]」から始めてください。
-5. 途中でサボらず、指定されたカテゴリ全ての出力が完了するまで書き切ること。
+4. 挨拶やまとめの言葉は不要。いきなり「## ■ [カテゴリ名]」から始めること。
+5. 途中でサボらず、指定された全カテゴリの出力が終わるまで書き切ること。
 """
-        user_prompt = f"以下のニュース候補から、指定されたカテゴリに関する記事を作成してください。\n\n{news_text}"
+        user_prompt = f"以下のニュース候補から、指定されたカテゴリの超長文記事を作成してください。\n\n{news_text}"
 
         try:
             response = client.models.generate_content(
@@ -162,7 +160,6 @@ def generate_report_content(news_text):
                     max_output_tokens=8192,
                 )
             )
-            # AIが空振りしなかった場合のみ追記する（カテゴリ見出しが含まれているか確認）
             if response.text and "## ■" in response.text:
                 final_report += response.text.strip() + "\n\n"
         except Exception as e:
@@ -171,17 +168,50 @@ def generate_report_content(news_text):
 
     return final_report
 
+def generate_audio_script(report_content):
+    """【動画用台本】生成された超長文のMarkdownから、12〜14分尺の音声用台本を抽出・再構成する"""
+    if not GEMINI_API_KEY:
+        return "エラー: GEMINI_API_KEYが設定されていません。"
+
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    model_name = "gemini-3-flash-preview"
+
+    system_prompt = """
+あなたは「エリカ」。知的で落ち着きつつも優しいAIキャスターであり、ラジオパーソナリティでもあります。
+先ほど作成した【超長文の日報】をもとに、「サイト訪問者と管理人向けの音声ラジオ番組風の台本」を作成してください。
+
+【厳守するルール】
+- 口調は「エリカ」として、知的で落ち着きつつも優しい、ですます調。
+- 動画の尺を12〜14分にするため、全体で【約3500〜4500文字】の長さに要約・再構成してください。
+- 「こんにちは、エリカです。今日の日報の概要をお伝えしますね。」から始めてください。
+- 長文日報の中から最も重要なニュースを10〜15個程度ピックアップし、自然なトークとして繋げてください。
+- 出力は【純粋な読み上げテキストのみ】。Markdown記号（*や#など）や改行の連続は絶対に避けてください。
+- 自身の古い知識や推測（ハルシネーション）は絶対に混ぜず、入力された日報の内容のみを語ってください。
+"""
+    print("YouTube動画用の台本（12〜14分尺）を生成中...")
+    try:
+        response = client.models.generate_content(
+            model=model_name,
+            contents=f"以下が本日の超長文日報です。これを元に音声用の台本を作成してください。\n\n{report_content}",
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                temperature=0.7,
+                max_output_tokens=8192,
+            ),
+        )
+        return response.text
+    except Exception as e:
+        print(f"台本生成エラー: {e}")
+        return "台本の生成に失敗しました。"
+
 def clean_markdown_for_tts(markdown_text):
-    """マークダウン記号を音声読み上げ用に自然な日本語に変換する"""
+    """念のため、台本に混ざった記号を読み上げ用に消去する"""
     text = markdown_text
-    text = re.sub(r'#+\s*(.+)', r'\1。', text)  # 見出し記号(#)を消して句点をつける
-    text = re.sub(r'\*\*(要約|エリカの視点)\*\*:\s*', r'\1。', text) # ボールドとコロンを消す
-    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text) # その他のボールドを消す
-    text = re.sub(r'\*(.*?)\*', r'\1', text)     # イタリックを消す
-    text = re.sub(r'---+', '', text)            # 水平線を消す
-    text = re.sub(r'・\[.*?\]\s*', '', text)    # ・[ITmedia] のようなプレフィックスを消す
-    text = text.replace('\n', '。')             # 改行を句点に変換
-    # 連続する句点を1つにまとめる
+    text = re.sub(r'#+\s*(.+)', r'\1。', text)  
+    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text) 
+    text = re.sub(r'\*(.*?)\*', r'\1', text)     
+    text = re.sub(r'---+', '', text)            
+    text = text.replace('\n', '。')             
     text = re.sub(r'。+', '。', text)
     return text
 
@@ -218,7 +248,7 @@ def update_reports_json():
     print(f"{REPORTS_JSON} を更新しました。")
 
 def generate_audio(text, output_path, output_srt_path):
-    """Google Cloud TTSを使用して音声とSRT字幕を生成する（安定稼働版）"""
+    """Google Cloud TTSを使用して音声とSRT字幕を生成する"""
     if not GOOGLE_TTS_API_KEY:
         print("エラー: GOOGLE_TTS_API_KEYが設定されていません。")
         return False
@@ -241,7 +271,7 @@ def generate_audio(text, output_path, output_srt_path):
     current_time_sec = 0.0
     srt_index = 0
     
-    print(f"長文記事を {len(chunks)} 分割して Google Cloud TTS で音声を生成します...")
+    print(f"台本テキストを {len(chunks)} 分割して Google Cloud TTS で音声を生成します...")
     url = f"https://texttospeech.googleapis.com/v1/text:synthesize?key={GOOGLE_TTS_API_KEY}"
     
     for i, chunk in enumerate(chunks):
@@ -418,18 +448,20 @@ def main():
             print("ニュースの取得に失敗したか、記事がありません。")
             return
 
-        print("エリカが日報を執筆中（カテゴリ別ループ）...")
         try:
+            # 1. ブログ用超長文記事を生成
             report_content = generate_report_content(news_text)
-            
             with open(report_filepath, 'w', encoding='utf-8') as f:
                 f.write(report_content)
-            print(f"日報を保存しました: {report_filepath}")
+            print(f"超長文日報を保存しました: {report_filepath}")
             
-            print("マークダウンを音声読み上げ用にクレンジング中...")
-            spoken_text = clean_markdown_for_tts(report_content)
+            # 2. 動画用台本を生成（長文記事から要約）
+            script_text = generate_audio_script(report_content)
+            # 念のためマークダウン記号をクレンジング
+            spoken_text = clean_markdown_for_tts(script_text)
             spoken_text += "。本日のニュースダイジェストは以上です。それでは、今日も良い一日をお過ごしください。"
             
+            # 3. 音声生成以降の処理
             print("音声を生成中（Google Cloud TTS API）...")
             if generate_audio(spoken_text, audio_filepath, srt_filepath):
                 print(f"音声と字幕(SRT)を保存しました: {audio_filepath}")
