@@ -100,7 +100,7 @@ def generate_report_content(news_text):
         return "エラー: GEMINI_API_KEYが設定されていません。"
     
     client = genai.Client(api_key=GEMINI_API_KEY)
-    model_name = "gemini-3.0-flash"
+    model_name = "gemini-3-flash-preview"
     
     # 記事のヘッダー部分
     date_str = datetime.datetime.now().strftime("%Y年%m月%d日")
