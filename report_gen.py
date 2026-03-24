@@ -365,7 +365,7 @@ def generate_video(audio_path, srt_path, output_video_path):
     subtitle_filter = f"subtitles={srt_path_fw}:force_style='Fontname=Noto Sans CJK JP,FontSize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H000000,BorderStyle=1,Outline=2,MarginV=20'"
 
     if bgm_path:
-        filter_complex = "[2:a]volume=0.1[bgm];[1:a][bgm]amix=inputs=2:duration=first:dropout_transition=2[aout]"
+        filter_complex = "[2:a]volume=0.4[bgm];[1:a][bgm]amix=inputs=2:duration=first:dropout_transition=2[aout]"
         command = [
             "ffmpeg", "-y", "-loop", "1", "-i", image_path,
             "-i", audio_path, "-stream_loop", "-1", "-i", bgm_path, 
