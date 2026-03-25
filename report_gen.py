@@ -346,11 +346,12 @@ def generate_audio(text, output_path, output_srt_path):
         
     return True
 
-def generate_video(audio_path, srt_path, output_video_path):
-    image_path = os.path.join(ASSETS_DIR, "images", "news.jpg") 
+def generate_video(audio_path, srt_path, output_video_path, bg_image_filename="news.jpg"):
+    image_path = os.path.join(ASSETS_DIR, "images", bg_image_filename) 
     if not os.path.exists(image_path):
-        print(f"エラー: 背景画像が見つかりません ({image_path})")
-        return False
+        print(f"警告: 指定された背景画像が見つかりません。デフォルト画像を使用します。")
+        image_path = os.path.join(ASSETS_DIR, "images", "news.jpg")
+
 
     bgm_dir = os.path.join(ASSETS_DIR, "bgm")
     bgm_path = None
@@ -450,26 +451,22 @@ def main():
             return
 
         try:
-            # ▼▼▼ 追加：RSSソース名の一覧文字列を作成 ▼▼▼
-            source_names = [feed["name"] for feed in RSS_URLS]
-            source_names_str = "、".join(source_names)
-            # ▲▲▲ 追加ここまで ▲▲▲
-
             # 1. ブログ用超長文記事を生成
             report_content = generate_report_content(news_text)
             
-            # ▼▼▼ 追加：別ファイルに切り出したアイキャッチ生成を呼び出す ▼▼▼
-            eyecatch_filename = generate_eyecatch(today_str, news_text)
-            if eyecatch_filename:
-                # 記事の先頭（「# YYYY年MM月DD日の日報」の直後）に画像のMarkdownタグを挿入
-                image_md = f"\n![本日のアイキャッチ](/assets/images/{eyecatch_filename})\n"
-                report_content = re.sub(r'(# .*の日報\n)', rf'\1{image_md}', report_content, count=1)
-            # ▲▲▲ 追加ここまで ▲▲▲
-
+            # ▼▼▼ 新機能：今日のニュースから動画の背景画像(アイキャッチ)を生成 ▼▼▼
+            print("本日のニュースから動画背景用画像を生成します...")
+            generated_bg = generate_eyecatch(today_str, news_text)
+            # 生成に失敗した場合はデフォルトの "news.jpg" にフォールバックする
+            video_bg_filename = generated_bg if generated_bg else "news.jpg"
+            
             # ブログ記事の末尾にソース一覧を自動追記
+            source_names = [feed["name"] for feed in RSS_URLS]
+            source_names_str = "、".join(source_names)
             source_footer = f"\n\n---\n### 📰 本日の情報元（RSSソース）\n当サイトのニュースは、以下の信頼できる情報元から自動取得し、厳選して考察を行っています。\n{source_names_str}\n"
             report_content += source_footer
 
+            # 超長文日報を保存
             with open(report_filepath, 'w', encoding='utf-8') as f:
                 f.write(report_content)
             print(f"超長文日報を保存しました: {report_filepath}")
@@ -485,13 +482,14 @@ def main():
             if generate_audio(spoken_text, audio_filepath, srt_filepath):
                 print(f"音声と字幕(SRT)を保存しました: {audio_filepath}")
                 
-                if generate_video(audio_filepath, srt_filepath, video_filepath):
+                # ▼▼▼ 変更：生成した背景画像のファイル名を generate_video に渡す ▼▼▼
+                if generate_video(audio_filepath, srt_filepath, video_filepath, video_bg_filename):
                     print(f"字幕付き動画を保存しました: {video_filepath}")
                     
                     display_date = f"{today_str[:4]}年{today_str[4:6]}月{today_str[6:]}日"
                     youtube_title = f"【AI日報】{display_date}の主要ニュース | エリカ"
                     
-                    # ▼▼▼ 変更：YouTube概要欄にもソース一覧を追記 ▼▼▼
+                    # YouTube概要欄にもソース一覧を追記
                     youtube_desc = (
                         f"エリカがお届けする本日のIT・経済ニュース日報です。\n\n"
                         f"■ エリカ・プロジェクト公式サイト\n"
@@ -499,7 +497,6 @@ def main():
                         f"■ 情報元（RSS）\n"
                         f"{source_names_str}\n"
                     )
-                    # ▲▲▲ 変更ここまで ▲▲▲
                     
                     video_id = upload_to_youtube(video_filepath, youtube_title, youtube_desc)
                     if video_id:
