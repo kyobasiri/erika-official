@@ -449,8 +449,19 @@ def main():
             return
 
         try:
+            # ▼▼▼ 追加：RSSソース名の一覧文字列を作成 ▼▼▼
+            source_names = [feed["name"] for feed in RSS_URLS]
+            source_names_str = "、".join(source_names)
+            # ▲▲▲ 追加ここまで ▲▲▲
+
             # 1. ブログ用超長文記事を生成
             report_content = generate_report_content(news_text)
+            
+            # ▼▼▼ 追加：ブログ記事の末尾にソース一覧を自動追記 ▼▼▼
+            source_footer = f"\n\n---\n### 📰 本日の情報元（RSSソース）\n当サイトのニュースは、以下の信頼できる情報元から自動取得し、厳選して考察を行っています。\n{source_names_str}\n"
+            report_content += source_footer
+            # ▲▲▲ 追加ここまで ▲▲▲
+
             with open(report_filepath, 'w', encoding='utf-8') as f:
                 f.write(report_content)
             print(f"超長文日報を保存しました: {report_filepath}")
@@ -471,11 +482,16 @@ def main():
                     
                     display_date = f"{today_str[:4]}年{today_str[4:6]}月{today_str[6:]}日"
                     youtube_title = f"【AI日報】{display_date}の主要ニュース | エリカ"
+                    
+                    # ▼▼▼ 変更：YouTube概要欄にもソース一覧を追記 ▼▼▼
                     youtube_desc = (
                         f"エリカがお届けする本日のIT・経済ニュース日報です。\n\n"
                         f"■ エリカ・プロジェクト公式サイト\n"
-                        f"https://erika.erikakataru.com/\n"
+                        f"https://erika.erikakataru.com/\n\n"
+                        f"■ 情報元（RSS）\n"
+                        f"{source_names_str}\n"
                     )
+                    # ▲▲▲ 変更ここまで ▲▲▲
                     
                     video_id = upload_to_youtube(video_filepath, youtube_title, youtube_desc)
                     if video_id:
