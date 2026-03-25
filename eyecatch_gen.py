@@ -2,12 +2,20 @@ import os
 import requests
 import datetime
 import base64
+# Google GenAI SDK
+from google import genai
+from google.genai import types
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
+from googleapiclient.errors import HttpError
 
 # ==========================================
 # Cloudflare 認証設定（テスト用）
 # ==========================================
 CLOUDFLARE_ACCOUNT_ID = os.environ.get("CLOUDFLARE_ACCOUNT_ID")
 CLOUDFLARE_API_TOKEN = os.environ.get("CLOUDFLARE_API_TOKEN")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 MODEL = "@cf/black-forest-labs/flux-2-klein-9b"
 
