@@ -10,6 +10,7 @@ import subprocess
 import base64
 import random
 
+from eyecatch_gen import generate_eyecatch
 # Google GenAI SDK
 from google import genai
 from google.genai import types
@@ -457,10 +458,17 @@ def main():
             # 1. ブログ用超長文記事を生成
             report_content = generate_report_content(news_text)
             
-            # ▼▼▼ 追加：ブログ記事の末尾にソース一覧を自動追記 ▼▼▼
+            # ▼▼▼ 追加：別ファイルに切り出したアイキャッチ生成を呼び出す ▼▼▼
+            eyecatch_filename = generate_eyecatch(today_str, news_text)
+            if eyecatch_filename:
+                # 記事の先頭（「# YYYY年MM月DD日の日報」の直後）に画像のMarkdownタグを挿入
+                image_md = f"\n![本日のアイキャッチ](/assets/images/{eyecatch_filename})\n"
+                report_content = re.sub(r'(# .*の日報\n)', rf'\1{image_md}', report_content, count=1)
+            # ▲▲▲ 追加ここまで ▲▲▲
+
+            # ブログ記事の末尾にソース一覧を自動追記
             source_footer = f"\n\n---\n### 📰 本日の情報元（RSSソース）\n当サイトのニュースは、以下の信頼できる情報元から自動取得し、厳選して考察を行っています。\n{source_names_str}\n"
             report_content += source_footer
-            # ▲▲▲ 追加ここまで ▲▲▲
 
             with open(report_filepath, 'w', encoding='utf-8') as f:
                 f.write(report_content)
