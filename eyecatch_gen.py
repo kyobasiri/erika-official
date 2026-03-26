@@ -22,7 +22,7 @@ MODEL = "@cf/black-forest-labs/flux-2-klein-9b"
 # 共通のディレクトリ設定
 ASSETS_DIR = "assets"
 
-def generate_eyecatch(date_str, image_prompt):
+def generate_eyecatch(date_str, news_text):
     """今日のニュースからプロンプトを作り、Cloudflare Workers AIで画像を生成する"""
     if not CLOUDFLARE_ACCOUNT_ID or not CLOUDFLARE_API_TOKEN:
         print("エラー: Cloudflareの認証情報が設定されていません。")
