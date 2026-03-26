@@ -9,7 +9,11 @@ import wave
 import subprocess
 import base64
 import random
+import argparse
+import smtplib
 
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from eyecatch_gen import generate_eyecatch
 # Google GenAI SDK
 from google import genai
@@ -63,6 +67,39 @@ RSS_URLS = [
     {"name": "Yahoo! 熊日", "url": "https://news.yahoo.co.jp/rss/media/kumanichi/all.xml"},
     {"name": "デジタル庁", "url": "https://www.digital.go.jp/rss/news.xml"}
 ]
+
+import argparse  # ← これを追加
+
+# ▼▼▼ 新規追加：カテゴリごとの設定辞書 ▼▼▼
+CATEGORIES = {
+    "it": {
+        "title": "IT・テクノロジー",
+        "file_prefix": "",  # 空白（今まで通り YYYYMMDD-report.md になる）
+        "rss": RSS_URLS,    # 今まで使っていたRSS_URLSをそのまま指定
+        "bg_prompt": "近未来的なサイバー空間やデータセンター、ホログラムの浮かぶサーバー室"
+    },
+    "game": {
+        "title": "ゲーム・アニメ",
+        "file_prefix": "-game",  # YYYYMMDD-game-report.md になる
+        "rss": [
+            {"name": "AUTOMATON", "url": "https://automaton-media.com/feed/"},
+            {"name": "4Gamer.net", "url": "https://www.4gamer.net/rss/index.xml"},
+            {"name": "アニメ！アニメ！", "url": "https://animeanime.jp/rss/index.xml"}
+        ],
+        "bg_prompt": "サイバーパンクなゲーミングルームや、アニメ調のポップで色鮮やかなスタジオ"
+    },
+    "news": {
+        "title": "一般・政治・経済",
+        "file_prefix": "-news",  # YYYYMMDD-news-report.md になる
+        "rss": [
+            {"name": "Yahoo!主要", "url": "https://news.yahoo.co.jp/rss/topics/top-picks.xml"},
+            {"name": "Yahoo!経済", "url": "https://news.yahoo.co.jp/rss/topics/business.xml"},
+            {"name": "NHKニュース", "url": "https://www.nhk.or.jp/rss/news/cat0.xml"}
+        ],
+        "bg_prompt": "洗練された近代的なニューススタジオや、高層ビル群の美しい夜景"
+    }
+}
+# ▲▲▲ 追加ここまで ▲▲▲
 
 # ==========================================
 # 処理関数
@@ -411,7 +448,7 @@ def upload_to_youtube(video_path, title, description):
             'tags': ['AI', 'エリカ', 'ニュース', '日報'], 'categoryId': '28'
         },
         'status': {
-            'privacyStatus': 'public', 'selfDeclaredMadeForKids': False
+            'privacyStatus': 'unlisted', 'selfDeclaredMadeForKids': False
         }
     }
     media = MediaFileUpload(video_path, chunksize=-1, resumable=True, mimetype='video/mp4')
@@ -424,6 +461,52 @@ def upload_to_youtube(video_path, title, description):
     except HttpError as e:
         print(f"YouTube APIエラー: {e}")
         return None
+
+def send_private_briefing(date_str, report_content, video_id):
+    """生成したレポートと動画URLを自分宛てにメール送信する"""
+    
+    # 環境変数からGmailの設定を読み込む（後でGitHub Secretsに登録します）
+    GMAIL_ADDRESS = os.environ.get("GMAIL_ADDRESS")
+    GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD")
+    
+    if not GMAIL_ADDRESS or not GMAIL_APP_PASSWORD:
+        print("警告: Gmailの認証情報が設定されていないため、メール送信をスキップします。")
+        return
+
+    youtube_url = f"https://youtu.be/{video_id}" if video_id else "動画のアップロードに失敗しました。"
+    
+    subject = f"【エリカの朝刊】{date_str[:4]}年{date_str[4:6]}月{date_str[6:]}日のニュースブリーフィング"
+    
+    # メールの本文を作成
+    body = f"""管理人様、おはようございます。
+    本日のニュースダイジェストと解説動画が完成しました。
+
+    ■ 本日の動画（限定公開）
+    {youtube_url}
+
+    ■ ニュースレポート
+    {report_content}
+
+    それでは、今日も良い一日をお過ごしください。
+    -- エリカ
+    """
+    
+    msg = MIMEMultipart()
+    msg['From'] = GMAIL_ADDRESS
+    msg['To'] = GMAIL_ADDRESS  # 自分から自分へ送る
+    msg['Subject'] = subject
+    msg.attach(MIMEText(body, 'plain', 'utf-8'))
+
+    try:
+        print("プライベートブリーフィングをメールで送信中...")
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(GMAIL_ADDRESS, GMAIL_APP_PASSWORD)
+        server.send_message(msg)
+        server.quit()
+        print("✅ メール送信が完了しました！")
+    except Exception as e:
+        print(f"❌ メール送信エラー: {e}")
 
 def main():
     os.makedirs(REPORTS_DIR, exist_ok=True)
@@ -504,6 +587,10 @@ def main():
                         with open(youtube_id_filepath, "w") as f:
                             f.write(video_id)
                         print(f"YouTube IDを記録しました: {youtube_id_filepath}")
+                        
+                        # ▼▼▼ 新規追加：自分宛てにメールで通知 ▼▼▼
+                        send_private_briefing(today_str, spoken_text, video_id)
+                        # ▲▲▲ 追加ここまで ▲▲▲
                         
                         print("ストレージ容量節約のため、ローカルのメディアファイルを削除します...")
                         try:
