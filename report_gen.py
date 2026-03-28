@@ -132,6 +132,53 @@ def fetch_daily_news(urls, limit_per_site=20):
             continue
     return "\n".join(news_list)
 
+def fetch_news_via_gemini_search(categories):
+    """【Public用】Gemini 3.1 Flash LiteとGoogle Search Toolを使ってニュースのファクトのみを収集する"""
+    if not GEMINI_API_KEY:
+        return "エラー: GEMINI_API_KEYが設定されていません。"
+    
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    # 検索・ファクト抽出専用にLiteモデルを指定
+    model_name = "gemini-3.1-flash-lite-preview"
+    
+    def chunk_list(lst, n):
+        for i in range(0, len(lst), n):
+            yield lst[i:i + n]
+
+    chunked_categories = list(chunk_list(categories, 3))
+    all_facts = ""
+
+    for i, chunk in enumerate(chunked_categories):
+        cat_names = [cat["name"] for cat in chunk]
+        cat_names_str = "、".join(cat_names)
+        print(f"Gemini Searchで最新ニュースの事実を抽出中... {i+1}/{len(chunked_categories)}（{cat_names_str}）")
+        
+        prompt = f"""
+あなたは優秀なリサーチアシスタントです。Google検索ツールを使用して、以下のカテゴリに関する「本日の最新ニュースの事実（ファクト）のみ」を収集してください。
+対象カテゴリ: {cat_names_str}
+
+【厳守ルール】
+1. 各カテゴリについて、5〜10件の重要な最新ニュースを検索してください。
+2. 記事の文章をそのままコピーするのではなく、「誰が、何を、どうしたのか」という客観的な事実のみを箇条書きで抽出してください。
+3. 著者の意見や、特定のメディア特有の表現（修辞技法など）は絶対に含めないでください。著作権に配慮し、純粋な事実データのみを出力してください。
+"""
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    tools=[{"google_search": {}}], # Google検索ツールを有効化
+                    temperature=0.2, # ファクト抽出のためハルシネーションを防ぐ低めの温度設定
+                )
+            )
+            if response.text:
+                all_facts += f"【{cat_names_str}に関する事実】\n{response.text.strip()}\n\n"
+        except Exception as e:
+            print(f"グループ「{cat_names_str}」の検索エラー: {e}")
+            continue
+
+    return all_facts
+
 def generate_report_content(news_text):
     """【ブログ用超長文】APIリクエストを3回に分け、息切れを防いで超長文のMarkdown記事を生成する"""
     if not GEMINI_API_KEY:
@@ -257,12 +304,15 @@ def update_reports_json():
     if not os.path.exists(REPORTS_DIR):
         os.makedirs(REPORTS_DIR)
         
-    reports_data = []
+    private_reports_data = []
+    public_reports_data = [] # 追加: 公開用データのリスト
+    
     files = [f for f in os.listdir(REPORTS_DIR) if f.endswith(".md")]
     files.sort(reverse=True)
     
     for filename in files:
         filepath = os.path.join(REPORTS_DIR, filename)
+        # ファイル名からサフィックスなしの日付部分(YYYYMMDD)を取得
         date_str = filename.split('-')[0]
         
         title = f"{date_str}の日報"
@@ -272,18 +322,31 @@ def update_reports_json():
                     title = line.strip('# ').strip()
                     break
                     
-        reports_data.append({
+        report_info = {
             "filename": filename,
             "date": date_str,
             "title": title
-        })
+        }
+        
+        # ファイル名に '-search-report' が含まれているかで振り分け
+        if "-search-report" in filename:
+            public_reports_data.append(report_info)
+        else:
+            private_reports_data.append(report_info)
         
     if not os.path.exists(ASSETS_DIR):
         os.makedirs(ASSETS_DIR)
         
+    # Private用 JSON
     with open(REPORTS_JSON, 'w', encoding='utf-8') as f:
-        json.dump(reports_data, f, ensure_ascii=False, indent=2)
-    print(f"{REPORTS_JSON} を更新しました。")
+        json.dump(private_reports_data, f, ensure_ascii=False, indent=2)
+        
+    # Public用 JSON (新設)
+    public_reports_json_path = os.path.join(ASSETS_DIR, "public_reports.json")
+    with open(public_reports_json_path, 'w', encoding='utf-8') as f:
+        json.dump(public_reports_data, f, ensure_ascii=False, indent=2)
+        
+    print(f"JSONを更新しました (Private: {len(private_reports_data)}件, Public: {len(public_reports_data)}件)")
 
 def generate_audio(text, output_path, output_srt_path):
     """Google Cloud TTSを使用して音声とSRT字幕を生成する"""
@@ -429,8 +492,8 @@ def generate_video(audio_path, srt_path, output_video_path, bg_image_filename="n
         print("エラー: FFmpegがインストールされていないか、パスが通っていません。")
         return False
 
-def upload_to_youtube(video_path, title, description):
-    print(f"YouTubeへ動画をアップロードしています...\nタイトル: {title}")
+def upload_to_youtube(video_path, title, description, privacy_status="unlisted"):
+    print(f"YouTubeへ動画をアップロードしています...\nタイトル: {title}\n公開設定: {privacy_status}")
     token_env = os.environ.get("YOUTUBE_TOKEN")
     if token_env:
         token_info = json.loads(token_env)
@@ -448,7 +511,7 @@ def upload_to_youtube(video_path, title, description):
             'tags': ['AI', 'エリカ', 'ニュース', '日報'], 'categoryId': '28'
         },
         'status': {
-            'privacyStatus': 'unlisted', 'selfDeclaredMadeForKids': False
+            'privacyStatus': privacy_status, 'selfDeclaredMadeForKids': False
         }
     }
     media = MediaFileUpload(video_path, chunksize=-1, resumable=True, mimetype='video/mp4')
@@ -509,18 +572,34 @@ def send_private_briefing(date_str, report_content, video_id):
         print(f"❌ メール送信エラー: {e}")
 
 def main():
+
+    parser = argparse.ArgumentParser(description="エリカのニュース動画生成システム")
+    parser.add_argument(
+        "--mode", 
+        choices=["private", "public"], 
+        default="private", 
+        help="private: RSSを使用(既存・非公開用), public: Gemini検索を使用(公開用)"
+    )
+    args = parser.parse_args()
+
     os.makedirs(REPORTS_DIR, exist_ok=True)
     os.makedirs(ASSETS_DIR, exist_ok=True)
     os.makedirs(AUDIO_DIR, exist_ok=True)
     
     today_str = datetime.datetime.now().strftime("%Y%m%d")
-    report_filename = f"{today_str}-report.md"
+
+    if args.mode == "public":
+        file_suffix = "-search-report"
+    else:
+        file_suffix = "-report"  # 既存のまま (private)
+        
+    report_filename = f"{today_str}{file_suffix}.md"
     report_filepath = os.path.join(REPORTS_DIR, report_filename)
-    audio_filename = f"{today_str}-report.wav"
+    audio_filename = f"{today_str}{file_suffix}.wav"
     audio_filepath = os.path.join(AUDIO_DIR, audio_filename)
-    srt_filename = f"{today_str}-report.srt"
+    srt_filename = f"{today_str}{file_suffix}.srt"
     srt_filepath = os.path.join(AUDIO_DIR, srt_filename)
-    video_filename = f"{today_str}-report.mp4"
+    video_filename = f"{today_str}{file_suffix}.mp4"
     video_filepath = os.path.join(AUDIO_DIR, video_filename)
 
     if os.path.exists(report_filepath):
@@ -529,6 +608,21 @@ def main():
         print("ニュースを取得中...")
         news_text = fetch_daily_news(RSS_URLS)
         
+        # ▼▼▼ モードによる処理の分岐 ▼▼▼
+        if args.mode == "private":
+            print("【Privateモード】RSSからニュースを取得中...")
+            news_text = fetch_daily_news(RSS_URLS)
+            source_names = [feed["name"] for feed in RSS_URLS]
+            source_names_str = "、".join(source_names)
+            source_footer = f"\n\n---\n### 📰 本日の情報元（RSSソース）\n{source_names_str}\n"
+        
+        elif args.mode == "public":
+            print("【Publicモード】Gemini Searchで最新ニュースのファクトを取得中...")
+            news_text = fetch_news_via_gemini_search(NEWS_CATEGORIES)
+            source_names_str = "Google Search (Gemini 3.1 Flash Liteによるファクト抽出)"
+            source_footer = f"\n\n---\n### 📰 本日の情報元\n本日のニュースは、Google Searchを用いて抽出した事実（ファクト）をもとに、AIが独自に考察・構成したものです。\n"
+        # ▲▲▲ 追加ここまで ▲▲▲
+
         if not news_text:
             print("ニュースの取得に失敗したか、記事がありません。")
             return
@@ -570,20 +664,27 @@ def main():
                     print(f"字幕付き動画を保存しました: {video_filepath}")
                     
                     display_date = f"{today_str[:4]}年{today_str[4:6]}月{today_str[6:]}日"
-                    youtube_title = f"【AI日報】{display_date}の主要ニュース | エリカ"
+                    # モードによってYouTubeのタイトルと公開設定を変える
+                    if args.mode == "public":
+                        youtube_title = f"【エリカのAIニュース解説】{display_date}の主要ニュース"
+                        youtube_privacy = "public"   # 一般公開
+                    else:
+                        youtube_title = f"【AI日報】{display_date}の主要ニュース"
+                        youtube_privacy = "unlisted" # 限定公開 (Privateモード用)
                     
-                    # YouTube概要欄にもソース一覧を追記
                     youtube_desc = (
-                        f"エリカがお届けする本日のIT・経済ニュース日報です。\n\n"
+                        f"エリカがお届けする本日のIT・経済ニュース解説です。\n\n"
                         f"■ エリカ・プロジェクト公式サイト\n"
                         f"https://erika.erikakataru.com/\n\n"
-                        f"■ 情報元（RSS）\n"
+                        f"■ 情報元\n"
                         f"{source_names_str}\n"
                     )
                     
-                    video_id = upload_to_youtube(video_filepath, youtube_title, youtube_desc)
+                    # 引数に privacy_status=youtube_privacy を追加して呼び出す
+                    video_id = upload_to_youtube(video_filepath, youtube_title, youtube_desc, privacy_status=youtube_privacy)
+                    
                     if video_id:
-                        youtube_id_filepath = os.path.join(REPORTS_DIR, f"{today_str}-report-youtube.txt")
+                        youtube_id_filepath = os.path.join(REPORTS_DIR, f"{today_str}{file_suffix}-youtube.txt")
                         with open(youtube_id_filepath, "w") as f:
                             f.write(video_id)
                         print(f"YouTube IDを記録しました: {youtube_id_filepath}")

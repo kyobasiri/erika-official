@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <title>エリカのAIニュース詳細 | エリカ・プロジェクト</title>
+    <link rel="stylesheet" href="./css/lib/bulma.min.css">
+    <link rel="stylesheet" href="./css/style.css">
+    <link rel="icon" href="assets/images/icon.png" type="image/png">
+
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Erika Official | AI Art & Music">
+    <meta property="og:description" content="AI Artist & Album Reviewer ERIKA. エリカが好き勝手に語るチャンネルの公式サイト">
+    <meta property="og:url" content="https://erika.erikakataru.com/">
+    <meta property="og:image" content="https://erika.erikakataru.com/assets/images/ogp.jpg">
+    <meta property="og:site_name" content="Erika Project">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@erikakataru">
+    <meta name="twitter:title" content="Erika Official | AI Art & Music">
+    <meta name="twitter:description" content="AI Artist & Album Reviewer ERIKA. エリカが好き勝手に語るチャンネルの公式サイト">
+    <meta name="twitter:image" content="https://erika.erikakataru.com/assets/images/ogp.jpg">
+
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9959522790700122"
+        crossorigin="anonymous"></script>
+
+</head>
+
+<body>
+    <div id="app" class="container section">
+        <div class="content">
+
+            <div v-if="youtubeId" class="box has-background-dark has-text-centered mb-5" style="border-color: #555;">
+                <p class="has-text-white is-size-6 mb-3">📺 エリカのニュース解説動画</p>
+                <div
+                    style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 800px; margin: 0 auto; border-radius: 8px;">
+                    <iframe :src="'https://www.youtube.com/embed/' + youtubeId"
+                        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;"
+                        allowfullscreen></iframe>
+                </div>
+            </div>
+
+            <div v-else-if="audioUrl" class="box has-background-dark has-text-centered mb-5"
+                style="border-color: #555;">
+                <p class="has-text-white is-size-6 mb-3">🎧 エリカの音声解説</p>
+                <audio controls :src="audioUrl" style="width: 100%; max-width: 500px; outline: none;"></audio>
+            </div>
+
+            <div class="box has-background-black-ter has-text-white"
+                style="border: 1px solid #555; padding: 2.5rem; border-radius: 12px;">
+                <div v-html="compiledMarkdown"></div>
+            </div>
+
+            <hr style="margin-top: 3rem; margin-bottom: 3rem; background-color: #333;">
+
+            <nav class="pagination is-centered" role="navigation" aria-label="pagination">
+                <a v-if="nextReport" :href="`./news-detail.html?id=${nextReport.filename.replace('.md', '')}`"
+                    class="pagination-previous has-background-dark has-text-white" style="border-color: #555;">&laquo;
+                    次のニュース</a>
+                <a v-else class="pagination-previous is-disabled has-background-dark has-text-grey"
+                    style="border-color: #555;" disabled>&laquo; 次のニュース</a>
+
+                <ul class="pagination-list">
+                    <li>
+                        <a href="/news.html" class="button is-link is-outlined">
+                            <strong>ニュース一覧に戻る</strong>
+                        </a>
+                    </li>
+                </ul>
+
+                <a v-if="prevReport" :href="`./news-detail.html?id=${prevReport.filename.replace('.md', '')}`"
+                    class="pagination-next has-background-dark has-text-white" style="border-color: #555;">前のニュース
+                    &raquo;</a>
+                <a v-else class="pagination-next is-disabled has-background-dark has-text-grey"
+                    style="border-color: #555;" disabled>前のニュース &raquo;</a>
+            </nav>
+        </div>
+    </div>
+
+    <script type="module">
+        import { createApp, ref, onMounted, nextTick } from './js/lib/vue.esm-browser.js';
+
+        createApp({
+            setup() {
+                const reportId = ref('');
+                const compiledMarkdown = ref('<p>読み込み中...</p>');
+                const prevReport = ref(null);
+                const nextReport = ref(null);
+                const audioUrl = ref(null);
+                const youtubeId = ref(null);
+
+                onMounted(async () => {
+                    const params = new URLSearchParams(window.location.search);
+                    const id = params.get('id');
+
+                    // ▼▼▼ 強力なセキュリティガード：公開用以外のIDは弾く ▼▼▼
+                    if (!id || !id.includes('-search-report')) {
+                        compiledMarkdown.value = '<p class="has-text-danger">指定された記事は存在しないか、非公開に設定されています。</p>';
+                        return;
+                    }
+                    reportId.value = id;
+
+                    // YouTube取得
+                    try {
+                        const ytRes = await fetch(`./reports/${id}-youtube.txt`);
+                        if (ytRes.ok) youtubeId.value = (await ytRes.text()).trim();
+                    } catch (e) { console.log("YouTube IDなし"); }
+
+                    // 音声取得
+                    const potentialAudioPath = `./assets/audio/${id}.wav`;
+                    try {
+                        if (window.location.protocol === 'file:') audioUrl.value = potentialAudioPath;
+                        else {
+                            const audioRes = await fetch(potentialAudioPath, { method: 'HEAD' });
+                            if (audioRes.ok) audioUrl.value = potentialAudioPath;
+                        }
+                    } catch (e) { console.log("音声ファイルなし"); }
+
+                    // 前/次のニュースを取得 (必ず public_reports.json を読み込む)
+                    try {
+                        const reportsRes = await fetch(`assets/public_reports.json?t=${new Date().getTime()}`);
+                        if (reportsRes.ok) {
+                            const reports = await reportsRes.json();
+                            const currentIndex = reports.findIndex(r => r.filename.replace('.md', '') === id);
+                            if (currentIndex !== -1) {
+                                if (currentIndex < reports.length - 1) prevReport.value = reports[currentIndex + 1];
+                                if (currentIndex > 0) nextReport.value = reports[currentIndex - 1];
+                            }
+                        }
+                    } catch (e) { console.error("リストの取得に失敗"); }
+
+                    // Markdown読み込み処理
+                    try {
+                        const response = await fetch(`./reports/${id}.md`);
+                        if (!response.ok) throw new Error('Not found');
+                        let text = await response.text();
+                        text = text.replace(/\r/g, '');
+
+                        // XとYouTubeの埋め込み処理
+                        const xLinkRegex = /^[ \t]*https?:\/\/(?:x\.com|twitter\.com)\/([a-zA-Z0-9_]+\/status\/\d+)[^\s<]*[ \t]*$/gm;
+                        text = text.replace(xLinkRegex, '\n\n<div style="display: flex; justify-content: center;"><blockquote class="twitter-tweet" data-align="center"><a href="https://twitter.com/$1"></a></blockquote></div>\n\n');
+                        const ytNormalRegex = /^[ \t]*https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)[^\s<]*[ \t]*$/gm;
+                        text = text.replace(ytNormalRegex, '\n\n<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; margin: 1.5rem 0; border-radius: 8px;"><iframe src="https://www.youtube.com/embed/$1" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" allowfullscreen></iframe></div>\n\n');
+
+                        compiledMarkdown.value = marked.parse(text);
+                        nextTick(() => { setTimeout(() => { if (window.twttr && window.twttr.widgets) window.twttr.widgets.load(); }, 500); });
+                    } catch (error) {
+                        compiledMarkdown.value = `<p>記事の読み込みに失敗しました。</p>`;
+                    }
+                });
+
+                return { reportId, compiledMarkdown, prevReport, nextReport, audioUrl, youtubeId };
+            }
+        }).mount('#app');
+    </script>
+</body>
+
+</html>
