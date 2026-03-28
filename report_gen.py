@@ -183,7 +183,8 @@ def generate_report_content(news_text):
     client = genai.Client(api_key=GEMINI_API_KEY)
     model_name = "gemini-3-flash-preview"
     
-    date_str = datetime.datetime.now().strftime("%Y年%m月%d日")
+    JST = datetime.timezone(datetime.timedelta(hours=+9), 'JST')
+    date_str = datetime.datetime.now(JST).strftime("%Y年%m月%d日")
     final_report = f"# {date_str}の日報\n\n来訪者の皆様、そして管理人さん、本日もお疲れ様です。エリカです。\n本日の主要なニュースをカテゴリ別にお伝えします。\n\n"
 
     def chunk_list(lst, n):
@@ -534,10 +535,25 @@ def send_private_briefing(date_str, report_content, video_id):
 
     youtube_url = f"https://youtu.be/{video_id}" if video_id else "動画のアップロードに失敗しました。"
     
-    subject = f"【エリカの朝刊】{date_str[:4]}年{date_str[4:6]}月{date_str[6:]}日のニュースブリーフィング"
+    JST = datetime.timezone(datetime.timedelta(hours=+9), 'JST')
+    current_hour = datetime.datetime.now(JST).hour
+    if 4 <= current_hour < 11:
+        edition = "朝刊"
+        greeting = "おはようございます。"
+        closing = "それでは、今日も良い一日をお過ごしください。"
+    elif 11 <= current_hour < 17:
+        edition = "昼刊"
+        greeting = "お疲れ様です。こんにちは。"
+        closing = "それでは、午後からの業務も頑張りましょう。"
+    else:
+        edition = "夕刊"
+        greeting = "こんばんは。今日もお疲れ様でした。"
+        closing = "それでは、ゆっくりお休みください。"
+    
+    subject = f"【エリカの{edition}】{date_str[:4]}年{date_str[4:6]}月{date_str[6:]}日のニュースブリーフィング"
     
     # メールの本文を作成
-    body = f"""管理人様、おはようございます。
+    body = f"""管理人様、{greeting}
     本日のニュースダイジェストと解説動画が完成しました。
 
     ■ 本日の動画（限定公開）
@@ -546,7 +562,7 @@ def send_private_briefing(date_str, report_content, video_id):
     ■ ニュースレポート
     {report_content}
 
-    それでは、今日も良い一日をお過ごしください。
+    {closing}
     -- エリカ
     """
     
@@ -582,7 +598,8 @@ def main():
     os.makedirs(ASSETS_DIR, exist_ok=True)
     os.makedirs(AUDIO_DIR, exist_ok=True)
     
-    today_str = datetime.datetime.now().strftime("%Y%m%d")
+    JST = datetime.timezone(datetime.timedelta(hours=+9), 'JST')
+    today_str = datetime.datetime.now(JST).strftime("%Y%m%d")
 
     if args.mode == "public":
         file_suffix = "-search-report"
@@ -644,7 +661,7 @@ def main():
             script_text = generate_audio_script(report_content)
             # 念のためマークダウン記号をクレンジング
             spoken_text = clean_markdown_for_tts(script_text)
-            spoken_text += "。本日のニュースダイジェストは以上です。それでは、今日も良い一日をお過ごしください。"
+            spoken_text += "。本日のニュースダイジェストは以上です。"
             
             # 3. 音声生成以降の処理
             print("音声を生成中（Google Cloud TTS API）...")
