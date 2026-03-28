@@ -45,7 +45,7 @@ NEWS_CATEGORIES = [
     {"id": "infra", "name": "インフラ・仮想化・ネットワーク"},
     {"id": "security", "name": "サイバーセキュリティ"},
     {"id": "economy", "name": "経済・ビジネス"},
-    {"id": "domestic", "name": "国内一般ニュース"},
+    {"id": "domestic", "name": "日本のニュース"},
     {"id": "world", "name": "世界ニュース・国際情勢"}
 ]
 
