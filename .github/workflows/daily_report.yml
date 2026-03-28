@@ -8,6 +8,11 @@ on:
   workflow_dispatch:
     # GitHubの画面から手動で実行するためのボタンも有効化
 
+# ▼▼▼ この2行を追加 ▼▼▼
+permissions:
+  contents: write
+# ▲▲▲ 追加ここまで ▲▲▲
+
 jobs:
   generate-report:
     runs-on: ubuntu-latest

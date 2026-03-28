@@ -134,13 +134,13 @@ def fetch_daily_news(urls, limit_per_site=20):
     return "\n".join(news_list)
 
 def fetch_news_via_gemini_search(categories):
-    """【Public用】Gemini 2.5 FlashとGoogle Search Toolを使ってニュースのファクトのみを収集する"""
+    """【Public用】Gemini 3 FlashとGoogle Search Toolを使ってニュースのファクトのみを収集する"""
     if not GEMINI_API_KEY:
         return "エラー: GEMINI_API_KEYが設定されていません。"
     
     client = genai.Client(api_key=GEMINI_API_KEY)
     # 検索・ファクト抽出専用にLiteモデルを指定
-    model_name = "gemini-2.5-flash"
+    model_name = "gemini-3-flash-preview"
     
     def chunk_list(lst, n):
         for i in range(0, len(lst), n):

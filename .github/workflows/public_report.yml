@@ -8,6 +8,11 @@ on:
   workflow_dispatch:
     # GitHubの画面から手動で実行するためのボタン
 
+# ▼▼▼ この2行を追加 ▼▼▼
+permissions:
+  contents: write
+# ▲▲▲ 追加ここまで ▲▲▲
+
 jobs:
   generate-public-report:
     runs-on: ubuntu-latest
@@ -29,7 +34,7 @@ jobs:
       # 3. 必要なライブラリをインストールする
       - name: Install dependencies
         run: |
-          sudo apt-get update && sudo apt-get install -y ffmpeg fonts-noto-cjk
+          sudo apt-get update && sudo apt-get install -y ffmpeg fonts-noto-cjk  # ←この1行を一番上に追加
           python -m pip install --upgrade pip
           pip install openai feedparser requests google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client google-genai
 
