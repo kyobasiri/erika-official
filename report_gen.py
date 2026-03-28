@@ -12,6 +12,7 @@ import base64
 import random
 import argparse
 import smtplib
+import os
 
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -24,13 +25,14 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from googleapiclient.errors import HttpError
+from tavily import TavilyClient
 
 # ==========================================
 # 設定項目
 # ==========================================
 GOOGLE_TTS_API_KEY = os.environ.get("GOOGLE_TTS_API_KEY")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-
+tavily_client = TavilyClient(api_key=os.environ.get("TAVILY_API_KEY"))
 REPORTS_DIR = "reports"
 ASSETS_DIR = "assets"
 REPORTS_JSON = os.path.join(ASSETS_DIR, "reports.json")
@@ -133,54 +135,42 @@ def fetch_daily_news(urls, limit_per_site=20):
             continue
     return "\n".join(news_list)
 
-def fetch_news_via_gemini_search(categories):
-    """【Public用】Gemini 3 FlashとGoogle Search Toolを使ってニュースのファクトのみを収集する"""
-    if not GEMINI_API_KEY:
-        return "エラー: GEMINI_API_KEYが設定されていません。"
+def fetch_news_via_tavily_search(categories):
+    """【Public用】Tavily Search APIを使ってニュースのファクトを収集する"""
+    if not os.environ.get("TAVILY_API_KEY"):
+        return "エラー: TAVILY_API_KEYが設定されていません。"
     
-    client = genai.Client(api_key=GEMINI_API_KEY)
-    # 検索・ファクト抽出専用にLiteモデルを指定
-    model_name = "gemini-3-flash-preview"
-    
-    def chunk_list(lst, n):
-        for i in range(0, len(lst), n):
-            yield lst[i:i + n]
-
-    chunked_categories = list(chunk_list(categories, 3))
     all_facts = ""
-
-    for i, chunk in enumerate(chunked_categories):
-        # ▼▼▼ 追加：連続リクエストによる429エラーを防ぐため、2回目以降は30秒待機する ▼▼▼
-        if i > 0:
-            print("APIのレート制限（無料枠）を回避するため、30秒待機しています...")
-            time.sleep(30)
-        # ▲▲▲ 追加ここまで ▲▲▲
-        cat_names = [cat["name"] for cat in chunk]
-        cat_names_str = "、".join(cat_names)
-        print(f"Gemini Searchで最新ニュースの事実を抽出中... {i+1}/{len(chunked_categories)}（{cat_names_str}）")
+    
+    # チャンク分けせず、1カテゴリずつAPIを叩く（Tavilyは高速なのでこの方が安定します）
+    for cat in categories:
+        cat_name = cat["name"]
+        print(f"Tavily APIで「{cat_name}」の最新ニュースを取得中...")
         
-        prompt = f"""
-あなたは優秀なリサーチアシスタントです。Google検索ツールを使用して、以下のカテゴリに関する「本日の最新ニュースの事実（ファクト）のみ」を収集してください。
-対象カテゴリ: {cat_names_str}
-
-【厳守ルール】
-1. 各カテゴリについて、5〜10件の重要な最新ニュースを検索してください。
-2. 記事の文章をそのままコピーするのではなく、「誰が、何を、どうしたのか」という客観的な事実のみを箇条書きで抽出してください。
-3. 著者の意見や、特定のメディア特有の表現（修辞技法など）は絶対に含めないでください。著作権に配慮し、純粋な事実データのみを出力してください。
-"""
         try:
-            response = client.models.generate_content(
-                model=model_name,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    tools=[{"google_search": {}}], # Google検索ツールを有効化
-                    temperature=0.2, # ファクト抽出のためハルシネーションを防ぐ低めの温度設定
-                )
+            # Tavilyでニュース検索（過去2日分に絞ることで鮮度を保つ）
+            search_result = tavily_client.search(
+                query=f"{cat_name} 最新ニュース", 
+                search_depth="advanced", 
+                topic="news",
+                max_results=10,
+                days=1
             )
-            if response.text:
-                all_facts += f"【{cat_names_str}に関する事実】\n{response.text.strip()}\n\n"
+            
+            if search_result and 'results' in search_result:
+                all_facts += f"【{cat_name}に関する事実】\n"
+                for result in search_result['results']:
+                    # 改行などを除去してGeminiが読みやすいプレーンテキストにする
+                    content_clean = " ".join(result.get('content', '要約なし').split())
+                    all_facts += f"・タイトル: {result.get('title', '無題')}\n"
+                    all_facts += f"  要約: {content_clean}\n"
+                    all_facts += f"  URL: {result.get('url', '')}\n\n"
+            
+            # APIの連続呼び出しエラーを防ぐため1秒待機
+            time.sleep(1)
+            
         except Exception as e:
-            print(f"グループ「{cat_names_str}」の検索エラー: {e}")
+            print(f"グループ「{cat_name}」の検索エラー: {e}")
             continue
 
     return all_facts
@@ -622,10 +612,10 @@ def main():
             source_footer = f"\n\n---\n### 📰 本日の情報元（RSSソース）\n当サイトのニュースは、以下の信頼できる情報元から自動取得し、厳選して考察を行っています。\n{source_names_str}\n"
         
         elif args.mode == "public":
-            print("【Publicモード】Gemini Searchで最新ニュースのファクトを取得中...")
-            news_text = fetch_news_via_gemini_search(NEWS_CATEGORIES)
-            source_names_str = "Google Search (Gemini 3.1 Flash Liteによるファクト抽出)"
-            source_footer = f"\n\n---\n### 📰 本日の情報元\n本日のニュースは、Google Searchを用いて抽出した事実（ファクト）をもとに、AIが独自に考察・構成したものです。\n"
+            print("【Publicモード】Tavily Search APIで最新ニュースを取得中...")
+            news_text = fetch_news_via_tavily_search(NEWS_CATEGORIES)
+            source_names_str = "Tavily Search API"
+            source_footer = f"\n\n---\n### 📰 本日の情報元\n本日のニュースは、Tavily Search APIを用いて抽出した事実（ファクト）をもとに、エリカが独自に考察・構成したものです。\n"
         # ▲▲▲ 追加ここまで ▲▲▲
 
         if not news_text:
