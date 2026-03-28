@@ -44,7 +44,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-        run: python report_gen.py
+        run: python report_gen.py --mode private
 
      # 5. 生成されたファイル（MarkdownとJSON、そして音声）をGitHubに自動保存
       - name: Commit and Push changes

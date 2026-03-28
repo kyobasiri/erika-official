@@ -1,6 +1,7 @@
 import os
 import json
 import datetime
+import time
 import feedparser
 import re
 import requests
@@ -149,6 +150,11 @@ def fetch_news_via_gemini_search(categories):
     all_facts = ""
 
     for i, chunk in enumerate(chunked_categories):
+        # ▼▼▼ 追加：連続リクエストによる429エラーを防ぐため、2回目以降は30秒待機する ▼▼▼
+        if i > 0:
+            print("APIのレート制限（無料枠）を回避するため、30秒待機しています...")
+            time.sleep(30)
+        # ▲▲▲ 追加ここまで ▲▲▲
         cat_names = [cat["name"] for cat in chunk]
         cat_names_str = "、".join(cat_names)
         print(f"Gemini Searchで最新ニュースの事実を抽出中... {i+1}/{len(chunked_categories)}（{cat_names_str}）")
@@ -606,7 +612,6 @@ def main():
         print(f"本日の日報({report_filename})は既に存在するため生成をスキップします。")
     else:
         print("ニュースを取得中...")
-        news_text = fetch_daily_news(RSS_URLS)
         
         # ▼▼▼ モードによる処理の分岐 ▼▼▼
         if args.mode == "private":
@@ -614,7 +619,7 @@ def main():
             news_text = fetch_daily_news(RSS_URLS)
             source_names = [feed["name"] for feed in RSS_URLS]
             source_names_str = "、".join(source_names)
-            source_footer = f"\n\n---\n### 📰 本日の情報元（RSSソース）\n{source_names_str}\n"
+            source_footer = f"\n\n---\n### 📰 本日の情報元（RSSソース）\n当サイトのニュースは、以下の信頼できる情報元から自動取得し、厳選して考察を行っています。\n{source_names_str}\n"
         
         elif args.mode == "public":
             print("【Publicモード】Gemini Searchで最新ニュースのファクトを取得中...")
@@ -638,9 +643,6 @@ def main():
             video_bg_filename = generated_bg if generated_bg else "news.jpg"
             
             # ブログ記事の末尾にソース一覧を自動追記
-            source_names = [feed["name"] for feed in RSS_URLS]
-            source_names_str = "、".join(source_names)
-            source_footer = f"\n\n---\n### 📰 本日の情報元（RSSソース）\n当サイトのニュースは、以下の信頼できる情報元から自動取得し、厳選して考察を行っています。\n{source_names_str}\n"
             report_content += source_footer
 
             # 超長文日報を保存
