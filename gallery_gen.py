@@ -9,7 +9,7 @@ from openai import OpenAI
 # 設定項目
 # ==========================================
 SAKURA_API_KEY = os.environ.get("SAKURA_API_KEY")
-SAKURA_API_BASE = "https://api.sakura.ad.jp/v1"
+SAKURA_API_BASE = "https://api.ai.sakura.ad.jp/v1"
 SAKURA_MODEL = "gpt-oss120b"
 GCP_TOKEN_STR = os.environ.get("GCP_VISION_CREDENTIALS_TOKEN")
 
@@ -59,7 +59,7 @@ def generate_alt_with_sakura_llm(filename, labels):
         return f"エリカのギャラリー画像 ({filename})"
 
     is_erika_art = "ComfyUI" in filename or "pixiv" in filename
-    context = "これは「エリカ」という黒髪で黒縁メガネをかけた女性キャラクターの画像です。" if is_erika_art else "これはギャラリーの画像です。"
+    context = "これは「エリカ」という黒髪ミディアムヘアで黒縁メガネをかけ、泣きぼくろのある女性キャラクターの画像です。" if is_erika_art else "これはギャラリーの画像です。"
     
     system_prompt = (
         "あなたはWebアクセシビリティとSEOの専門家です。"
