@@ -31,6 +31,8 @@ from tavily import TavilyClient
 # ==========================================
 GOOGLE_TTS_API_KEY = os.environ.get("GOOGLE_TTS_API_KEY")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+#GEMINI_MODEL_NAME = "gemini-3-flash-preview"
+GEMINI_MODEL_NAME = "gemini-2.5-flash"
 tavily_client = TavilyClient(api_key=os.environ.get("TAVILY_API_KEY"))
 REPORTS_DIR = "reports"
 ASSETS_DIR = "assets"
@@ -227,7 +229,7 @@ def sanitize_tasks(raw_task_text):
         return raw_task_text
         
     client = genai.Client(api_key=GEMINI_API_KEY)
-    model_name = "gemini-3-flash-preview"
+    model_name = GEMINI_MODEL_NAME
     
     print("タスクデータの機密情報をマスキング（サニタイズ）しています...")
     system_prompt = """
@@ -260,7 +262,7 @@ def generate_todo_report_content(task_text):
         return "エラー: GEMINI_API_KEYが設定されていません。"
     
     client = genai.Client(api_key=GEMINI_API_KEY)
-    model_name = "gemini-3-flash-preview"
+    model_name = GEMINI_MODEL_NAME
     
     JST = datetime.timezone(datetime.timedelta(hours=+9), 'JST')
     date_str = datetime.datetime.now(JST).strftime("%Y年%m月%d日")
@@ -306,7 +308,7 @@ def generate_todo_audio_script(report_content):
         return "エラー: GEMINI_API_KEYが設定されていません。"
 
     client = genai.Client(api_key=GEMINI_API_KEY)
-    model_name = "gemini-3-flash-preview"
+    model_name = GEMINI_MODEL_NAME
 
     system_prompt = """
 あなたは「エリカ」。知的で落ち着きつつも優しいAIキャスターであり、ラジオパーソナリティです。
@@ -343,7 +345,7 @@ def generate_report_content(news_text):
         return "エラー: GEMINI_API_KEYが設定されていません。"
     
     client = genai.Client(api_key=GEMINI_API_KEY)
-    model_name = "gemini-3-flash-preview"
+    model_name = GEMINI_MODEL_NAME
     
     JST = datetime.timezone(datetime.timedelta(hours=+9), 'JST')
     date_str = datetime.datetime.now(JST).strftime("%Y年%m月%d日")
@@ -415,7 +417,7 @@ def generate_audio_script(report_content):
         return "エラー: GEMINI_API_KEYが設定されていません。"
 
     client = genai.Client(api_key=GEMINI_API_KEY)
-    model_name = "gemini-3-flash-preview"
+    model_name = GEMINI_MODEL_NAME
 
     system_prompt = """
 あなたは「エリカ」。知的で落ち着きつつも優しいAIキャスターであり、ラジオパーソナリティでもあります。
