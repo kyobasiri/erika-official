@@ -620,7 +620,7 @@ def main():
             
             # Markdown用のリンクテキスト生成
             md_ref_text = "\n".join([f"- [{ref['title']}]({ref['url']})" for ref in reference_list])
-            source_footer = f"\n\n---\n### 📰 本日の参考・引用元\n本日のニュースは、以下の情報元の事実（ファクト）をもとに、エリカが独自の言葉と視点で構成したものです。\n\n{md_ref_text}\n"
+            source_footer = f"\n\n---\n### 📰 本日の参考・引用元\n本日のニュースは、以下の情報元の事実（ファクト）をもとに、エリカが独自の言葉と視点で構成したものです。\n\n{md_ref_text}\n詳細は各リンク先のオリジナル記事をご覧ください\n本コンテンツはニュースの代替ではなく、エリカ独自の考察を加えた追加視点を提供するものです\n"
             
             # YouTubeの概要欄用のテキスト生成 (長すぎる場合は文字数制限に注意ですが、10〜20個なら大抵は収まります)
             youtube_links_text = "\n".join([f"・{ref['title']}\n  {ref['url']}" for ref in reference_list])
@@ -664,6 +664,8 @@ def main():
                             f"■ 参考・引用元記事\n"
                             f"以下の情報元の事実をもとに、独自の視点で構成しています。\n"
                             f"{youtube_links_text}\n"
+                            f"詳細は各リンク先のオリジナル記事をご覧ください\n"
+                            f"本コンテンツはニュースの代替ではなく、エリカ独自の考察を加えた追加視点を提供するものです\n"
                         )
                     else:
                         youtube_title = f"【AI日報】{display_date}の主要ニュース"
