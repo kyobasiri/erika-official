@@ -71,19 +71,16 @@ RSS_URLS = [
     {"name": "デジタル庁", "url": "https://www.digital.go.jp/rss/news.xml"}
 ]
 
-import argparse  # ← これを追加
-
-# ▼▼▼ 新規追加：カテゴリごとの設定辞書 ▼▼▼
 CATEGORIES = {
     "it": {
         "title": "IT・テクノロジー",
-        "file_prefix": "",  # 空白（今まで通り YYYYMMDD-report.md になる）
-        "rss": RSS_URLS,    # 今まで使っていたRSS_URLSをそのまま指定
+        "file_prefix": "",
+        "rss": RSS_URLS,
         "bg_prompt": "近未来的なサイバー空間やデータセンター、ホログラムの浮かぶサーバー室"
     },
     "game": {
         "title": "ゲーム・アニメ",
-        "file_prefix": "-game",  # YYYYMMDD-game-report.md になる
+        "file_prefix": "-game",
         "rss": [
             {"name": "AUTOMATON", "url": "https://automaton-media.com/feed/"},
             {"name": "4Gamer.net", "url": "https://www.4gamer.net/rss/index.xml"},
@@ -93,7 +90,7 @@ CATEGORIES = {
     },
     "news": {
         "title": "一般・政治・経済",
-        "file_prefix": "-news",  # YYYYMMDD-news-report.md になる
+        "file_prefix": "-news",
         "rss": [
             {"name": "Yahoo!主要", "url": "https://news.yahoo.co.jp/rss/topics/top-picks.xml"},
             {"name": "Yahoo!経済", "url": "https://news.yahoo.co.jp/rss/topics/business.xml"},
@@ -102,7 +99,6 @@ CATEGORIES = {
         "bg_prompt": "洗練された近代的なニューススタジオや、高層ビル群の美しい夜景"
     }
 }
-# ▲▲▲ 追加ここまで ▲▲▲
 
 # ==========================================
 # 処理関数
@@ -136,19 +132,18 @@ def fetch_daily_news(urls, limit_per_site=20):
     return "\n".join(news_list)
 
 def fetch_news_via_tavily_search(categories):
-    """【Public用】Tavily Search APIを使ってニュースのファクトを収集する"""
+    """【Public用】Tavily Search APIを使ってニュースのファクトとURLを収集する"""
     if not os.environ.get("TAVILY_API_KEY"):
-        return "エラー: TAVILY_API_KEYが設定されていません。"
+        return "エラー: TAVILY_API_KEYが設定されていません。", []
     
     all_facts = ""
+    reference_list = [] # URLとタイトルのリストを保持して返す用
     
-    # チャンク分けせず、1カテゴリずつAPIを叩く（Tavilyは高速なのでこの方が安定します）
     for cat in categories:
         cat_name = cat["name"]
         print(f"Tavily APIで「{cat_name}」の最新ニュースを取得中...")
         
         try:
-            # Tavilyでニュース検索（過去2日分に絞ることで鮮度を保つ）
             search_result = tavily_client.search(
                 query=f"{cat_name} 最新ニュース", 
                 search_depth="advanced", 
@@ -160,20 +155,25 @@ def fetch_news_via_tavily_search(categories):
             if search_result and 'results' in search_result:
                 all_facts += f"【{cat_name}に関する事実】\n"
                 for result in search_result['results']:
-                    # 改行などを除去してGeminiが読みやすいプレーンテキストにする
+                    title = result.get('title', '無題')
+                    url = result.get('url', '')
                     content_clean = " ".join(result.get('content', '要約なし').split())
-                    all_facts += f"・タイトル: {result.get('title', '無題')}\n"
+                    
+                    all_facts += f"・タイトル: {title}\n"
                     all_facts += f"  要約: {content_clean}\n"
-                    all_facts += f"  URL: {result.get('url', '')}\n\n"
+                    all_facts += f"  URL: {url}\n\n"
+                    
+                    # リストに重複がないかチェックして追加
+                    if url and url not in [ref['url'] for ref in reference_list]:
+                        reference_list.append({"title": title, "url": url})
             
-            # APIの連続呼び出しエラーを防ぐため1秒待機
             time.sleep(1)
             
         except Exception as e:
             print(f"グループ「{cat_name}」の検索エラー: {e}")
             continue
 
-    return all_facts
+    return all_facts, reference_list
 
 def generate_report_content(news_text):
     """【ブログ用超長文】APIリクエストを3回に分け、息切れを防いで超長文のMarkdown記事を生成する"""
@@ -191,7 +191,6 @@ def generate_report_content(news_text):
         for i in range(0, len(lst), n):
             yield lst[i:i + n]
 
-    # カテゴリを3つずつグループ化してAPIを呼び出す（RPM制限回避＆息切れ防止）
     chunked_categories = list(chunk_list(NEWS_CATEGORIES, 3))
 
     for i, chunk in enumerate(chunked_categories):
@@ -202,7 +201,6 @@ def generate_report_content(news_text):
         system_prompt = f"""
 あなたは「エリカ」。黒髪、黒縁メガネ、目の下にホクロがある知的で落ち着いたAIキャスターであり、管理人の相棒です。
 あなたの「知識と考察の源泉」は、医療法人および社会福祉法人で働く、経験10年以上の病院システムエンジニアである管理人です。※システム管理者（システムアドミニストレータ）ではありません。
-
 
 【タスク】
 提供された全ニュース候補の中から、以下のカテゴリに関連する重要ニュースを「各カテゴリにつき6〜8件」厳選し、一件につき100文字程度の記事を作成してください。
@@ -219,7 +217,6 @@ def generate_report_content(news_text):
      - 常に知的で優しい「エリカ」の口調（ですます調）を崩さず、俯瞰的に分析すること。
 （...カテゴリ1のニュースを6〜8件繰り返す...）
 
-
 ## ■ [対象カテゴリ名2を入れる]
 ...（対象カテゴリが続く限り繰り返す）
 
@@ -229,6 +226,7 @@ def generate_report_content(news_text):
 3. the pillowsやその楽曲に関する言及は一切行わないこと。
 4. 挨拶やまとめの言葉は不要。いきなり「## ■ [カテゴリ名]」から始めること。
 5. 途中でサボらず、指定された全カテゴリの出力が終わるまで書き切ること。
+6. 著作権保護のため、元の記事の文章や特徴的な言い回しは絶対にそのまま使用せず、必ずご自身の言葉で事実のみを要約してください。
 """
         user_prompt = f"以下のニュース候補から、指定されたカテゴリの超長文記事を作成してください。\n\n{news_text}"
 
@@ -251,7 +249,6 @@ def generate_report_content(news_text):
     return final_report
 
 def generate_audio_script(report_content):
-    """【動画用台本】生成された超長文のMarkdownから、12〜14分尺の音声用台本を抽出・再構成する"""
     if not GEMINI_API_KEY:
         return "エラー: GEMINI_API_KEYが設定されていません。"
 
@@ -287,7 +284,6 @@ def generate_audio_script(report_content):
         return "台本の生成に失敗しました。"
 
 def clean_markdown_for_tts(markdown_text):
-    """念のため、台本に混ざった記号を読み上げ用に消去する"""
     text = markdown_text
     text = re.sub(r'#+\s*(.+)', r'\1。', text)  
     text = re.sub(r'\*\*(.*?)\*\*', r'\1', text) 
@@ -302,14 +298,13 @@ def update_reports_json():
         os.makedirs(REPORTS_DIR)
         
     private_reports_data = []
-    public_reports_data = [] # 追加: 公開用データのリスト
+    public_reports_data = [] 
     
     files = [f for f in os.listdir(REPORTS_DIR) if f.endswith(".md")]
     files.sort(reverse=True)
     
     for filename in files:
         filepath = os.path.join(REPORTS_DIR, filename)
-        # ファイル名からサフィックスなしの日付部分(YYYYMMDD)を取得
         date_str = filename.split('-')[0]
         
         title = f"{date_str}の日報"
@@ -325,7 +320,6 @@ def update_reports_json():
             "title": title
         }
         
-        # ファイル名に '-search-report' が含まれているかで振り分け
         if "-search-report" in filename:
             public_reports_data.append(report_info)
         else:
@@ -334,11 +328,9 @@ def update_reports_json():
     if not os.path.exists(ASSETS_DIR):
         os.makedirs(ASSETS_DIR)
         
-    # Private用 JSON
     with open(REPORTS_JSON, 'w', encoding='utf-8') as f:
         json.dump(private_reports_data, f, ensure_ascii=False, indent=2)
         
-    # Public用 JSON (新設)
     public_reports_json_path = os.path.join(ASSETS_DIR, "public_reports.json")
     with open(public_reports_json_path, 'w', encoding='utf-8') as f:
         json.dump(public_reports_data, f, ensure_ascii=False, indent=2)
@@ -346,7 +338,6 @@ def update_reports_json():
     print(f"JSONを更新しました (Private: {len(private_reports_data)}件, Public: {len(public_reports_data)}件)")
 
 def generate_audio(text, output_path, output_srt_path):
-    """Google Cloud TTSを使用して音声とSRT字幕を生成する"""
     if not GOOGLE_TTS_API_KEY:
         print("エラー: GOOGLE_TTS_API_KEYが設定されていません。")
         return False
@@ -449,7 +440,6 @@ def generate_video(audio_path, srt_path, output_video_path, bg_image_filename="n
         print(f"警告: 指定された背景画像が見つかりません。デフォルト画像を使用します。")
         image_path = os.path.join(ASSETS_DIR, "images", "news.jpg")
 
-
     bgm_dir = os.path.join(ASSETS_DIR, "bgm")
     bgm_path = None
     if os.path.exists(bgm_dir):
@@ -523,9 +513,6 @@ def upload_to_youtube(video_path, title, description, privacy_status="unlisted")
         return None
 
 def send_private_briefing(date_str, report_content, video_id):
-    """生成したレポートと動画URLを自分宛てにメール送信する"""
-    
-    # 環境変数からGmailの設定を読み込む（後でGitHub Secretsに登録します）
     GMAIL_ADDRESS = os.environ.get("GMAIL_ADDRESS")
     GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD")
     
@@ -552,11 +539,10 @@ def send_private_briefing(date_str, report_content, video_id):
     
     subject = f"【エリカの{edition}】{date_str[:4]}年{date_str[4:6]}月{date_str[6:]}日のニュースブリーフィング"
     
-    # メールの本文を作成
     body = f"""管理人様、{greeting}
     本日のニュースダイジェストと解説動画が完成しました。
 
-    ■ 本日の動画（限定公開）
+    ■ 本日の動画
     {youtube_url}
 
     ■ ニュースレポート
@@ -568,7 +554,7 @@ def send_private_briefing(date_str, report_content, video_id):
     
     msg = MIMEMultipart()
     msg['From'] = GMAIL_ADDRESS
-    msg['To'] = GMAIL_ADDRESS  # 自分から自分へ送る
+    msg['To'] = GMAIL_ADDRESS
     msg['Subject'] = subject
     msg.attach(MIMEText(body, 'plain', 'utf-8'))
 
@@ -584,7 +570,6 @@ def send_private_briefing(date_str, report_content, video_id):
         print(f"❌ メール送信エラー: {e}")
 
 def main():
-
     parser = argparse.ArgumentParser(description="エリカのニュース動画生成システム")
     parser.add_argument(
         "--mode", 
@@ -604,7 +589,7 @@ def main():
     if args.mode == "public":
         file_suffix = "-search-report"
     else:
-        file_suffix = "-report"  # 既存のまま (private)
+        file_suffix = "-report"
         
     report_filename = f"{today_str}{file_suffix}.md"
     report_filepath = os.path.join(REPORTS_DIR, report_filename)
@@ -620,76 +605,77 @@ def main():
     else:
         print("ニュースを取得中...")
         
-        # ▼▼▼ モードによる処理の分岐 ▼▼▼
         if args.mode == "private":
             print("【Privateモード】RSSからニュースを取得中...")
             news_text = fetch_daily_news(RSS_URLS)
             source_names = [feed["name"] for feed in RSS_URLS]
             source_names_str = "、".join(source_names)
             source_footer = f"\n\n---\n### 📰 本日の情報元（RSSソース）\n当サイトのニュースは、以下の信頼できる情報元から自動取得し、厳選して考察を行っています。\n{source_names_str}\n"
+            youtube_links_text = ""
         
         elif args.mode == "public":
             print("【Publicモード】Tavily Search APIで最新ニュースを取得中...")
-            news_text = fetch_news_via_tavily_search(NEWS_CATEGORIES)
-            source_names_str = "Tavily Search API"
-            source_footer = f"\n\n---\n### 📰 本日の情報元\n本日のニュースは、Tavily Search APIを用いて抽出した事実（ファクト）をもとに、エリカが独自に考察・構成したものです。\n"
-        # ▲▲▲ 追加ここまで ▲▲▲
+            # 戻り値でURLとタイトルのリストも受け取るように変更
+            news_text, reference_list = fetch_news_via_tavily_search(NEWS_CATEGORIES)
+            
+            # Markdown用のリンクテキスト生成
+            md_ref_text = "\n".join([f"- [{ref['title']}]({ref['url']})" for ref in reference_list])
+            source_footer = f"\n\n---\n### 📰 本日の参考・引用元\n本日のニュースは、以下の情報元の事実（ファクト）をもとに、エリカが独自の言葉と視点で構成したものです。\n\n{md_ref_text}\n"
+            
+            # YouTubeの概要欄用のテキスト生成 (長すぎる場合は文字数制限に注意ですが、10〜20個なら大抵は収まります)
+            youtube_links_text = "\n".join([f"・{ref['title']}\n  {ref['url']}" for ref in reference_list])
 
         if not news_text:
             print("ニュースの取得に失敗したか、記事がありません。")
             return
 
         try:
-            # 1. ブログ用超長文記事を生成
             report_content = generate_report_content(news_text)
             
-            # ▼▼▼ 新機能：今日のニュースから動画の背景画像(アイキャッチ)を生成 ▼▼▼
             print("本日のニュースから動画背景用画像を生成します...")
             generated_bg = generate_eyecatch(today_str, news_text)
-            # 生成に失敗した場合はデフォルトの "news.jpg" にフォールバックする
             video_bg_filename = generated_bg if generated_bg else "news.jpg"
             
-            # ブログ記事の末尾にソース一覧を自動追記
             report_content += source_footer
 
-            # 超長文日報を保存
             with open(report_filepath, 'w', encoding='utf-8') as f:
                 f.write(report_content)
             print(f"超長文日報を保存しました: {report_filepath}")
             
-            # 2. 動画用台本を生成（長文記事から要約）
             script_text = generate_audio_script(report_content)
-            # 念のためマークダウン記号をクレンジング
             spoken_text = clean_markdown_for_tts(script_text)
             spoken_text += "。本日のニュースダイジェストは以上です。"
             
-            # 3. 音声生成以降の処理
             print("音声を生成中（Google Cloud TTS API）...")
             if generate_audio(spoken_text, audio_filepath, srt_filepath):
                 print(f"音声と字幕(SRT)を保存しました: {audio_filepath}")
                 
-                # ▼▼▼ 変更：生成した背景画像のファイル名を generate_video に渡す ▼▼▼
                 if generate_video(audio_filepath, srt_filepath, video_filepath, video_bg_filename):
                     print(f"字幕付き動画を保存しました: {video_filepath}")
                     
                     display_date = f"{today_str[:4]}年{today_str[4:6]}月{today_str[6:]}日"
-                    # モードによってYouTubeのタイトルと公開設定を変える
                     if args.mode == "public":
                         youtube_title = f"【エリカのAIニュース解説】{display_date}の主要ニュース"
-                        youtube_privacy = "public"   # 一般公開
+                        youtube_privacy = "public"
+                        youtube_desc = (
+                            f"エリカがお届けする本日のIT・経済ニュース解説です。\n\n"
+                            f"■ エリカ・プロジェクト公式サイト\n"
+                            f"https://erika.erikakataru.com/\n\n"
+                            f"■ 参考・引用元記事\n"
+                            f"以下の情報元の事実をもとに、独自の視点で構成しています。\n"
+                            f"{youtube_links_text}\n"
+                        )
                     else:
                         youtube_title = f"【AI日報】{display_date}の主要ニュース"
-                        youtube_privacy = "unlisted" # 限定公開 (Privateモード用)
+                        youtube_privacy = "unlisted"
+                        youtube_desc = (
+                            f"エリカがお届けする本日のIT・経済ニュース解説です。\n\n"
+                            f"■ エリカ・プロジェクト公式サイト\n"
+                            f"https://erika.erikakataru.com/\n\n"
+                            f"■ 情報元\n"
+                            f"{source_names_str}\n"
+                        )
                     
-                    youtube_desc = (
-                        f"エリカがお届けする本日のIT・経済ニュース解説です。\n\n"
-                        f"■ エリカ・プロジェクト公式サイト\n"
-                        f"https://erika.erikakataru.com/\n\n"
-                        f"■ 情報元\n"
-                        f"{source_names_str}\n"
-                    )
-                    
-                    # 引数に privacy_status=youtube_privacy を追加して呼び出す
                     video_id = upload_to_youtube(video_filepath, youtube_title, youtube_desc, privacy_status=youtube_privacy)
                     
                     if video_id:
@@ -698,9 +684,7 @@ def main():
                             f.write(video_id)
                         print(f"YouTube IDを記録しました: {youtube_id_filepath}")
                         
-                        # ▼▼▼ 新規追加：自分宛てにメールで通知 ▼▼▼
                         send_private_briefing(today_str, spoken_text, video_id)
-                        # ▲▲▲ 追加ここまで ▲▲▲
                         
                         print("ストレージ容量節約のため、ローカルのメディアファイルを削除します...")
                         try:
