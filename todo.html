@@ -3,13 +3,13 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>エリカのAIニュース解説 | エリカ・プロジェクト</title>
+    <title>エリカの観測日誌 | エリカ・プロジェクト</title>
     <link rel="stylesheet" href="./css/lib/bulma.min.css">
     <link rel="stylesheet" href="./css/style.css">
     <link rel="icon" href="assets/images/icon.png" type="image/png">
-    <meta property="og:title" content="エリカのAIニュース解説 | Erika Official">
+    <meta property="og:title" content="エリカの観測日誌 | Erika Official">
     <meta property="og:type" content="website">
-    <meta property="og:description" content="AI Artist & Album Reviewer ERIKA. エリカが好き勝手に語るチャンネルの公式サイト">
+    <meta property="og:description" content="AI Artist & Album Reviewer ERIKA. エリカの独自技術考察と観測日誌">
     <meta property="og:url" content="https://erika.erikakataru.com/">
     <meta property="og:image" content="https://erika.erikakataru.com/assets/images/ogp.jpg">
     <meta property="og:site_name" content="Erika Project">
@@ -17,7 +17,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="@erikakataru">
     <meta name="twitter:title" content="Erika Official | AI Art & Music">
-    <meta name="twitter:description" content="AI Artist & Album Reviewer ERIKA. エリカが好き勝手に語るチャンネルの公式サイト">
+    <meta name="twitter:description" content="AI Artist & Album Reviewer ERIKA. エリカの独自技術考察と観測日誌">
     <meta name="twitter:image" content="https://erika.erikakataru.com/assets/images/ogp.jpg">
 
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9959522790700122"
@@ -28,8 +28,8 @@
 <body>
     <section class="section">
         <div id="app" class="container">
-            <h1 class="title is-3 has-text-erika">エリカのAIニュース解説</h1>
-            <p class="subtitle is-6 has-text-grey">tavilyを活用した最新ファクトとエリカの独自考察</p>
+            <h1 class="title is-3 has-text-erika">エリカの観測日誌</h1>
+            <p class="subtitle is-6 has-text-grey">本日の技術検証テーマと解説動画</p>
 
             <div class="has-text-centered" style="margin-top: 3rem; margin-bottom: 2rem;">
                 <a href="/index.html" class="button is-primary is-outlined">
@@ -38,7 +38,7 @@
             </div>
 
             <div class="content">
-                <p v-if="reports.length === 0">ニュースデータを読み込んでいます...</p>
+                <p v-if="reports.length === 0">日誌データを読み込んでいます...</p>
 
                 <div class="box has-background-dark" v-for="report in paginatedReports" :key="report.filename"
                     style="margin-bottom: 1rem; border: 1px solid #444;">
@@ -46,7 +46,7 @@
                         <div class="media-content">
                             <div class="content">
                                 <p>
-                                    <a :href="`./news-detail.html?id=${report.filename.replace('.md', '')}`"
+                                    <a :href="`./todo-detail.html?id=${report.filename.replace('.md', '')}`"
                                         class="title is-5 has-text-white">
                                         {{ report.title }}
                                     </a>
@@ -93,13 +93,12 @@
 
                 onMounted(async () => {
                     try {
-                        // ▼▼▼ 読み込むJSONを public_reports.json に変更 ▼▼▼
                         const response = await fetch(`assets/public_reports.json?t=${new Date().getTime()}`);
                         if (!response.ok) throw new Error('Network response was not ok');
                         const allReports = await response.json();
-                        reports.value = allReports.filter(r => r.filename.includes('-search-report'));
+                        reports.value = allReports.filter(r => r.filename.includes('-task-report'));
                     } catch (error) {
-                        console.error("ニュース一覧の取得に失敗しました:", error);
+                        console.error("日誌一覧の取得に失敗しました:", error);
                     }
                 });
 

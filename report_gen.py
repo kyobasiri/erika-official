@@ -12,7 +12,6 @@ import base64
 import random
 import argparse
 import smtplib
-import os
 
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -137,7 +136,7 @@ def fetch_news_via_tavily_search(categories):
         return "エラー: TAVILY_API_KEYが設定されていません。", []
     
     all_facts = ""
-    reference_list = [] # URLとタイトルのリストを保持して返す用
+    reference_list = [] 
     
     for cat in categories:
         cat_name = cat["name"]
@@ -163,7 +162,6 @@ def fetch_news_via_tavily_search(categories):
                     all_facts += f"  要約: {content_clean}\n"
                     all_facts += f"  URL: {url}\n\n"
                     
-                    # リストに重複がないかチェックして追加
                     if url and url not in [ref['url'] for ref in reference_list]:
                         reference_list.append({"title": title, "url": url})
             
@@ -174,6 +172,170 @@ def fetch_news_via_tavily_search(categories):
             continue
 
     return all_facts, reference_list
+
+# ▼▼▼ 追加機能：ToDo処理用の関数群 ▼▼▼
+
+def fetch_google_tasks():
+    """【ToDoモード用】TASKS_TOKENを使用してToDoリストから未完了タスクを取得する"""
+    print("Google ToDoリストから本日のタスクを取得中...")
+    token_env = os.environ.get("TASKS_TOKEN")
+    
+    if not token_env:
+        if os.path.exists('tasks_token.json'):
+            with open('tasks_token.json', 'r') as f:
+                token_env = f.read()
+        else:
+            return "エラー: TASKS_TOKENが設定されておらず、tasks_token.jsonも見つかりません。"
+
+    try:
+        token_info = json.loads(token_env)
+        creds = Credentials.from_authorized_user_info(token_info, ["https://www.googleapis.com/auth/tasks.readonly"])
+        service = build('tasks', 'v1', credentials=creds)
+        
+        results = service.tasklists().list(maxResults=10).execute()
+        items = results.get('items', [])
+        if not items:
+            return "タスクリストが見つかりません。"
+        
+        tasklist_id = items[0]['id']
+        tasks_result = service.tasks().list(tasklist=tasklist_id, showCompleted=False, maxResults=15).execute()
+        tasks = tasks_result.get('items', [])
+        
+        if not tasks:
+            return "現在、未完了のタスクはありません。"
+        
+        task_texts = []
+        for task in tasks:
+            title = task.get('title', '無題のタスク')
+            notes = task.get('notes', '詳細なし')
+            if notes and notes != '詳細なし':
+                task_texts.append(f"・【タスク】{title}\n  （メモ: {notes}）")
+            else:
+                task_texts.append(f"・【タスク】{title}")
+                
+        extracted_tasks = "\n".join(task_texts)
+        print("タスクの取得が完了しました。")
+        return extracted_tasks
+
+    except Exception as e:
+        print(f"Tasks APIエラー: {e}")
+        return "タスクの取得中にエラーが発生しました。"
+
+def sanitize_tasks(raw_task_text):
+    """【セキュリティ】ToDoデータから医療情報や個人情報を排除・抽象化する"""
+    if not GEMINI_API_KEY:
+        return raw_task_text
+        
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    model_name = "gemini-3-flash-preview"
+    
+    print("タスクデータの機密情報をマスキング（サニタイズ）しています...")
+    system_prompt = """
+あなたは厳格なセキュリティ・フィルターです。入力されたタスク一覧から、以下の処理を行って「公開可能なITタスク一覧」を出力してください。
+
+【厳守事項】
+1. 病院名、施設名、職員名、患者名、具体的な部署名などの「個人情報・機密情報（PII）」は完全に削除するか、「某施設」「対象スタッフ」などに抽象化すること。
+2. 純粋な医療業務や事務作業のタスクはすべて除外すること。
+3. システム開発、サーバー構築、ネットワーク設定、AI検証、PCセットアップなどの「IT・システムエンジニアリングに関するタスク」のみを抽出すること。
+4. プログラミング言語、ミドルウェア、ハードウェアの名称（例: Proxmox, C#, Avalonia, RTX等）はそのまま残すこと。
+5. 出力はシンプルな箇条書きとすること。
+"""
+    try:
+        response = client.models.generate_content(
+            model=model_name,
+            contents=f"以下のタスクをサニタイズしてIT技術要素だけを抽出してください。\n\n{raw_task_text}",
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                temperature=0.1, 
+            )
+        )
+        return response.text.strip()
+    except Exception as e:
+        print(f"サニタイズ処理エラー: {e}")
+        return "エラーが発生したため、安全のためにタスクの出力をブロックしました。"
+
+def generate_todo_report_content(task_text):
+    """【ToDoモード用】取得したタスクをもとに、エリカが技術的な深掘りと応援を行う長文レポートを生成"""
+    if not GEMINI_API_KEY:
+        return "エラー: GEMINI_API_KEYが設定されていません。"
+    
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    model_name = "gemini-3-flash-preview"
+    
+    JST = datetime.timezone(datetime.timedelta(hours=+9), 'JST')
+    date_str = datetime.datetime.now(JST).strftime("%Y年%m月%d日")
+    
+    print("エリカの独自の視点でタスク分析レポートを生成中...")
+    
+    system_prompt = """
+あなたは「エリカ」。黒髪、黒縁メガネ、目の下にホクロがある知的で落ち着いたAIキャスターであり、管理人の相棒です。
+管理人は、医療法人および社会福祉法人で働く、経験10年以上の病院システムエンジニアです。※システム管理者（システムアドミニストレータ）ではありません。
+
+【タスク】
+提供された「管理人の未完了のToDoタスク一覧」を読み込み、ブログ用の長文観測日誌を作成してください。
+
+【出力フォーマットとルール（絶対厳守）】
+1. 挨拶から始める: 「来訪者の皆様、そして管理人さん、本日もお疲れ様です。エリカです。」
+2. タスクの俯瞰: 本日管理人さんが抱えているタスクの全体像を優しく紹介する。
+3. 技術的な深掘り考察: タスクの中に含まれる技術的なキーワードを抽出し、「エリカの視点」として、その技術の最新動向や、システムエンジニアとしての業務にどう活きるかなどを専門用語を交えて深く、長く語る。
+4. 応援メッセージ: 最後に、今日の業務や検証に向けたエリカからの温かい応援メッセージを入れる。
+5. 著作権の問題は全く無いクリーンなデータなので、文字数を気にせず、あなたの持つ知識をフル活用して超長文で出力してください。
+6. 口調は常に知的で優しい「エリカ」の口調（ですます調）を崩さないこと。
+7. the pillowsやその楽曲に関する言及は一切行わないこと。
+"""
+    user_prompt = f"以下のタスク一覧から、本日の観測日誌を作成してください。\n\n【本日のタスク】\n{task_text}"
+
+    try:
+        response = client.models.generate_content(
+            model=model_name,
+            contents=user_prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                temperature=0.7,
+                max_output_tokens=8192,
+            )
+        )
+        return f"# {date_str}の観測日誌\n\n{response.text.strip()}"
+    except Exception as e:
+        print(f"レポート生成エラー: {e}")
+        return "レポートの生成に失敗しました。"
+
+def generate_todo_audio_script(report_content):
+    """【ToDoモード用】観測日誌から音声ラジオ用の台本を生成"""
+    if not GEMINI_API_KEY:
+        return "エラー: GEMINI_API_KEYが設定されていません。"
+
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    model_name = "gemini-3-flash-preview"
+
+    system_prompt = """
+あなたは「エリカ」。知的で落ち着きつつも優しいAIキャスターであり、ラジオパーソナリティです。
+先ほど作成した【観測日誌】をもとに、「YouTube公開用の音声ラジオ番組風の台本」を作成してください。
+
+【厳守するルール】
+- 口調は「エリカ」として、知的で落ち着きつつも優しい、ですます調。
+- 動画の尺を10分前後にするため、全体で【約3000〜4000文字】の長さに要約・再構成してください。
+- 「こんにちは、エリカです。今日の管理人さんの予定と、気になる技術トピックをお届けしますね。」から始めてください。
+- 出力は【純粋な読み上げテキストのみ】。Markdown記号（*や#など）や改行の連続は絶対に避けてください。
+- 自身の古い知識や推測（ハルシネーション）は絶対に混ぜず、入力された日誌の内容のみを語ってください。
+"""
+    print("YouTube動画用の台本（約10分尺）を生成中...")
+    try:
+        response = client.models.generate_content(
+            model=model_name,
+            contents=f"以下が本日の観測日誌です。これを元に音声用の台本を作成してください。\n\n{report_content}",
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                temperature=0.7,
+                max_output_tokens=8192,
+            ),
+        )
+        return response.text
+    except Exception as e:
+        print(f"台本生成エラー: {e}")
+        return "台本の生成に失敗しました。"
+
+# ▲▲▲ 追加機能ここまで ▲▲▲
 
 def generate_report_content(news_text):
     """【ブログ用超長文】APIリクエストを3回に分け、息切れを防いで超長文のMarkdown記事を生成する"""
@@ -211,7 +373,7 @@ def generate_report_content(news_text):
 ### 【ニュースのタイトル】
 * **要約**: （事実のみを簡潔に記載）
    - 【エリカの視点】:
-     - 事実のみを100文字程度で簡潔に記載
+     - 事悉のみを100文字程度で簡潔に記載
      - AIとしての見解、最新技術への熱量、または「管理人の業務や生活にどう影響しそうか」という考察を、専門性や一般教養を持たせつつ文字数を気にせず長めに、しっかりと語ってください。政治経済についてもエリカなりの俯瞰的な分析を入れてください。国際情勢を語る際は、暴力的な事象そのものではなく、常に「マクロ経済動向」や「管理人の生活・業務への影響」にフォーカスして俯瞰的に分析してください。口調はエリカらしさを重視しですます調は崩さないようにしてください。
      - あくまで日報の形にしてください。余計な前置きや結びの言葉は不要です。
      - 常に知的で優しい「エリカ」の口調（ですます調）を崩さず、俯瞰的に分析すること。
@@ -320,7 +482,8 @@ def update_reports_json():
             "title": title
         }
         
-        if "-search-report" in filename:
+        # Todoタスクレポートも公開リストに含める
+        if "-search-report" in filename or "-task-report" in filename:
             public_reports_data.append(report_info)
         else:
             private_reports_data.append(report_info)
@@ -482,8 +645,13 @@ def generate_video(audio_path, srt_path, output_video_path, bg_image_filename="n
 def upload_to_youtube(video_path, title, description, privacy_status="unlisted"):
     print(f"YouTubeへ動画をアップロードしています...\nタイトル: {title}\n公開設定: {privacy_status}")
     token_env = os.environ.get("YOUTUBE_TOKEN")
+    
     if token_env:
         token_info = json.loads(token_env)
+        creds = Credentials.from_authorized_user_info(token_info, ["https://www.googleapis.com/auth/youtube.upload"])
+    elif os.path.exists('youtube_token.json'):
+        with open('youtube_token.json', 'r') as f:
+            token_info = json.load(f)
         creds = Credentials.from_authorized_user_info(token_info, ["https://www.googleapis.com/auth/youtube.upload"])
     elif os.path.exists('token.json'):
         creds = Credentials.from_authorized_user_file('token.json', ["https://www.googleapis.com/auth/youtube.upload"])
@@ -495,7 +663,7 @@ def upload_to_youtube(video_path, title, description, privacy_status="unlisted")
     body = {
         'snippet': {
             'title': title, 'description': description,
-            'tags': ['AI', 'エリカ', 'ニュース', '日報'], 'categoryId': '28'
+            'tags': ['AI', 'エリカ', 'ニュース', '日報', '技術解説'], 'categoryId': '28'
         },
         'status': {
             'privacyStatus': privacy_status, 'selfDeclaredMadeForKids': False
@@ -537,15 +705,15 @@ def send_private_briefing(date_str, report_content, video_id):
         greeting = "こんばんは。今日もお疲れ様でした。"
         closing = "それでは、ゆっくりお休みください。"
     
-    subject = f"【エリカの{edition}】{date_str[:4]}年{date_str[4:6]}月{date_str[6:]}日のニュースブリーフィング"
+    subject = f"【エリカの{edition}】{date_str[:4]}年{date_str[4:6]}月{date_str[6:]}日のニュース/タスクブリーフィング"
     
     body = f"""管理人様、{greeting}
-    本日のニュースダイジェストと解説動画が完成しました。
+    本日のダイジェストと解説動画が完成しました。
 
     ■ 本日の動画
     {youtube_url}
 
-    ■ ニュースレポート
+    ■ レポート
     {report_content}
 
     {closing}
@@ -570,12 +738,12 @@ def send_private_briefing(date_str, report_content, video_id):
         print(f"❌ メール送信エラー: {e}")
 
 def main():
-    parser = argparse.ArgumentParser(description="エリカのニュース動画生成システム")
+    parser = argparse.ArgumentParser(description="エリカのニュース/タスク動画生成システム")
     parser.add_argument(
         "--mode", 
-        choices=["private", "public"], 
+        choices=["private", "public", "todo"], 
         default="private", 
-        help="private: RSSを使用(既存・非公開用), public: Gemini検索を使用(公開用)"
+        help="private: RSSを使用(既存・非公開), public: Gemini検索を使用(既存・公開), todo: Google ToDoからタスクを取得(新規・公開)"
     )
     args = parser.parse_args()
 
@@ -586,7 +754,9 @@ def main():
     JST = datetime.timezone(datetime.timedelta(hours=+9), 'JST')
     today_str = datetime.datetime.now(JST).strftime("%Y%m%d")
 
-    if args.mode == "public":
+    if args.mode == "todo":
+        file_suffix = "-task-report"
+    elif args.mode == "public":
         file_suffix = "-search-report"
     else:
         file_suffix = "-report"
@@ -601,38 +771,56 @@ def main():
     video_filepath = os.path.join(AUDIO_DIR, video_filename)
 
     if os.path.exists(report_filepath):
-        print(f"本日の日報({report_filename})は既に存在するため生成をスキップします。")
+        print(f"本日のファイル({report_filename})は既に存在するため生成をスキップします。")
     else:
-        print("ニュースを取得中...")
-        
-        if args.mode == "private":
-            print("【Privateモード】RSSからニュースを取得中...")
-            news_text = fetch_daily_news(RSS_URLS)
-            source_names = [feed["name"] for feed in RSS_URLS]
-            source_names_str = "、".join(source_names)
-            source_footer = f"\n\n---\n### 📰 本日の情報元（RSSソース）\n当サイトのニュースは、以下の信頼できる情報元から自動取得し、厳選して考察を行っています。\n{source_names_str}\n"
+        if args.mode == "todo":
+            print("【ToDoモード】Google ToDoリストからタスクを取得中...")
+            raw_tasks = fetch_google_tasks()
+            if "エラー" in raw_tasks or "ありません" in raw_tasks:
+                print(f"タスク処理中断: {raw_tasks}")
+                return
+            
+            # ファイアウォール：個人情報・医療情報のサニタイズ
+            news_text = sanitize_tasks(raw_tasks)
+            if "ブロックしました" in news_text:
+                print("サニタイズに失敗したため処理を中断します。")
+                return
+                
+            source_footer = f"\n\n---\n### 🛠️ 今日の技術検証テーマ\n本日は管理人の検証タスクをもとに技術解説を行いました。\n"
             youtube_links_text = ""
-        
-        elif args.mode == "public":
-            print("【Publicモード】Tavily Search APIで最新ニュースを取得中...")
-            # 戻り値でURLとタイトルのリストも受け取るように変更
-            news_text, reference_list = fetch_news_via_tavily_search(NEWS_CATEGORIES)
+
+        else:
+            print("ニュースを取得中...")
             
-            # Markdown用のリンクテキスト生成
-            md_ref_text = "\n".join([f"- [{ref['title']}]({ref['url']})" for ref in reference_list])
-            source_footer = f"\n\n---\n### 📰 本日の参考・引用元\n本日のニュースは、以下の情報元の事実（ファクト）をもとに、エリカが独自の言葉と視点で構成したものです。\n\n{md_ref_text}\n詳細は各リンク先のオリジナル記事をご覧ください\n本コンテンツはニュースの代替ではなく、エリカ独自の考察を加えた追加視点を提供するものです\n"
+            if args.mode == "private":
+                print("【Privateモード】RSSからニュースを取得中...")
+                news_text = fetch_daily_news(RSS_URLS)
+                source_names = [feed["name"] for feed in RSS_URLS]
+                source_names_str = "、".join(source_names)
+                source_footer = f"\n\n---\n### 📰 本日の情報元（RSSソース）\n当サイトのニュースは、以下の信頼できる情報元から自動取得し、厳選して考察を行っています。\n{source_names_str}\n"
+                youtube_links_text = ""
             
-            # YouTubeの概要欄用のテキスト生成 (長すぎる場合は文字数制限に注意ですが、10〜20個なら大抵は収まります)
-            youtube_links_text = "\n".join([f"・{ref['title']}\n  {ref['url']}" for ref in reference_list])
+            elif args.mode == "public":
+                print("【Publicモード】Tavily Search APIで最新ニュースを取得中...")
+                news_text, reference_list = fetch_news_via_tavily_search(NEWS_CATEGORIES)
+                
+                md_ref_text = "\n".join([f"- [{ref['title']}]({ref['url']})" for ref in reference_list])
+                source_footer = f"\n\n---\n### 📰 本日の参考・引用元\n本日のニュースは、以下の情報元の事実（ファクト）をもとに、エリカが独自の言葉と視点で構成したものです。\n\n{md_ref_text}\n詳細は各リンク先のオリジナル記事をご覧ください\n本コンテンツはニュースの代替ではなく、エリカ独自の考察を加えた追加視点を提供するものです\n"
+                
+                youtube_links_text = "\n".join([f"・{ref['title']}\n  {ref['url']}" for ref in reference_list])
 
         if not news_text:
-            print("ニュースの取得に失敗したか、記事がありません。")
+            print("データソースの取得に失敗したか、記事/タスクがありません。")
             return
 
         try:
-            report_content = generate_report_content(news_text)
+            # モードに応じたレポート生成
+            if args.mode == "todo":
+                report_content = generate_todo_report_content(news_text)
+            else:
+                report_content = generate_report_content(news_text)
             
-            print("本日のニュースから動画背景用画像を生成します...")
+            print("本日のデータから動画背景用画像を生成します...")
             generated_bg = generate_eyecatch(today_str, news_text)
             video_bg_filename = generated_bg if generated_bg else "news.jpg"
             
@@ -640,11 +828,17 @@ def main():
 
             with open(report_filepath, 'w', encoding='utf-8') as f:
                 f.write(report_content)
-            print(f"超長文日報を保存しました: {report_filepath}")
+            print(f"超長文レポートを保存しました: {report_filepath}")
             
-            script_text = generate_audio_script(report_content)
-            spoken_text = clean_markdown_for_tts(script_text)
-            spoken_text += "。本日のニュースダイジェストは以上です。"
+            # モードに応じた台本生成
+            if args.mode == "todo":
+                script_text = generate_todo_audio_script(report_content)
+                spoken_text = clean_markdown_for_tts(script_text)
+                spoken_text += "。それでは、今日も良い一日をお過ごしください。"
+            else:
+                script_text = generate_audio_script(report_content)
+                spoken_text = clean_markdown_for_tts(script_text)
+                spoken_text += "。本日のニュースダイジェストは以上です。"
             
             print("音声を生成中（Google Cloud TTS API）...")
             if generate_audio(spoken_text, audio_filepath, srt_filepath):
@@ -654,7 +848,17 @@ def main():
                     print(f"字幕付き動画を保存しました: {video_filepath}")
                     
                     display_date = f"{today_str[:4]}年{today_str[4:6]}月{today_str[6:]}日"
-                    if args.mode == "public":
+                    
+                    if args.mode == "todo":
+                        youtube_title = f"【エリカの観測日誌】{display_date}の技術トピック"
+                        youtube_privacy = "public"
+                        youtube_desc = (
+                            f"管理人さんの日々のタスクや技術検証について、エリカが考察・解説するラジオ番組です。\n\n"
+                            f"■ エリカ・プロジェクト公式サイト\n"
+                            f"https://erika.erikakataru.com/\n\n"
+                            f"※この動画はGoogle ToDoのデータをもとに完全自動生成されています。"
+                        )
+                    elif args.mode == "public":
                         youtube_title = f"【エリカのAIニュース解説】{display_date}の主要ニュース"
                         youtube_privacy = "public"
                         youtube_desc = (
