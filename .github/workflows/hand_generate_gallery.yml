@@ -22,7 +22,25 @@ jobs:
         with:
           python-version: '3.x'
 
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          python -m pip install --upgrade pip
+          pip install google-cloud-vision openai python-dotenv
+
       - name: Generate JSON
+        env:
+          SAKURA_API_KEY: ${{ secrets.SAKURA_API_KEY }}
+          GOOGLE_TTS_API_KEY: ${{ secrets.GOOGLE_TTS_API_KEY }} 
+          YOUTUBE_TOKEN: ${{ secrets.YOUTUBE_TOKEN }} 
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          TASKS_TOKEN: ${{ secrets.TASKS_TOKEN }}
+          GCP_VISION_CREDENTIALS_TOKEN: ${{ secrets.GCP_VISION_CREDENTIALS }}
         run: python gallery_gen.py
 
       - name: Commit and Push if changed

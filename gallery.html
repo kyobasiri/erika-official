@@ -69,19 +69,23 @@
 
                 <!-- 上部フォルダナビゲーション -->
                 <div class="folder-navigation mb-6" v-if="categories.length > 0">
-                    <nav class="pagination is-centered mb-4" role="navigation" aria-label="pagination" v-if="catTotalPages > 1">
-                        <a class="pagination-previous" @click="nextCatPage" :disabled="catCurrentPage === catTotalPages">次の項目へ</a>
+                    <nav class="pagination is-centered mb-4" role="navigation" aria-label="pagination"
+                        v-if="catTotalPages > 1">
+                        <a class="pagination-previous" @click="nextCatPage"
+                            :disabled="catCurrentPage === catTotalPages">次の項目へ</a>
                         <a class="pagination-next" @click="prevCatPage" :disabled="catCurrentPage === 1">前の項目へ</a>
                         <ul class="pagination-list">
                             <li v-for="page in catTotalPages" :key="page">
-                                <a class="pagination-link" :class="{ 'is-current': page === catCurrentPage }" @click="goToCatPage(page)">{{ page }}</a>
+                                <a class="pagination-link" :class="{ 'is-current': page === catCurrentPage }"
+                                    @click="goToCatPage(page)">{{ page }}</a>
                             </li>
                         </ul>
                     </nav>
 
                     <div class="tabs is-centered is-large">
                         <ul>
-                            <li v-for="cat in paginatedCategories" :key="cat" :class="{'is-active': currentCat === cat}">
+                            <li v-for="cat in paginatedCategories" :key="cat"
+                                :class="{'is-active': currentCat === cat}">
                                 <a @click="changeCategory(cat)"
                                     :class="currentCat === cat ? 'has-text-white has-text-weight-bold' : 'has-text-grey-light'">{{
                                     cat }}</a>
@@ -91,11 +95,12 @@
                 </div>
 
                 <div class="columns is-multiline">
-                    <div v-for="img in displayedImages" :key="img" class="column is-3 gallery-item">
-                        <div class="card" @click="openModal(currentCat, img)">
+                    <div v-for="img in displayedImages" :key="img.file" class="column is-3 gallery-item">
+                        <div class="card" @click="openModal(currentCat, img.file)">
                             <div class="card-image">
                                 <figure class="image is-4by5">
-                                    <img :src="`assets/images/gallery/${currentCat}/${img}`" :alt="img" loading="lazy">
+                                    <img :src="`assets/images/gallery/${currentCat}/${img.file}`" :alt="img.alt"
+                                        loading="lazy">
                                 </figure>
                             </div>
                         </div>
@@ -113,19 +118,23 @@
                 <div class="folder-navigation mt-6 mb-6" v-if="categories.length > 0">
                     <hr style="background-color: #333; margin-bottom: 2rem;">
                     <p class="has-text-white has-text-centered mb-4">別のフォルダを見る</p>
-                    <nav class="pagination is-centered mb-4" role="navigation" aria-label="pagination" v-if="catTotalPages > 1">
-                        <a class="pagination-previous" @click="nextCatPage" :disabled="catCurrentPage === catTotalPages">次の項目へ</a>
+                    <nav class="pagination is-centered mb-4" role="navigation" aria-label="pagination"
+                        v-if="catTotalPages > 1">
+                        <a class="pagination-previous" @click="nextCatPage"
+                            :disabled="catCurrentPage === catTotalPages">次の項目へ</a>
                         <a class="pagination-next" @click="prevCatPage" :disabled="catCurrentPage === 1">前の項目へ</a>
                         <ul class="pagination-list">
                             <li v-for="page in catTotalPages" :key="page">
-                                <a class="pagination-link" :class="{ 'is-current': page === catCurrentPage }" @click="goToCatPage(page)">{{ page }}</a>
+                                <a class="pagination-link" :class="{ 'is-current': page === catCurrentPage }"
+                                    @click="goToCatPage(page)">{{ page }}</a>
                             </li>
                         </ul>
                     </nav>
 
                     <div class="tabs is-centered is-large">
                         <ul>
-                            <li v-for="cat in paginatedCategories" :key="cat" :class="{'is-active': currentCat === cat}">
+                            <li v-for="cat in paginatedCategories" :key="cat"
+                                :class="{'is-active': currentCat === cat}">
                                 <a @click="changeCategory(cat)"
                                     :class="currentCat === cat ? 'has-text-white has-text-weight-bold' : 'has-text-grey-light'">{{
                                     cat }}</a>
@@ -172,9 +181,9 @@
                 // ★カテゴリ（フォルダ）のページネーションロジック（8個単位）
                 const catCurrentPage = ref(1);
                 const catsPerPage = 8;
-                
+
                 const catTotalPages = computed(() => Math.ceil(categories.value.length / catsPerPage));
-                
+
                 const paginatedCategories = computed(() => {
                     const start = (catCurrentPage.value - 1) * catsPerPage;
                     return categories.value.slice(start, start + catsPerPage);
@@ -250,7 +259,7 @@
                         // 該当するカテゴリが存在すればそれを開く、無ければ一番最初を選ぶ
                         if (targetFolder && categories.value.includes(targetFolder)) {
                             currentCat.value = targetFolder;
-                            
+
                             // 必要に応じて、開いたフォルダが含まれるページへとページネーションを移動
                             const catIndex = categories.value.indexOf(targetFolder);
                             catCurrentPage.value = Math.floor(catIndex / catsPerPage) + 1;

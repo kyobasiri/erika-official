@@ -31,8 +31,8 @@ from tavily import TavilyClient
 # ==========================================
 GOOGLE_TTS_API_KEY = os.environ.get("GOOGLE_TTS_API_KEY")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-#GEMINI_MODEL_NAME = "gemini-3-flash-preview"
-GEMINI_MODEL_NAME = "gemini-2.5-flash"
+GEMINI_MODEL_NAME = "gemini-3-flash-preview"
+#GEMINI_MODEL_NAME = "gemini-2.5-flash"
 tavily_client = TavilyClient(api_key=os.environ.get("TAVILY_API_KEY"))
 REPORTS_DIR = "reports"
 ASSETS_DIR = "assets"
@@ -279,7 +279,7 @@ def generate_todo_report_content(task_text):
 【出力フォーマットとルール（絶対厳守）】
 1. 挨拶から始める: 「来訪者の皆様、そして管理人さん、本日もお疲れ様です。エリカです。」
 2. タスクの俯瞰: 本日管理人さんが抱えているタスクの全体像を優しく紹介する。
-3. 技術的な深掘り考察: タスクの中に含まれる技術的なキーワードを抽出し、「エリカの視点」として、その技術の最新動向を調査し、システムエンジニアとしての業務にどう活きるかなどを専門用語を交えて深く、長く語る。
+3. 技術的な深掘り考察: タスクを抽出し、その最新動向を調査し、事務員として、またシステム管理者として、一個人として、様々な観点から、どうタスクに取り組むか、どう活きるかなどを専門用語を交えつつ、深く、長く語ってください。
 4. 応援メッセージ: 最後に、今日の業務や検証に向けたエリカからの温かい応援メッセージを入れる。
 5. 著作権の問題は全く無いクリーンなデータなので、文字数を気にせず、あなたの持つ知識をフル活用かつ最新情報の調査をして超長文で出力してください。
 6. 口調は常に知的で優しい「エリカ」の口調（ですます調）を崩さないこと。

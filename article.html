@@ -39,13 +39,14 @@
                 <div class="column is-half" v-for="n in 10" :key="n" v-show="!imageErrors[n]">
                     <figure class="image">
                         <img :src="`/assets/images/gallery/${articleId}/${n}.png`" @error="handleImageError(n)"
-                            alt="エリカ・ギャラリー画像">
+                            :alt="getAltText(n)">
                     </figure>
                 </div>
             </div>
 
             <div v-if="hasGallery" class="has-text-centered" style="margin-top: 2rem;">
-                <a :href="`./gallery.html?folder=${articleId}`" class="button is-warning is-rounded is-medium" style="box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+                <a :href="`./gallery.html?folder=${articleId}`" class="button is-warning is-rounded is-medium"
+                    style="box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
                     <strong>📸 すべての画像を見る（ギャラリーへ）</strong>
                 </a>
             </div>
@@ -53,10 +54,12 @@
             <hr style="margin-top: 3rem; margin-bottom: 3rem; background-color: #333;">
 
             <nav class="pagination is-centered" role="navigation" aria-label="pagination">
-                <a v-if="nextArticle" :href="`./article.html?id=${nextArticle.id}`" class="pagination-previous has-background-dark has-text-white" style="border-color: #555;">
+                <a v-if="nextArticle" :href="`./article.html?id=${nextArticle.id}`"
+                    class="pagination-previous has-background-dark has-text-white" style="border-color: #555;">
                     &laquo; 次の記事
                 </a>
-                <a v-else class="pagination-previous is-disabled has-background-dark has-text-grey" style="border-color: #555;" disabled>
+                <a v-else class="pagination-previous is-disabled has-background-dark has-text-grey"
+                    style="border-color: #555;" disabled>
                     &laquo; 次の記事
                 </a>
 
@@ -68,10 +71,12 @@
                     </li>
                 </ul>
 
-                <a v-if="prevArticle" :href="`./article.html?id=${prevArticle.id}`" class="pagination-next has-background-dark has-text-white" style="border-color: #555;">
+                <a v-if="prevArticle" :href="`./article.html?id=${prevArticle.id}`"
+                    class="pagination-next has-background-dark has-text-white" style="border-color: #555;">
                     前の記事 &raquo;
                 </a>
-                <a v-else class="pagination-next is-disabled has-background-dark has-text-grey" style="border-color: #555;" disabled>
+                <a v-else class="pagination-next is-disabled has-background-dark has-text-grey"
+                    style="border-color: #555;" disabled>
                     前の記事 &raquo;
                 </a>
             </nav>
@@ -92,8 +97,18 @@
                 const prevArticle = ref(null);
                 const nextArticle = ref(null);
 
+                // ★追加：ギャラリーの画像情報を格納する変数
+                const currentGalleryImages = ref([]);
+
                 const handleImageError = (n) => {
                     imageErrors.value[n] = true;
+                };
+
+                // ★追加：画像番号からaltを取得する関数
+                const getAltText = (n) => {
+                    const fileName = `${n}.png`;
+                    const found = currentGalleryImages.value.find(img => img.file === fileName);
+                    return found && found.alt ? found.alt : `エリカ・ギャラリー画像 ${n}`;
                 };
 
                 onMounted(async () => {
@@ -101,15 +116,18 @@
                     const id = params.get('id') || '001-test';
                     articleId.value = id;
 
-                    // ギャラリーの存在チェック
+                    // ギャラリーの存在チェックとalt情報の取得
                     try {
                         const galleryRes = await fetch(`assets/gallery.json?t=${new Date().getTime()}`);
                         if (galleryRes.ok) {
                             let galleryData = await galleryRes.json();
-                            if (!Array.isArray(galleryData)) {
-                                galleryData = Object.keys(galleryData).map(key => ({ name: key }));
+                            // 古い形式の互換性は省略し、新しい配列形式のみ対応
+                            const targetFolder = galleryData.find(folder => folder.name === id);
+
+                            if (targetFolder) {
+                                hasGallery.value = true;
+                                currentGalleryImages.value = targetFolder.images || [];
                             }
-                            hasGallery.value = galleryData.some(folder => folder.name === id);
                         }
                     } catch (e) {
                         console.error("Gallery list could not be fetched", e);
@@ -122,7 +140,6 @@
                             const articles = await articlesRes.json();
                             const currentIndex = articles.findIndex(a => a.id === id);
                             if (currentIndex !== -1) {
-                                // articles配列は新しい記事が先頭()なので、前の記事＝次のインデックス、次の記事＝前のインデックス
                                 if (currentIndex < articles.length - 1) {
                                     prevArticle.value = articles[currentIndex + 1];
                                 }
@@ -135,31 +152,25 @@
                         console.error("Articles list could not be fetched", e);
                     }
 
+                    // Markdownの読み込みと変換処理 (以下変更なし)
                     try {
                         const response = await fetch(`./articles/${id}.md`);
                         if (!response.ok) throw new Error('記事が見つかりません');
                         let text = await response.text();
 
-                        // ★追加：Windowsの改行コード(\r)を完全に削除し、誤作動を防ぐ
                         text = text.replace(/\r/g, '');
 
-                        // ① X(Twitter)の自動埋め込み
-                        // 「行の先頭からURLだけで構成されている場合」のみ変換
                         const xLinkRegex = /^[ \t]*https?:\/\/(?:x\.com|twitter\.com)\/([a-zA-Z0-9_]+\/status\/\d+)[^\s<]*[ \t]*$/gm;
                         text = text.replace(xLinkRegex, '\n\n<div style="display: flex; justify-content: center;"><blockquote class="twitter-tweet" data-align="center"><a href="https://twitter.com/$1"></a></blockquote></div>\n\n');
 
-                        // ② YouTube【ショート動画】の自動埋め込み（縦長サイズ）
                         const ytShortsRegex = /^[ \t]*https?:\/\/(?:www\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]+)[^\s<]*[ \t]*$/gm;
                         text = text.replace(ytShortsRegex, '\n\n<div style="max-width: 320px; margin: 1.5rem auto; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1);"><div style="position: relative; padding-bottom: 177.77%; height: 0;"><iframe src="https://www.youtube.com/embed/$1" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" allowfullscreen></iframe></div></div>\n\n');
 
-                        // ③ YouTube【通常動画】の自動埋め込み（横長サイズ）
                         const ytNormalRegex = /^[ \t]*https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)[^\s<]*[ \t]*$/gm;
                         text = text.replace(ytNormalRegex, '\n\n<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; margin: 1.5rem 0; border-radius: 8px;"><iframe src="https://www.youtube.com/embed/$1" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" allowfullscreen></iframe></div>\n\n');
 
-                        // MarkdownをHTMLに変換
                         compiledMarkdown.value = marked.parse(text);
 
-                        // VueがHTMLを描画したあとに、Xのカード化プログラムを起動
                         nextTick(() => {
                             setTimeout(() => {
                                 if (window.twttr && window.twttr.widgets) {
@@ -181,7 +192,8 @@
                     handleImageError,
                     hasGallery,
                     prevArticle,
-                    nextArticle
+                    nextArticle,
+                    getAltText  // ★ここも忘れずに追加
                 };
             }
         }).mount('#app');

@@ -1,17 +1,101 @@
 import os
 import json
+import time
+from google.cloud import vision
+from google.oauth2 import service_account
+from openai import OpenAI
 
-# --- ギャラリー用の設定 ---
+# ==========================================
+# 設定項目
+# ==========================================
+SAKURA_API_KEY = os.environ.get("SAKURA_API_KEY")
+SAKURA_API_BASE = "https://api.sakura.ad.jp/v1"
+SAKURA_MODEL = "gpt-oss120b"
+GCP_TOKEN_STR = os.environ.get("GCP_VISION_CREDENTIALS_TOKEN")
+
 GALLERY_DIR = 'assets/images/gallery'
 GALLERY_OUTPUT = 'assets/gallery.json'
-
-# --- 記事用の設定 ---
+ALT_CACHE_FILE = 'alt_cache.json'
 ARTICLES_DIR = 'articles'
 ARTICLES_OUTPUT = 'assets/articles.json'
+
+# ==========================================
+# クライアント初期化
+# ==========================================
+vision_client = None
+if GCP_TOKEN_STR:
+    try:
+        creds_info = json.loads(GCP_TOKEN_STR)
+        credentials = service_account.Credentials.from_service_account_info(creds_info)
+        vision_client = vision.ImageAnnotatorClient(credentials=credentials)
+    except Exception as e:
+        print(f"Vision API 認証エラー: {e}")
+
+sakura_client = None
+if SAKURA_API_KEY:
+    sakura_client = OpenAI(
+        api_key=SAKURA_API_KEY,
+        base_url=SAKURA_API_BASE
+    )
+
+# ==========================================
+# 処理関数
+# ==========================================
+def get_image_labels_from_vision(image_path):
+    if not vision_client:
+        return []
+    try:
+        with open(image_path, 'rb') as image_file:
+            content = image_file.read()
+        image = vision.Image(content=content)
+        response = vision_client.label_detection(image=image, max_results=5)
+        return [label.description for label in response.label_annotations]
+    except Exception as e:
+        print(f"  [Error] Vision API failed for {image_path}: {e}")
+        return []
+
+def generate_alt_with_sakura_llm(filename, labels):
+    if not sakura_client or not labels:
+        return f"エリカのギャラリー画像 ({filename})"
+
+    is_erika_art = "ComfyUI" in filename or "pixiv" in filename
+    context = "これは「エリカ」という黒髪で黒縁メガネをかけた女性キャラクターの画像です。" if is_erika_art else "これはギャラリーの画像です。"
+    
+    system_prompt = (
+        "あなたはWebアクセシビリティとSEOの専門家です。"
+        "提供された画像の特徴を表すキーワード群から、HTMLのalt属性に最適な、"
+        "簡潔で説明的な日本語のテキストを1文(50文字以内)で生成してください。"
+    )
+    user_prompt = f"{context}\n抽出されたキーワード: {', '.join(labels)}\n出力はalt属性のテキストのみとしてください。"
+
+    try:
+        response = sakura_client.chat.completions.create(
+            model=SAKURA_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.3,
+            max_tokens=100
+        )
+        alt_text = response.choices[0].message.content.strip()
+        return alt_text.replace('"', '').replace('「', '').replace('」', '')
+    except Exception as e:
+        print(f"  [Error] Sakura LLM failed for {filename}: {e}")
+        return f"画像 ({', '.join(labels[:2])})"
 
 def generate_gallery_json():
     gallery_data = []
     
+    alt_cache = {}
+    if os.path.exists(ALT_CACHE_FILE):
+        try:
+            with open(ALT_CACHE_FILE, 'r', encoding='utf-8') as f:
+                alt_cache = json.load(f)
+        except json.JSONDecodeError:
+            print("Cache file is corrupted. Starting fresh.")
+            alt_cache = {}
+
     if not os.path.exists(GALLERY_DIR):
         print(f"Directory {GALLERY_DIR} not found. Creating...")
         os.makedirs(GALLERY_DIR, exist_ok=True)
@@ -21,13 +105,38 @@ def generate_gallery_json():
     
     for category in categories:
         cat_path = os.path.join(GALLERY_DIR, category)
-        images = sorted([f for f in os.listdir(cat_path) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp'))])
+        image_files = sorted([f for f in os.listdir(cat_path) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp'))])
         
-        if images:
+        images_with_alt = []
+        for img_file in image_files:
+            file_path = os.path.join(cat_path, img_file)
+            
+            if img_file not in alt_cache:
+                print(f"Processing alt text for {category}/{img_file}...")
+                labels = get_image_labels_from_vision(file_path)
+                
+                if labels:
+                    alt_text = generate_alt_with_sakura_llm(img_file, labels)
+                else:
+                    alt_text = f"エリカの画像 ({img_file})"
+                
+                print(f"  -> Generated alt: {alt_text}")
+                alt_cache[img_file] = alt_text
+                time.sleep(1) # API制限対策
+            
+            images_with_alt.append({
+                "file": img_file,
+                "alt": alt_cache[img_file]
+            })
+        
+        if images_with_alt:
             gallery_data.append({
                 "name": category,
-                "images": images
+                "images": images_with_alt
             })
+
+    with open(ALT_CACHE_FILE, 'w', encoding='utf-8') as f:
+        json.dump(alt_cache, f, indent=4, ensure_ascii=False)
 
     os.makedirs(os.path.dirname(GALLERY_OUTPUT), exist_ok=True)
     with open(GALLERY_OUTPUT, 'w', encoding='utf-8') as f:
@@ -35,37 +144,27 @@ def generate_gallery_json():
     
     print(f"Generated {GALLERY_OUTPUT} with {len(gallery_data)} categories.")
 
-
 def generate_articles_json():
-    """記事フォルダ(.md)を読み込んで目次JSONを生成する"""
     articles_data = []
     
     if not os.path.exists(ARTICLES_DIR):
-        print(f"Directory {ARTICLES_DIR} not found. Creating...")
         os.makedirs(ARTICLES_DIR, exist_ok=True)
 
-    # .mdファイル一覧を取得
     files = [f for f in os.listdir(ARTICLES_DIR) if f.lower().endswith('.md')]
-    
-    # ファイル名で降順ソート（例：002-xxx.md が 001-xxx.md より上に来るようにする）
     files = sorted(files, reverse=True)
     
     for filename in files:
         file_path = os.path.join(ARTICLES_DIR, filename)
-        article_id = os.path.splitext(filename)[0] # 拡張子.mdを除外したID（例: 001-test）
+        article_id = os.path.splitext(filename)[0]
+        title = article_id
         
-        title = article_id # 初期値はファイル名にしておく
-        
-        # ファイルを開いて1行ずつ読み、最初の「# 」で始まる行をタイトルとして抽出する
         with open(file_path, 'r', encoding='utf-8') as f:
             for line in f:
                 line = line.strip()
-                # Markdownの見出し1(h1)をタイトルとして認識
                 if line.startswith('# '):
-                    title = line[2:].strip() # "# " の部分を削ってタイトル文字だけにする
+                    title = line[2:].strip()
                     break
         
-        # 配列に追加
         articles_data.append({
             "id": article_id,
             "title": title
@@ -77,8 +176,6 @@ def generate_articles_json():
     
     print(f"Generated {ARTICLES_OUTPUT} with {len(articles_data)} articles.")
 
-
 if __name__ == "__main__":
-    # 両方のJSON生成関数を実行する
     generate_gallery_json()
     generate_articles_json()
