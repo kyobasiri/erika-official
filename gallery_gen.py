@@ -10,7 +10,7 @@ from openai import OpenAI
 # ==========================================
 SAKURA_API_KEY = os.environ.get("SAKURA_API_KEY")
 SAKURA_API_BASE = "https://api.ai.sakura.ad.jp/v1"
-SAKURA_MODEL = "gpt-oss120b"
+SAKURA_MODEL = "gpt-oss-120b"
 GCP_TOKEN_STR = os.environ.get("GCP_VISION_CREDENTIALS_TOKEN")
 
 GALLERY_DIR = 'assets/images/gallery'
