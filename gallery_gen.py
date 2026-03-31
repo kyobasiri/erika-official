@@ -87,6 +87,20 @@ def generate_alt_with_sakura_llm(filename, labels):
 def generate_gallery_json():
     gallery_data = []
     
+    existing_alts = {}
+    if os.path.exists(GALLERY_OUTPUT):
+        try:
+            with open(GALLERY_OUTPUT, 'r', encoding='utf-8') as f:
+                old_gallery = json.load(f)
+                for category_data in old_gallery:
+                    cat_name = category_data.get("name")
+                    for img in category_data.get("images", []):
+                        # カテゴリ名とファイル名を組み合わせた一意のキーで保存
+                        key = f"{cat_name}/{img['file']}"
+                        existing_alts[key] = img['alt']
+        except json.JSONDecodeError:
+            print("既存の gallery.json の読み込みに失敗しました。")
+    
     alt_cache = {}
     if os.path.exists(ALT_CACHE_FILE):
         try:
@@ -111,10 +125,19 @@ def generate_gallery_json():
         for img_file in image_files:
             file_path = os.path.join(cat_path, img_file)
             
-            # 修正1: カテゴリ名を含めて一意のキーにする
+            # カテゴリ名を含めた一意のキーを作成（前回の提案事項）
             cache_key = f"{category}/{img_file}"
             
-            if cache_key not in alt_cache:
+            # 1. 既存の gallery.json にあればそれを使う
+            if cache_key in existing_alts:
+                alt_text = existing_alts[cache_key]
+                
+            # 2. alt_cache.json にあればそれを使う
+            elif cache_key in alt_cache:
+                alt_text = alt_cache[cache_key]
+                
+            # 3. どちらにも無ければ、ここで初めてAPIを叩く
+            else:
                 print(f"Processing alt text for {cache_key}...")
                 labels = get_image_labels_from_vision(file_path)
                 
@@ -126,7 +149,7 @@ def generate_gallery_json():
                 print(f"  -> Generated alt: {alt_text}")
                 alt_cache[cache_key] = alt_text
                 
-                # 修正2: 取得するたびに逐次保存し、途中終了によるデータロスを防ぐ
+                # 万が一のエラーに備えて都度キャッシュを保存
                 with open(ALT_CACHE_FILE, 'w', encoding='utf-8') as f:
                     json.dump(alt_cache, f, indent=4, ensure_ascii=False)
                     
@@ -134,7 +157,7 @@ def generate_gallery_json():
             
             images_with_alt.append({
                 "file": img_file,
-                "alt": alt_cache[cache_key] # 修正1に伴い参照キーを変更
+                "alt": alt_text
             })
         
         if images_with_alt:
