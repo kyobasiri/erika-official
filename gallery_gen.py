@@ -111,8 +111,11 @@ def generate_gallery_json():
         for img_file in image_files:
             file_path = os.path.join(cat_path, img_file)
             
-            if img_file not in alt_cache:
-                print(f"Processing alt text for {category}/{img_file}...")
+            # 修正1: カテゴリ名を含めて一意のキーにする
+            cache_key = f"{category}/{img_file}"
+            
+            if cache_key not in alt_cache:
+                print(f"Processing alt text for {cache_key}...")
                 labels = get_image_labels_from_vision(file_path)
                 
                 if labels:
@@ -121,12 +124,17 @@ def generate_gallery_json():
                     alt_text = f"エリカの画像 ({img_file})"
                 
                 print(f"  -> Generated alt: {alt_text}")
-                alt_cache[img_file] = alt_text
+                alt_cache[cache_key] = alt_text
+                
+                # 修正2: 取得するたびに逐次保存し、途中終了によるデータロスを防ぐ
+                with open(ALT_CACHE_FILE, 'w', encoding='utf-8') as f:
+                    json.dump(alt_cache, f, indent=4, ensure_ascii=False)
+                    
                 time.sleep(1) # API制限対策
             
             images_with_alt.append({
                 "file": img_file,
-                "alt": alt_cache[img_file]
+                "alt": alt_cache[cache_key] # 修正1に伴い参照キーを変更
             })
         
         if images_with_alt:
