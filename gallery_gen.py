@@ -78,7 +78,8 @@ def generate_alt_with_sakura_llm(filename, labels):
             temperature=0.3,
             max_tokens=100
         )
-        alt_text = response.choices[0].message.content.strip()
+        content = response.choices[0].message.content or ""
+        alt_text = content.strip()
         return alt_text.replace('"', '').replace('「', '').replace('」', '')
     except Exception as e:
         print(f"  [Error] Sakura LLM failed for {filename}: {e}")
