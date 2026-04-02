@@ -76,10 +76,15 @@ def generate_alt_with_sakura_llm(filename, labels):
                 {"role": "user", "content": user_prompt}
             ],
             temperature=0.3,
-            max_tokens=100
+            max_tokens=10000
         )
         content = response.choices[0].message.content or ""
         alt_text = content.strip()
+        
+        if not alt_text:
+            print(f"  [Warning] Sakura LLM returned empty content for {filename}.")
+            return f"画像 ({', '.join(labels[:2])})"
+            
         return alt_text.replace('"', '').replace('「', '').replace('」', '')
     except Exception as e:
         print(f"  [Error] Sakura LLM failed for {filename}: {e}")
