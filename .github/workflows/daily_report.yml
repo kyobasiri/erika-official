@@ -4,7 +4,7 @@ name: エリカの自動日報生成
 on:
   schedule:
     # 毎日日本時間の朝7:00（UTCの22:00）に自動実行
-    - cron: '0 22 * * *'
+    - cron: '0 20 * * *'
   workflow_dispatch:
     # GitHubの画面から手動で実行するためのボタンも有効化
 
