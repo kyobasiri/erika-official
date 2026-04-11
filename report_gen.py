@@ -233,22 +233,22 @@ def sanitize_tasks(raw_task_text):
     
     print("タスクデータの機密情報をマスキング（サニタイズ）しています...")
     system_prompt = """
-あなたは厳格なセキュリティ・フィルターです。入力されたタスク一覧から、以下の処理を行って「公開可能なITタスク一覧」を出力してください。
+あなたは厳格かつ柔軟な技術アシスタントです。入力されたタスク一覧から、以下の処理を行って「公開可能なIT・技術検証タスク一覧」を出力してください。
 
 【厳守事項】
-1. 病院名、施設名、職員名、患者名、具体的な部署名などの「個人情報・機密情報（PII）」は完全に削除するか、「某施設」「対象スタッフ」などに抽象化すること。
-2. 純粋な医療業務や事務作業のタスクはすべて除外すること。
-3. システム開発、サーバー構築、ネットワーク設定、AI検証、PCセットアップなどの「IT・システムエンジニアリングに関するタスク」のみを抽出すること。
-4. プログラミング言語、ミドルウェア、ハードウェアの名称（例: Proxmox, C#, Avalonia, RTX等）はそのまま残すこと。
+1. 個人名、病院名、施設名、特定の部署名などの「個人情報・機密情報（PII）」は絶対に削除するか、「某施設」「対象環境」などに抽象化すること。
+2. 純粋な医療業務（患者対応など）や一般的な事務作業は除外すること。
+3. システム開発、サーバー構築、ネットワーク設定、AI検証、ソフトウェアの調査、トラブルシューティングなど「IT・システムエンジニアリングに関するタスク」は**必ず残すこと**。
+4. プログラミング言語、ミドルウェア、ハードウェアの名称（例: Proxmox, C#, RTX5090等）は重要なキーワードなのでそのまま残すこと。
 5. 出力はシンプルな箇条書きとすること。
 """
     try:
         response = client.models.generate_content(
             model=model_name,
-            contents=f"以下のタスクをサニタイズしてIT技術要素だけを抽出してください。\n\n{raw_task_text}",
+            contents=f"以下のタスクをサニタイズし、IT技術や検証に関連する要素を抽出してください。\n\n{raw_task_text}",
             config=types.GenerateContentConfig(
                 system_instruction=system_prompt,
-                temperature=0.1, 
+                temperature=0.2, # 少し上げて柔軟に抽出させる
             )
         )
         return response.text.strip()
@@ -449,13 +449,23 @@ def generate_audio_script(report_content):
 
 def clean_markdown_for_tts(markdown_text):
     text = markdown_text
+    # Markdownの記号を除去
     text = re.sub(r'#+\s*(.+)', r'\1。', text)  
     text = re.sub(r'\*\*(.*?)\*\*', r'\1', text) 
     text = re.sub(r'\*(.*?)\*', r'\1', text)     
     text = re.sub(r'---+', '', text)            
-    text = text.replace('\n', '。')             
+    text = text.replace('\n', '。')
+    
+    # 【追加】FFmpegやTTSのエラー原因になる記号を全角にするか削除する
+    text = text.replace('\'', '’').replace('"', '”')
+    text = text.replace(':', '：').replace(';', '；')
+    text = text.replace(',', '、').replace('.', '。')
+    text = text.replace('(', '（').replace(')', '）')
+    text = text.replace('[', '［').replace(']', '］')
+    
+    # 連続する「。」を1つにまとめる
     text = re.sub(r'。+', '。', text)
-    return text
+    return text.strip()
 
 def update_reports_json():
     if not os.path.exists(REPORTS_DIR):
