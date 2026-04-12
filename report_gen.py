@@ -223,6 +223,86 @@ def fetch_google_tasks():
         print(f"Tasks APIエラー: {e}")
         return "タスクの取得中にエラーが発生しました。"
 
+def fetch_youtube_topic_task():
+    """【新ToDoモード用】'動画ネタ'リストからテーマを1つランダムに取得する"""
+    print("Google ToDoリストの「動画ネタ」から本日のテーマを抽出中...")
+    token_env = os.environ.get("TASKS_TOKEN")
+    
+    if not token_env:
+        if os.path.exists('tasks_token.json'):
+            with open('tasks_token.json', 'r') as f:
+                token_env = f.read()
+        else:
+            return "エラー: TASKS_TOKENが見つかりません。"
+
+    try:
+        token_info = json.loads(token_env)
+        creds = Credentials.from_authorized_user_info(token_info, ["https://www.googleapis.com/auth/tasks.readonly"])
+        service = build('tasks', 'v1', credentials=creds)
+        
+        # すべてのリストを取得
+        results = service.tasklists().list(maxResults=50).execute()
+        items = results.get('items', [])
+        
+        # 「動画ネタ」という名前のリストを探す
+        target_list_id = None
+        for lst in items:
+            if lst.get('title') == '動画ネタ':
+                target_list_id = lst['id']
+                break
+                
+        if not target_list_id:
+            return "エラー: ToDoリストに「動画ネタ」という名前のリストが見つかりません。作成してください。"
+        
+        # 「動画ネタ」リスト内の未完了タスクを取得
+        tasks_result = service.tasks().list(tasklist=target_list_id, showCompleted=False, maxResults=30).execute()
+        tasks = tasks_result.get('items', [])
+        
+        if not tasks:
+            return "現在、「動画ネタ」リストに未完了のテーマはありません。"
+        
+        # ランダムに1つ選ぶ
+        selected_task = random.choice(tasks)
+        title = selected_task.get('title', '無題のテーマ')
+        notes = selected_task.get('notes', '')
+        
+        topic = f"{title} {notes}".strip()
+        return topic
+
+    except Exception as e:
+        print(f"Tasks APIエラー: {e}")
+        return "タスクの取得中にエラーが発生しました。"
+
+def fetch_topic_via_tavily(topic):
+    """取得したテーマをTavilyで深掘り検索する"""
+    if not os.environ.get("TAVILY_API_KEY"):
+        return f"【テーマ】{topic}\n(Tavily APIキーがないためウェブ検索をスキップしました)", []
+
+    print(f"Tavily APIで「{topic}」について最新情報を深掘り検索中...")
+    try:
+        search_result = tavily_client.search(
+            query=f"{topic} 最新 動向 技術",
+            search_depth="advanced",
+            max_results=5,
+            days=14 # 直近2週間の情報を取得
+        )
+        all_facts = f"【テーマ: {topic} に関する最新ファクト】\n\n"
+        reference_list = []
+        
+        if search_result and 'results' in search_result:
+            for result in search_result['results']:
+                t = result.get('title', '無題')
+                u = result.get('url', '')
+                c = " ".join(result.get('content', '要約なし').split())
+                
+                all_facts += f"・タイトル: {t}\n  要約: {c}\n  URL: {u}\n\n"
+                reference_list.append({"title": t, "url": u})
+                
+        return all_facts, reference_list
+    except Exception as e:
+        print(f"Tavily検索エラー: {e}")
+        return f"【テーマ】{topic}\n(検索中にエラーが発生しました)", []
+
 def sanitize_tasks(raw_task_text):
     """【セキュリティ】ToDoデータから医療情報や個人情報を排除・抽象化する"""
     if not GEMINI_API_KEY:
@@ -454,15 +534,16 @@ def clean_markdown_for_tts(markdown_text):
     text = re.sub(r'\*\*(.*?)\*\*', r'\1', text) 
     text = re.sub(r'\*(.*?)\*', r'\1', text)     
     text = re.sub(r'---+', '', text)            
-    text = text.replace('\n', '。')
+    text = text.replace('\n', '。')             
     
-    # 【追加】FFmpegやTTSのエラー原因になる記号を全角にするか削除する
+    # 【重要】FFmpeg（字幕）やTTSのエラー原因になる半角記号を全角化・削除
     text = text.replace('\'', '’').replace('"', '”')
     text = text.replace(':', '：').replace(';', '；')
     text = text.replace(',', '、').replace('.', '。')
     text = text.replace('(', '（').replace(')', '）')
     text = text.replace('[', '［').replace(']', '］')
-    
+    text = text.replace('&', 'アンド')
+
     # 連続する「。」を1つにまとめる
     text = re.sub(r'。+', '。', text)
     return text.strip()
@@ -786,20 +867,22 @@ def main():
         print(f"本日のファイル({report_filename})は既に存在するため生成をスキップします。")
     else:
         if args.mode == "todo":
-            print("【ToDoモード】Google ToDoリストからタスクを取得中...")
-            raw_tasks = fetch_google_tasks()
-            if "エラー" in raw_tasks or "ありません" in raw_tasks:
-                print(f"タスク処理中断: {raw_tasks}")
+            # ▼▼▼ 書き換え部分 ▼▼▼
+            print("【ToDoモード】技術テーマの深掘りレポートを作成します...")
+            topic = fetch_youtube_topic_task()
+            if "エラー" in topic or "ありません" in topic:
+                print(f"処理中断: {topic}")
                 return
             
-            # ファイアウォール：個人情報・医療情報のサニタイズ
-            news_text = sanitize_tasks(raw_tasks)
-            if "ブロックしました" in news_text:
-                print("サニタイズに失敗したため処理を中断します。")
-                return
-                
-            source_footer = f"\n\n---\n### 🛠️ 今日の技術検証テーマ\n本日は管理人の検証タスクをもとに技術解説を行いました。\n"
-            youtube_links_text = ""
+            print(f"本日のピックアップテーマ: {topic}")
+            
+            # テーマをもとにウェブ検索でファクトを収集
+            news_text, reference_list = fetch_topic_via_tavily(topic)
+            
+            md_ref_text = "\n".join([f"- [{ref['title']}]({ref['url']})" for ref in reference_list])
+            source_footer = f"\n\n---\n### 🛠️ 本日の技術検証テーマ\n**{topic}**\n\n### 📰 調査リファレンス\n{md_ref_text}\n"
+            youtube_links_text = "\n".join([f"・{ref['title']}\n  {ref['url']}" for ref in reference_list])
+            # ▲▲▲ 書き換え部分 ここまで ▲▲▲
 
         else:
             print("ニュースを取得中...")
