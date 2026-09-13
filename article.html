@@ -35,11 +35,10 @@
 
             <hr v-if="compiledMarkdown !== '<p>読み込み中...</p>'">
 
-            <div class="columns is-multiline">
-                <div class="column is-half" v-for="n in 10" :key="n" v-show="!imageErrors[n]">
+            <div class="columns is-multiline" v-if="currentGalleryImages.length > 0">
+                <div class="column is-half" v-for="(img, index) in currentGalleryImages" :key="index">
                     <figure class="image">
-                        <img :src="`/assets/images/gallery/${articleId}/${n}.png`" @error="handleImageError(n)"
-                            :alt="getAltText(n)">
+                        <img :src="`/assets/images/gallery/${articleId}/${img.file}`" :alt="img.alt" loading="lazy">
                     </figure>
                 </div>
             </div>

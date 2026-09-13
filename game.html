@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>エリカの絵合わせ | Erika Project</title>
+    <link rel="stylesheet" href="css/lib/bulma.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="assets/images/icon.png" type="image/png">
+
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="エリカの絵合わせ | AI Art & Music">
+    <meta property="og:description" content="AI Artist & Album Reviewer ERIKA. エリカが好き勝手に語るチャンネルの公式サイト">
+    <meta property="og:url" content="https://erika.erikakataru.com/">
+    <meta property="og:image" content="https://erika.erikakataru.com/assets/images/ogp.jpg">
+    <meta property="og:site_name" content="Erika Project">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@erikakataru">
+    <meta name="twitter:title" content="Erika Official | AI Art & Music">
+    <meta name="twitter:description" content="AI Artist & Album Reviewer ERIKA. エリカが好き勝手に語るチャンネルの公式サイト">
+    <meta name="twitter:image" content="https://erika.erikakataru.com/assets/images/ogp.jpg">
+
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9959522790700122"
+        crossorigin="anonymous"></script>
+    <style>
+        body {
+            background-color: #1e1e2e;
+            color: #cdd6f4;
+            min-height: 100vh;
+        }
+
+        .memory-game {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .memory-card {
+            aspect-ratio: 1;
+            perspective: 1000px;
+            cursor: pointer;
+        }
+
+        .card-inner {
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+            transform-style: preserve-3d;
+            position: relative;
+        }
+
+        .memory-card.is-flipped .card-inner,
+        .memory-card.is-matched .card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .card-front {
+            background-color: #2a2a35;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            color: #f39c12;
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
+
+        .card-back {
+            transform: rotateY(180deg);
+            background-color: #000;
+        }
+
+        .card-back img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="game-app" v-cloak>
+        <nav class="p-5">
+            <a href="index.html" class="has-text-warning font-weight-bold">← Back to Top</a>
+        </nav>
+
+        <section class="section">
+            <div class="container has-text-centered">
+                <h1 class="title is-2 has-text-white mb-2">ERIKA MEMORY</h1>
+                <p class="subtitle is-6 has-text-grey-light mb-5">
+                    ターン数: {{ turns }} | 揃ったペア: {{ matchedPairs }} / 8
+                </p>
+
+                <div v-if="isLoading" class="has-text-warning my-6">
+                    ギャラリーデータを読み込んでいます...
+                </div>
+
+                <div v-else>
+                    <div class="memory-game mb-6">
+                        <div class="memory-card" v-for="(card, index) in cards" :key="card.id"
+                            :class="{ 'is-flipped': card.isFlipped, 'is-matched': card.isMatched }"
+                            @click="flipCard(card)">
+                            <div class="card-inner">
+                                <div class="card-front">E</div>
+                                <div class="card-back">
+                                    <img :src="card.url" alt="Gallery Image">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-if="isWon" class="notification is-success is-light"
+                        style="max-width: 600px; margin: 0 auto;">
+                        <h2 class="title is-4">Clear!</h2>
+                        <p class="mb-4">すべてのペアを見つけました。お見事です！</p>
+                        <button class="button is-success is-rounded" @click="initGame">
+                            <strong>もう一度遊ぶ（画像を再抽選）</strong>
+                        </button>
+                    </div>
+                    <div v-else class="mt-4">
+                        <button class="button is-dark is-rounded is-small" @click="initGame">
+                            リセットして引き直す
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script type="module">
+        import { createApp, ref, computed, onMounted } from './js/lib/vue.esm-browser.js';
+
+        createApp({
+            setup() {
+                const galleryData = ref([]);
+                const cards = ref([]);
+                const flippedCards = ref([]);
+                const matchedPairs = ref(0);
+                const turns = ref(0);
+                const isLocked = ref(false);
+                const isLoading = ref(true);
+
+                const isWon = computed(() => matchedPairs.value === 8);
+
+                const fetchGallery = async () => {
+                    try {
+                        const res = await fetch(`assets/gallery.json?t=${new Date().getTime()}`);
+                        galleryData.value = await res.json();
+                        initGame();
+                    } catch (e) {
+                        console.error("Gallery data could not be fetched.", e);
+                    } finally {
+                        isLoading.value = false;
+                    }
+                };
+
+                const initGame = () => {
+                    matchedPairs.value = 0;
+                    turns.value = 0;
+                    flippedCards.value = [];
+                    isLocked.value = false;
+
+                    // 全フォルダの画像をフラットな一次元配列にまとめる
+                    let allImages = [];
+                    galleryData.value.forEach(folder => {
+                        folder.images.forEach(img => {
+                            allImages.push(`assets/images/gallery/${folder.name}/${img.file}`);
+                        });
+                    });
+
+                    // 画像プールからランダムに8枚抽出
+                    const selectedImages = allImages.sort(() => 0.5 - Math.random()).slice(0, 8);
+
+                    // ペアを作成
+                    let deck = [];
+                    selectedImages.forEach((url, index) => {
+                        deck.push({ id: `${index}a`, pairId: index, url: url, isFlipped: false, isMatched: false });
+                        deck.push({ id: `${index}b`, pairId: index, url: url, isFlipped: false, isMatched: false });
+                    });
+
+                    // デッキをシャッフル
+                    cards.value = deck.sort(() => 0.5 - Math.random());
+                };
+
+                const flipCard = (card) => {
+                    if (isLocked.value || card.isFlipped || card.isMatched) return;
+
+                    card.isFlipped = true;
+                    flippedCards.value.push(card);
+
+                    if (flippedCards.value.length === 2) {
+                        turns.value++;
+                        checkMatch();
+                    }
+                };
+
+                const checkMatch = () => {
+                    isLocked.value = true;
+                    const [card1, card2] = flippedCards.value;
+
+                    if (card1.pairId === card2.pairId) {
+                        card1.isMatched = true;
+                        card2.isMatched = true;
+                        matchedPairs.value++;
+                        flippedCards.value = [];
+                        isLocked.value = false;
+                    } else {
+                        setTimeout(() => {
+                            card1.isFlipped = false;
+                            card2.isFlipped = false;
+                            flippedCards.value = [];
+                            isLocked.value = false;
+                        }, 1000);
+                    }
+                };
+
+                onMounted(fetchGallery);
+
+                return {
+                    cards, turns, matchedPairs, isWon, isLoading,
+                    flipCard, initGame
+                };
+            }
+        }).mount('#game-app');
+    </script>
+</body>
+
+</html>

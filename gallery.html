@@ -67,30 +67,29 @@
             <div class="container">
                 <h1 class="title is-1 has-text-white has-text-centered mb-6">ERIKA GALLERY</h1>
 
-                <!-- 上部フォルダナビゲーション -->
+                <!-- 上部・下部のフォルダナビゲーションを以下の構造に変更 -->
                 <div class="folder-navigation mb-6" v-if="categories.length > 0">
-                    <nav class="pagination is-centered mb-4" role="navigation" aria-label="pagination"
-                        v-if="catTotalPages > 1">
-                        <a class="pagination-previous" @click="nextCatPage"
-                            :disabled="catCurrentPage === catTotalPages">次の項目へ</a>
-                        <a class="pagination-next" @click="prevCatPage" :disabled="catCurrentPage === 1">前の項目へ</a>
-                        <ul class="pagination-list">
-                            <li v-for="page in catTotalPages" :key="page">
-                                <a class="pagination-link" :class="{ 'is-current': page === catCurrentPage }"
-                                    @click="goToCatPage(page)">{{ page }}</a>
-                            </li>
-                        </ul>
-                    </nav>
+                    <div class="is-flex is-align-items-center is-justify-content-center">
+                        <!-- 左ボタン -->
+                        <button class="button is-dark is-rounded mr-3" @click="prevCatPage"
+                            :disabled="catCurrentPage === 1">
+                            <strong>◀</strong>
+                        </button>
 
-                    <div class="tabs is-centered is-large">
-                        <ul>
-                            <li v-for="cat in paginatedCategories" :key="cat"
-                                :class="{'is-active': currentCat === cat}">
-                                <a @click="changeCategory(cat)"
-                                    :class="currentCat === cat ? 'has-text-white has-text-weight-bold' : 'has-text-grey-light'">{{
-                                    cat }}</a>
-                            </li>
-                        </ul>
+                        <!-- タブ部分 -->
+                        <div class="tabs is-toggle is-toggle-rounded mb-0">
+                            <ul>
+                                <li v-for="cat in paginatedCategories" :key="cat"
+                                    :class="{'is-active': currentCat === cat}">
+                                    <a @click="changeCategory(cat)" style="border-color: #555;">{{ cat }}</a>
+                                </li>
+                            </ul>
+                        </div>
+                        <!-- 右ボタン -->
+                        <button class="button is-dark is-rounded ml-3" @click="nextCatPage"
+                            :disabled="catCurrentPage === catTotalPages">
+                            <strong>▶</strong>
+                        </button>
                     </div>
                 </div>
 
