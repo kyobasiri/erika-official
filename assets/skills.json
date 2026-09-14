@@ -1,0 +1,96 @@
+[
+    {
+        "id": "skill_01",
+        "name": "Funny Bunny",
+        "type": "buff",
+        "effect_percent": {
+            "str": 20,
+            "mag": 20,
+            "def": 20,
+            "spd": 20
+        },
+        "cost_mp": 15,
+        "description": "全ステータスを20%上昇"
+    },
+    {
+        "id": "skill_02",
+        "name": "MY FOOT",
+        "type": "attack_physical",
+        "power": 25,
+        "cost_hp_percent": 10,
+        "description": "現在HPの10%を消費し物理大ダメージ"
+    },
+    {
+        "id": "skill_03",
+        "name": "ぼくのともだち",
+        "type": "heal",
+        "heal_percent": 30,
+        "cost_mp": 10,
+        "description": "最大HPの30%を回復"
+    },
+    {
+        "id": "skill_04",
+        "name": "ストレンジ カメレオン",
+        "type": "debuff",
+        "effect_percent": {
+            "def": -20,
+            "spd": -20
+        },
+        "cost_mp": 10,
+        "description": "敵の防御と素早さを20%低下"
+    },
+    {
+        "id": "skill_05",
+        "name": "メロディー",
+        "type": "attack_magic",
+        "power": 20,
+        "cost_mp": 7,
+        "description": "MPを消費して魔力依存のダメージ"
+    },
+    {
+        "id": "skill_06",
+        "name": "LITTLE BUSTERS",
+        "type": "attack_physical",
+        "power": 18,
+        "cost_hp_percent": 6,
+        "description": "現在HPの6%を消費して物理ダメージ"
+    },
+    {
+        "id": "skill_07",
+        "name": "HYBRID RAINBOW",
+        "type": "attack_magic",
+        "power": 28,
+        "cost_mp": 12,
+        "description": "強力な魔力ダメージ"
+    },
+    {
+        "id": "skill_08",
+        "name": "ONE LIFE",
+        "type": "heal",
+        "heal_percent": 45,
+        "cost_mp": 14,
+        "description": "最大HPの45%を回復"
+    },
+    {
+        "id": "skill_09",
+        "name": "Ride on shooting star",
+        "type": "buff",
+        "effect_percent": {
+            "str": 20,
+            "spd": 20
+        },
+        "cost_mp": 10,
+        "description": "力と素早さを20%上昇"
+    },
+    {
+        "id": "skill_10",
+        "name": "LAST DINOSAUR",
+        "type": "debuff",
+        "effect_percent": {
+            "str": -20,
+            "def": -20
+        },
+        "cost_mp": 12,
+        "description": "敵の力と防御を20%低下"
+    }
+]

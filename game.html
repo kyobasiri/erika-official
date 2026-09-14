@@ -9,8 +9,11 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="icon" href="assets/images/icon.png" type="image/png">
 
+    <link rel="icon" href="assets/images/icon.png" type="image/png">
+    <link rel="apple-touch-icon" href="assets/images/icon.png">
+
     <meta property="og:type" content="website">
-    <meta property="og:title" content="エリカの絵合わせ | AI Art & Music">
+    <meta property="og:title" content="エリカの絵合わせ | Erika Project">
     <meta property="og:description" content="AI Artist & Album Reviewer ERIKA. エリカが好き勝手に語るチャンネルの公式サイト">
     <meta property="og:url" content="https://erika.erikakataru.com/">
     <meta property="og:image" content="https://erika.erikakataru.com/assets/images/ogp.jpg">
@@ -18,8 +21,8 @@
 
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="@erikakataru">
-    <meta name="twitter:title" content="Erika Official | AI Art & Music">
-    <meta name="twitter:description" content="AI Artist & Album Reviewer ERIKA. エリカが好き勝手に語るチャンネルの公式サイト">
+    <meta name="twitter:title" content="エリカの絵合わせ | Erika Project">
+    <meta name="twitter:description" content="エリカの画像を記憶するマッチングゲーム！">
     <meta name="twitter:image" content="https://erika.erikakataru.com/assets/images/ogp.jpg">
 
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9959522790700122"
@@ -29,6 +32,7 @@
             background-color: #1e1e2e;
             color: #cdd6f4;
             min-height: 100vh;
+            overflow-x: hidden;
         }
 
         .memory-game {
@@ -53,6 +57,7 @@
             position: relative;
         }
 
+        /* is-flipped か is-matched の時だけ180度回転して表（画像）になる */
         .memory-card.is-flipped .card-inner,
         .memory-card.is-matched .card-inner {
             transform: rotateY(180deg);
@@ -89,6 +94,43 @@
             height: 100%;
             object-fit: cover;
         }
+
+        /* クリア時の横スクロール演出用CSS */
+        .marquee-container {
+            width: 100vw;
+            overflow: hidden;
+            white-space: nowrap;
+            position: relative;
+            left: calc(-50vw + 50%);
+            /* コンテナ幅を突き抜けて画面全幅にするテクニック */
+            padding: 20px 0;
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .marquee-track {
+            display: inline-block;
+            animation: scroll-left 20s linear infinite;
+        }
+
+        .marquee-img {
+            height: 250px;
+            border-radius: 12px;
+            margin: 0 10px;
+            display: inline-block;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        @keyframes scroll-left {
+            0% {
+                transform: translateX(0);
+            }
+
+            100% {
+                transform: translateX(-50%);
+            }
+
+            /* 半分（1周分）移動してループ */
+        }
     </style>
 </head>
 
@@ -98,19 +140,39 @@
             <a href="index.html" class="has-text-warning font-weight-bold">← Back to Top</a>
         </nav>
 
-        <section class="section">
+        <section class="section pt-0">
             <div class="container has-text-centered">
                 <h1 class="title is-2 has-text-white mb-2">ERIKA MEMORY</h1>
-                <p class="subtitle is-6 has-text-grey-light mb-5">
-                    ターン数: {{ turns }} | 揃ったペア: {{ matchedPairs }} / 8
-                </p>
 
                 <div v-if="isLoading" class="has-text-warning my-6">
                     ギャラリーデータを読み込んでいます...
                 </div>
 
                 <div v-else>
-                    <div class="memory-game mb-6">
+                    <!-- ステータス表示 -->
+                    <div class="box mb-5"
+                        style="background: rgba(0,0,0,0.2); border: 1px solid #555; max-width: 600px; margin: 0 auto;">
+                        <div class="columns is-mobile">
+                            <div class="column">
+                                <p class="is-size-7 has-text-grey-light">揃ったペア</p>
+                                <p class="is-size-4 has-text-white">{{ matchedPairs }} / 8</p>
+                            </div>
+                            <div class="column">
+                                <p class="is-size-7 has-text-grey-light">お手つき制限</p>
+                                <p class="is-size-4" :class="mistakes >= 3 ? 'has-text-danger' : 'has-text-warning'">
+                                    {{ mistakes }} / 4
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-if="gameState === 'memorize'" class="notification is-warning is-light"
+                        style="max-width: 600px; margin: 0 auto 1.5rem;">
+                        <strong>配置を覚えてください！ (3秒後に裏返ります)</strong>
+                    </div>
+
+                    <!-- ゲームボード (クリア時は非表示) -->
+                    <div class="memory-game mb-6" v-show="gameState !== 'clear'">
                         <div class="memory-card" v-for="(card, index) in cards" :key="card.id"
                             :class="{ 'is-flipped': card.isFlipped, 'is-matched': card.isMatched }"
                             @click="flipCard(card)">
@@ -123,15 +185,38 @@
                         </div>
                     </div>
 
-                    <div v-if="isWon" class="notification is-success is-light"
+                    <!-- ゲームオーバー表示 -->
+                    <div v-if="gameState === 'gameover'" class="notification is-danger is-light mt-5"
                         style="max-width: 600px; margin: 0 auto;">
-                        <h2 class="title is-4">Clear!</h2>
-                        <p class="mb-4">すべてのペアを見つけました。お見事です！</p>
-                        <button class="button is-success is-rounded" @click="initGame">
-                            <strong>もう一度遊ぶ（画像を再抽選）</strong>
+                        <h2 class="title is-4">Game Over...</h2>
+                        <p class="mb-4">お手つきが4回に達しました。</p>
+                        <button class="button is-danger is-rounded" @click="initGame">
+                            <strong>リトライする</strong>
                         </button>
                     </div>
-                    <div v-else class="mt-4">
+
+                    <!-- クリア表示 ＆ 横スクロール演出 -->
+                    <div v-if="gameState === 'clear'" class="mt-5">
+                        <h2 class="title is-1 has-text-warning" style="text-shadow: 0 0 20px rgba(243, 156, 18, 0.8);">
+                            Clear!!</h2>
+                        <p class="mb-5 has-text-white">見事すべての記憶を取り戻しました！</p>
+
+                        <!-- スライダー演出 -->
+                        <div class="marquee-container mb-6">
+                            <div class="marquee-track">
+                                <!-- 途切れないように同じ画像を2周分レンダリング -->
+                                <template v-for="loop in 2" :key="loop">
+                                    <img v-for="img in uniqueImages" :key="img + loop" :src="img" class="marquee-img">
+                                </template>
+                            </div>
+                        </div>
+
+                        <button class="button is-warning is-rounded is-large" @click="initGame">
+                            <strong>次の記憶（別の画像）に挑戦する</strong>
+                        </button>
+                    </div>
+
+                    <div v-if="gameState === 'playing'" class="mt-4">
                         <button class="button is-dark is-rounded is-small" @click="initGame">
                             リセットして引き直す
                         </button>
@@ -142,19 +227,21 @@
     </div>
 
     <script type="module">
-        import { createApp, ref, computed, onMounted } from './js/lib/vue.esm-browser.js';
+        import { createApp, ref, onMounted } from './js/lib/vue.esm-browser.js';
 
         createApp({
             setup() {
                 const galleryData = ref([]);
+                const uniqueImages = ref([]); // クリア演出用
                 const cards = ref([]);
                 const flippedCards = ref([]);
                 const matchedPairs = ref(0);
-                const turns = ref(0);
+                const mistakes = ref(0);
                 const isLocked = ref(false);
                 const isLoading = ref(true);
 
-                const isWon = computed(() => matchedPairs.value === 8);
+                // 状態管理: 'memorize' (暗記中), 'playing' (プレイ中), 'gameover' (失敗), 'clear' (成功)
+                const gameState = ref('memorize');
 
                 const fetchGallery = async () => {
                     try {
@@ -170,11 +257,11 @@
 
                 const initGame = () => {
                     matchedPairs.value = 0;
-                    turns.value = 0;
+                    mistakes.value = 0;
                     flippedCards.value = [];
-                    isLocked.value = false;
+                    isLocked.value = true; // 暗記中はクリック不可
+                    gameState.value = 'memorize';
 
-                    // 全フォルダの画像をフラットな一次元配列にまとめる
                     let allImages = [];
                     galleryData.value.forEach(folder => {
                         folder.images.forEach(img => {
@@ -182,28 +269,34 @@
                         });
                     });
 
-                    // 画像プールからランダムに8枚抽出
+                    // 8枚ランダム抽出して保存
                     const selectedImages = allImages.sort(() => 0.5 - Math.random()).slice(0, 8);
+                    uniqueImages.value = selectedImages;
 
-                    // ペアを作成
                     let deck = [];
                     selectedImages.forEach((url, index) => {
-                        deck.push({ id: `${index}a`, pairId: index, url: url, isFlipped: false, isMatched: false });
-                        deck.push({ id: `${index}b`, pairId: index, url: url, isFlipped: false, isMatched: false });
+                        deck.push({ id: `${index}a`, pairId: index, url: url, isFlipped: true, isMatched: false });
+                        deck.push({ id: `${index}b`, pairId: index, url: url, isFlipped: true, isMatched: false });
                     });
 
-                    // デッキをシャッフル
+                    // シャッフルして初期配置（すべて表向き）
                     cards.value = deck.sort(() => 0.5 - Math.random());
+
+                    // 3秒後にすべて裏返してゲームスタート
+                    setTimeout(() => {
+                        cards.value.forEach(card => card.isFlipped = false);
+                        gameState.value = 'playing';
+                        isLocked.value = false;
+                    }, 3000);
                 };
 
                 const flipCard = (card) => {
-                    if (isLocked.value || card.isFlipped || card.isMatched) return;
+                    if (isLocked.value || card.isFlipped || card.isMatched || gameState.value !== 'playing') return;
 
                     card.isFlipped = true;
                     flippedCards.value.push(card);
 
                     if (flippedCards.value.length === 2) {
-                        turns.value++;
                         checkMatch();
                     }
                 };
@@ -217,21 +310,32 @@
                         card2.isMatched = true;
                         matchedPairs.value++;
                         flippedCards.value = [];
-                        isLocked.value = false;
-                    } else {
-                        setTimeout(() => {
-                            card1.isFlipped = false;
-                            card2.isFlipped = false;
-                            flippedCards.value = [];
+
+                        if (matchedPairs.value === 8) {
+                            setTimeout(() => { gameState.value = 'clear'; }, 500);
+                        } else {
                             isLocked.value = false;
-                        }, 1000);
+                        }
+                    } else {
+                        // お手つき処理
+                        mistakes.value++;
+                        if (mistakes.value >= 4) {
+                            setTimeout(() => { gameState.value = 'gameover'; }, 800);
+                        } else {
+                            setTimeout(() => {
+                                card1.isFlipped = false;
+                                card2.isFlipped = false;
+                                flippedCards.value = [];
+                                isLocked.value = false;
+                            }, 1000);
+                        }
                     }
                 };
 
                 onMounted(fetchGallery);
 
                 return {
-                    cards, turns, matchedPairs, isWon, isLoading,
+                    cards, matchedPairs, mistakes, gameState, isLoading, uniqueImages,
                     flipCard, initGame
                 };
             }
