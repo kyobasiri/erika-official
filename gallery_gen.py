@@ -84,18 +84,18 @@ def generate_alt_with_sakura_llm(filename, labels):
 
 def generate_enemy_name_with_sakura_llm(filename, alt_text):
     if not sakura_client or not alt_text:
-        return "暴走したプロセス エリカ"
+        return "ネームレス エリカ"
         
     system_prompt = (
         "あなたは中二病のネーミングセンスを持つ熟練のシステムエンジニアです。"
-        "提供された画像の説明から、RPGのボスキャラクター風の名前を考案してください。"
-        "【厳守する条件】"
-        "1. 「終焉」「深淵」「漆黒」「幻影」などの大げさで中二病的な表現を使うこと。"
-        "2. 「デッドロック」「カーネルパニック」「ゼロデイ」「オーバーフロー」「セグメンテーションフォルト」などの『ITインフラ・ネットワーク・プログラミング用語』を必ず混ぜること。"
-        "3. 名前の最後は必ず「 エリカ」で終わること。"
-        "4. 出力は生成した名前のみ（例: 漆黒のデッドロック エリカ, 終焉のカーネルパニック エリカ）"
+        "提供された画像の説明から、RPGのボスキャラクター風の名前を考案してください。\n"
+        "【厳守する条件】\n"
+        "1. 「終焉」「深淵」「漆黒」「幻影」などの大げさで中二病的な表現を使うこと。\n"
+        "2. 「デッドロック」「カーネルパニック」「ゼロデイ」「オーバーフロー」などの『ITインフラ・ネットワーク・プログラミング用語』を必ず混ぜること。\n"
+        "3. 名前の最後は必ず「 エリカ」で終わること。\n"
+        "4. 挨拶や説明は一切不要です。生成した名前だけを1行で出力してください。"
     )
-    user_prompt = f"画像の説明: {alt_text}\n出力は名前のみとしてください。"
+    user_prompt = f"画像の説明: {alt_text}\n出力例: 漆黒のデッドロック エリカ"
 
     try:
         response = sakura_client.chat.completions.create(
@@ -107,18 +107,24 @@ def generate_enemy_name_with_sakura_llm(filename, alt_text):
             temperature=0.8, 
             max_tokens=50
         )
-        enemy_name = (response.choices[0].message.content or "").strip().replace('"', '').replace('「', '').replace('」', '')
+        enemy_name = (response.choices[0].message.content or "").strip()
+        enemy_name = enemy_name.replace('"', '').replace('「', '').replace('」', '').replace('\n', '')
+        
+        # 失敗時や空文字のときは「ネームレス エリカ」を返し、次回の再処理対象にする
+        if not enemy_name or enemy_name == "エリカ":
+            return "ネームレス エリカ"
+            
         if not enemy_name.endswith("エリカ"):
             enemy_name += " エリカ"
+            
         return enemy_name
     except Exception as e:
         print(f"  [Error] Enemy Name generation failed for {filename}: {e}")
-        return "深淵のデッドロック エリカ"
+        return "ネームレス エリカ"
 
 def generate_gallery_json():
     gallery_data = []
     
-    # 既存の gallery.json からデータを読み込む
     existing_data = {}
     if os.path.exists(GALLERY_OUTPUT):
         try:
@@ -167,7 +173,7 @@ def generate_gallery_json():
             elif cache_key in alt_cache and isinstance(alt_cache[cache_key], dict) and alt_cache[cache_key].get('alt'):
                 alt_text = alt_cache[cache_key]['alt']
             elif cache_key in alt_cache and isinstance(alt_cache[cache_key], str):
-                alt_text = alt_cache[cache_key] # 古いキャッシュの互換性
+                alt_text = alt_cache[cache_key] 
             else:
                 print(f"[{cache_key}] altを生成中 (Vision API -> Sakura LLM)...")
                 labels = get_image_labels_from_vision(file_path)
@@ -177,16 +183,21 @@ def generate_gallery_json():
             # ----------------------------------------------------
             # ② enemy_nameの独立チェック＆生成
             # ----------------------------------------------------
-            if cache_key in existing_data and existing_data[cache_key].get('enemy_name'):
+            exist_enemy = existing_data.get(cache_key, {}).get('enemy_name', '').strip()
+            cached_enemy = alt_cache.get(cache_key, {}).get('enemy_name', '').strip() if isinstance(alt_cache.get(cache_key), dict) else ''
+
+            # 再生成の対象となる「未完成」な名前のリスト
+            invalid_names = ["", "エリカ", "ネームレス エリカ"]
+
+            if exist_enemy and exist_enemy not in invalid_names:
                 enemy_name = existing_data[cache_key]['enemy_name']
-            elif cache_key in alt_cache and isinstance(alt_cache[cache_key], dict) and alt_cache[cache_key].get('enemy_name'):
+            elif cached_enemy and cached_enemy not in invalid_names:
                 enemy_name = alt_cache[cache_key]['enemy_name']
             else:
-                print(f"[{cache_key}] enemy_nameを生成中 (Sakura LLM)...")
+                print(f"[{cache_key}] enemy_nameを(再)生成中 (Sakura LLM)...")
                 enemy_name = generate_enemy_name_with_sakura_llm(img_file, alt_text)
                 time.sleep(1)
             
-            # キャッシュに保存
             alt_cache[cache_key] = {"alt": alt_text, "enemy_name": enemy_name}
             
             images_with_alt.append({
@@ -211,7 +222,6 @@ def generate_gallery_json():
     print(f"Generated {GALLERY_OUTPUT} with {len(gallery_data)} categories.")
 
 def generate_articles_json():
-    # （既存のまま変更なし）
     articles_data = []
     if not os.path.exists(ARTICLES_DIR):
         os.makedirs(ARTICLES_DIR, exist_ok=True)
