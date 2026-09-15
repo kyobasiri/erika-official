@@ -172,15 +172,12 @@
                     </div>
 
                     <!-- ゲームボード (クリア時は非表示) -->
-                    <div class="memory-game mb-6" v-show="gameState !== 'clear'">
-                        <div class="memory-card" v-for="(card, index) in cards" :key="card.id"
-                            :class="{ 'is-flipped': card.isFlipped, 'is-matched': card.isMatched }"
-                            @click="flipCard(card)">
-                            <div class="card-inner">
-                                <div class="card-front">E</div>
-                                <div class="card-back">
-                                    <img :src="card.url" alt="Gallery Image">
-                                </div>
+                    <div class="memory-card" v-for="(card, index) in cards" :key="card.id"
+                        :class="{ 'is-flipped': card.isFlipped, 'is-matched': card.isMatched }" @click="flipCard(card)">
+                        <div class="card-inner">
+                            <div class="card-face card-front">E</div>
+                            <div class="card-face card-back">
+                                <img :src="card.url" alt="Gallery Image">
                             </div>
                         </div>
                     </div>

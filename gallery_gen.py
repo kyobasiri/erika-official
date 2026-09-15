@@ -38,9 +38,6 @@ if SAKURA_API_KEY:
         base_url=SAKURA_API_BASE
     )
 
-# ==========================================
-# 処理関数
-# ==========================================
 def get_image_labels_from_vision(image_path):
     if not vision_client:
         return []
@@ -76,24 +73,53 @@ def generate_alt_with_sakura_llm(filename, labels):
                 {"role": "user", "content": user_prompt}
             ],
             temperature=0.3,
-            max_tokens=10000
+            max_tokens=100
         )
         content = response.choices[0].message.content or ""
-        alt_text = content.strip()
-        
-        if not alt_text:
-            print(f"  [Warning] Sakura LLM returned empty content for {filename}.")
-            return f"画像 ({', '.join(labels[:2])})"
-            
-        return alt_text.replace('"', '').replace('「', '').replace('」', '')
+        alt_text = content.strip().replace('"', '').replace('「', '').replace('」', '')
+        return alt_text if alt_text else f"画像 ({', '.join(labels[:2])})"
     except Exception as e:
         print(f"  [Error] Sakura LLM failed for {filename}: {e}")
         return f"画像 ({', '.join(labels[:2])})"
 
+def generate_enemy_name_with_sakura_llm(filename, alt_text):
+    if not sakura_client or not alt_text:
+        return "暴走したプロセス エリカ"
+        
+    system_prompt = (
+        "あなたは中二病のネーミングセンスを持つ熟練のシステムエンジニアです。"
+        "提供された画像の説明から、RPGのボスキャラクター風の名前を考案してください。"
+        "【厳守する条件】"
+        "1. 「終焉」「深淵」「漆黒」「幻影」などの大げさで中二病的な表現を使うこと。"
+        "2. 「デッドロック」「カーネルパニック」「ゼロデイ」「オーバーフロー」「セグメンテーションフォルト」などの『ITインフラ・ネットワーク・プログラミング用語』を必ず混ぜること。"
+        "3. 名前の最後は必ず「 エリカ」で終わること。"
+        "4. 出力は生成した名前のみ（例: 漆黒のデッドロック エリカ, 終焉のカーネルパニック エリカ）"
+    )
+    user_prompt = f"画像の説明: {alt_text}\n出力は名前のみとしてください。"
+
+    try:
+        response = sakura_client.chat.completions.create(
+            model=SAKURA_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.8, 
+            max_tokens=50
+        )
+        enemy_name = (response.choices[0].message.content or "").strip().replace('"', '').replace('「', '').replace('」', '')
+        if not enemy_name.endswith("エリカ"):
+            enemy_name += " エリカ"
+        return enemy_name
+    except Exception as e:
+        print(f"  [Error] Enemy Name generation failed for {filename}: {e}")
+        return "深淵のデッドロック エリカ"
+
 def generate_gallery_json():
     gallery_data = []
     
-    existing_alts = {}
+    # 既存の gallery.json からデータを読み込む
+    existing_data = {}
     if os.path.exists(GALLERY_OUTPUT):
         try:
             with open(GALLERY_OUTPUT, 'r', encoding='utf-8') as f:
@@ -101,11 +127,13 @@ def generate_gallery_json():
                 for category_data in old_gallery:
                     cat_name = category_data.get("name")
                     for img in category_data.get("images", []):
-                        # カテゴリ名とファイル名を組み合わせた一意のキーで保存
                         key = f"{cat_name}/{img['file']}"
-                        existing_alts[key] = img['alt']
+                        existing_data[key] = {
+                            "alt": img.get('alt', ''),
+                            "enemy_name": img.get('enemy_name', '')
+                        }
         except json.JSONDecodeError:
-            print("既存の gallery.json の読み込みに失敗しました。")
+            pass
     
     alt_cache = {}
     if os.path.exists(ALT_CACHE_FILE):
@@ -113,13 +141,9 @@ def generate_gallery_json():
             with open(ALT_CACHE_FILE, 'r', encoding='utf-8') as f:
                 alt_cache = json.load(f)
         except json.JSONDecodeError:
-            print("Cache file is corrupted. Starting fresh.")
-            alt_cache = {}
+            pass
 
-    if not os.path.exists(GALLERY_DIR):
-        print(f"Directory {GALLERY_DIR} not found. Creating...")
-        os.makedirs(GALLERY_DIR, exist_ok=True)
-
+    os.makedirs(GALLERY_DIR, exist_ok=True)
     dirs = [d for d in os.listdir(GALLERY_DIR) if os.path.isdir(os.path.join(GALLERY_DIR, d))]
     categories = sorted(dirs, reverse=True)
     
@@ -130,40 +154,45 @@ def generate_gallery_json():
         images_with_alt = []
         for img_file in image_files:
             file_path = os.path.join(cat_path, img_file)
-            
-            # カテゴリ名を含めた一意のキーを作成（前回の提案事項）
             cache_key = f"{category}/{img_file}"
             
-            # 1. 既存の gallery.json にあればそれを使う
-            if cache_key in existing_alts:
-                alt_text = existing_alts[cache_key]
-                
-            # 2. alt_cache.json にあればそれを使う
-            elif cache_key in alt_cache:
-                alt_text = alt_cache[cache_key]
-                
-            # 3. どちらにも無ければ、ここで初めてAPIを叩く
+            alt_text = ""
+            enemy_name = ""
+
+            # ----------------------------------------------------
+            # ① altテキストの独立チェック＆生成
+            # ----------------------------------------------------
+            if cache_key in existing_data and existing_data[cache_key].get('alt'):
+                alt_text = existing_data[cache_key]['alt']
+            elif cache_key in alt_cache and isinstance(alt_cache[cache_key], dict) and alt_cache[cache_key].get('alt'):
+                alt_text = alt_cache[cache_key]['alt']
+            elif cache_key in alt_cache and isinstance(alt_cache[cache_key], str):
+                alt_text = alt_cache[cache_key] # 古いキャッシュの互換性
             else:
-                print(f"Processing alt text for {cache_key}...")
+                print(f"[{cache_key}] altを生成中 (Vision API -> Sakura LLM)...")
                 labels = get_image_labels_from_vision(file_path)
-                
-                if labels:
-                    alt_text = generate_alt_with_sakura_llm(img_file, labels)
-                else:
-                    alt_text = f"エリカの画像 ({img_file})"
-                
-                print(f"  -> Generated alt: {alt_text}")
-                alt_cache[cache_key] = alt_text
-                
-                # 万が一のエラーに備えて都度キャッシュを保存
-                with open(ALT_CACHE_FILE, 'w', encoding='utf-8') as f:
-                    json.dump(alt_cache, f, indent=4, ensure_ascii=False)
-                    
-                time.sleep(1) # API制限対策
+                alt_text = generate_alt_with_sakura_llm(img_file, labels) if labels else f"エリカの画像 ({img_file})"
+                time.sleep(1)
+
+            # ----------------------------------------------------
+            # ② enemy_nameの独立チェック＆生成
+            # ----------------------------------------------------
+            if cache_key in existing_data and existing_data[cache_key].get('enemy_name'):
+                enemy_name = existing_data[cache_key]['enemy_name']
+            elif cache_key in alt_cache and isinstance(alt_cache[cache_key], dict) and alt_cache[cache_key].get('enemy_name'):
+                enemy_name = alt_cache[cache_key]['enemy_name']
+            else:
+                print(f"[{cache_key}] enemy_nameを生成中 (Sakura LLM)...")
+                enemy_name = generate_enemy_name_with_sakura_llm(img_file, alt_text)
+                time.sleep(1)
+            
+            # キャッシュに保存
+            alt_cache[cache_key] = {"alt": alt_text, "enemy_name": enemy_name}
             
             images_with_alt.append({
                 "file": img_file,
-                "alt": alt_text
+                "alt": alt_text,
+                "enemy_name": enemy_name
             })
         
         if images_with_alt:
@@ -182,35 +211,25 @@ def generate_gallery_json():
     print(f"Generated {GALLERY_OUTPUT} with {len(gallery_data)} categories.")
 
 def generate_articles_json():
+    # （既存のまま変更なし）
     articles_data = []
-    
     if not os.path.exists(ARTICLES_DIR):
         os.makedirs(ARTICLES_DIR, exist_ok=True)
-
     files = [f for f in os.listdir(ARTICLES_DIR) if f.lower().endswith('.md')]
     files = sorted(files, reverse=True)
-    
     for filename in files:
         file_path = os.path.join(ARTICLES_DIR, filename)
         article_id = os.path.splitext(filename)[0]
         title = article_id
-        
         with open(file_path, 'r', encoding='utf-8') as f:
             for line in f:
-                line = line.strip()
                 if line.startswith('# '):
                     title = line[2:].strip()
                     break
-        
-        articles_data.append({
-            "id": article_id,
-            "title": title
-        })
-
+        articles_data.append({"id": article_id, "title": title})
     os.makedirs(os.path.dirname(ARTICLES_OUTPUT), exist_ok=True)
     with open(ARTICLES_OUTPUT, 'w', encoding='utf-8') as f:
         json.dump(articles_data, f, indent=4, ensure_ascii=False)
-    
     print(f"Generated {ARTICLES_OUTPUT} with {len(articles_data)} articles.")
 
 if __name__ == "__main__":

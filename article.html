@@ -105,7 +105,7 @@
 
                 // ★追加：画像番号からaltを取得する関数
                 const getAltText = (n) => {
-                    const fileName = `${n}.png`;
+                    const fileName = `${n}.webp`;
                     const found = currentGalleryImages.value.find(img => img.file === fileName);
                     return found && found.alt ? found.alt : `エリカ・ギャラリー画像 ${n}`;
                 };
@@ -192,7 +192,8 @@
                     hasGallery,
                     prevArticle,
                     nextArticle,
-                    getAltText  // ★ここも忘れずに追加
+                    getAltText,
+                    currentGalleryImages
                 };
             }
         }).mount('#app');
