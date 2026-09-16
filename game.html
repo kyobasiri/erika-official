@@ -39,7 +39,7 @@
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 15px;
-            max-width: 600px;
+            max-width: 500px;
             margin: 0 auto;
         }
 
@@ -172,12 +172,15 @@
                     </div>
 
                     <!-- ゲームボード (クリア時は非表示) -->
-                    <div class="memory-card" v-for="(card, index) in cards" :key="card.id"
-                        :class="{ 'is-flipped': card.isFlipped, 'is-matched': card.isMatched }" @click="flipCard(card)">
-                        <div class="card-inner">
-                            <div class="card-face card-front">E</div>
-                            <div class="card-face card-back">
-                                <img :src="card.url" alt="Gallery Image">
+                    <div class="memory-game">
+                        <div class="memory-card" v-for="(card, index) in cards" :key="card.id"
+                            :class="{ 'is-flipped': card.isFlipped, 'is-matched': card.isMatched }"
+                            @click="flipCard(card)">
+                            <div class="card-inner">
+                                <div class="card-face card-front">E</div>
+                                <div class="card-face card-back">
+                                    <img :src="card.url" alt="Gallery Image">
+                                </div>
                             </div>
                         </div>
                     </div>
