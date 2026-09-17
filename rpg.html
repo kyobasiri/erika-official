@@ -300,9 +300,9 @@
                                 {{ popup.text }}
                             </div>
 
-                            <figure class="image is-48x48">
+                            <figure class="image is-96x96">
                                 <img :src="player.avatarUrl" :class="player.animClass" class="is-rounded"
-                                    style="border: 2px solid #f39c12; object-fit: cover; height: 100%;">
+                                    style="border: 2px solid #f39c12; object-fit: cover; height: 100%; width: 100%;">
                             </figure>
                         </div>
                         <div class="column p-1">
@@ -931,7 +931,12 @@
 
                 const initYouTubePlayer = () => {
                     const randomSong = thePillowsSongs.value[Math.floor(Math.random() * thePillowsSongs.value.length)];
-                    const targetVideoId = randomSong.youtube_id || '_F_BvP1tAXY';
+                    let targetVideoId = 'xUboS2Fw1-o'; // フォールバック
+                    if (randomSong.embed_url) {
+                        targetVideoId = randomSong.embed_url.split('/').pop();
+                    } else if (randomSong.share_url) {
+                        targetVideoId = randomSong.share_url.split('/').pop();
+                    }
 
                     const loadPlayer = () => {
                         if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
