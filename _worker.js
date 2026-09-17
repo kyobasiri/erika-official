@@ -24,7 +24,7 @@ export default {
 
                 // Workers AI (Fluxモデル) を呼び出し
                 const imageResponse = await env.AI.run(
-                    '@cf/black-forest-labs/flux-2-klein-4b',
+                    '@cf/stabilityai/stable-diffusion-xl-base-1.0', // ★ここをSDXLに変更
                     { prompt: prompt }
                 );
 
