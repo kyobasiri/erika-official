@@ -3,153 +3,101 @@
         "id": "skill_runners_high",
         "name": "RUNNERS HIGH",
         "type": "attack_physical",
-        "tier": 1,
-        "target": "single",
-        "cost_hp_percent": 5,
-        "cost_mp": 0,
-        "multiplier": 1.2,
-        "description": "物理【小】: 自身のHPを5%消費し、駆け抜けるような速さで敵単体に物理ダメージ。"
-    },
-    {
-        "id": "skill_ride_on_shooting_star",
-        "name": "Ride on shooting star",
-        "type": "attack_physical",
-        "tier": 2,
         "target": "single",
         "cost_hp_percent": 10,
-        "cost_mp": 0,
-        "multiplier": 2.0,
-        "description": "物理【中】: 自身のHPを10%消費し、流れ星に乗るような鋭い一撃で敵単体に物理ダメージ。"
+        "multiplier": 1.5,
+        "min_floor": 1,
+        "description": "現在HPの10%を消費し、敵単体に1.5倍の物理ダメージ。"
     },
     {
-        "id": "skill_poison_rocknroll",
+        "id": "skill_ride_on",
+        "name": "Ride on shooting star",
+        "type": "attack_physical",
+        "target": "single",
+        "cost_hp_percent": 20,
+        "multiplier": 2.5,
+        "min_floor": 5,
+        "description": "現在HPの20%を消費し、敵単体に2.5倍の強力な物理ダメージ。"
+    },
+    {
+        "id": "skill_poison_rock",
         "name": "POISON ROCK'N'ROLL",
         "type": "attack_physical",
-        "tier": 3,
         "target": "all",
+        "cost_hp_percent": 25,
+        "multiplier": 2.0,
         "min_floor": 10,
-        "cost_hp_percent": 20,
-        "cost_mp": 0,
-        "multiplier": 2.5,
-        "description": "物理【大/全体】(10階層〜): 自身のHPを20%消費し、毒を孕んだロックンロールで敵全体に壊滅的な物理ダメージ。"
+        "description": "現在HPの25%を消費し、敵全体に2.0倍の物理ダメージ。"
     },
     {
-        "id": "skill_daydream_wonder",
+        "id": "skill_daydream",
         "name": "DAYDREAM WONDER",
         "type": "attack_magic",
-        "tier": 1,
         "target": "single",
-        "cost_hp_percent": 0,
-        "cost_mp": 10,
-        "multiplier": 1.2,
-        "description": "魔法【小】: 白昼夢の不思議な力で敵単体に魔法ダメージ。"
-    },
-    {
-        "id": "skill_crazy_sunshine",
-        "name": "Crazy Sunshine",
-        "type": "attack_magic",
-        "tier": 2,
-        "target": "single",
-        "cost_hp_percent": 0,
-        "cost_mp": 18,
-        "multiplier": 2.0,
-        "description": "魔法【中】: 狂おしいほど眩しい太陽の熱線で、敵単体に強力な魔法ダメージ。"
+        "cost_mp": 5,
+        "multiplier": 1.5,
+        "min_floor": 1,
+        "description": "MPを5消費し、敵単体に1.5倍の魔法ダメージ。"
     },
     {
         "id": "skill_hybrid_rainbow",
         "name": "ハイブリッド レインボウ",
         "type": "attack_magic",
-        "tier": 3,
         "target": "all",
+        "cost_mp": 15,
+        "multiplier": 2.5,
         "min_floor": 15,
-        "cost_hp_percent": 0,
-        "cost_mp": 35,
-        "multiplier": 3.0,
-        "description": "魔法【大/全体】(15階層〜): 限界まで開いた羽から七色の魔力を放ち、敵全体に特大魔法ダメージ。"
+        "description": "MPを15消費し、敵全体に2.5倍の魔法ダメージ。"
     },
     {
-        "id": "skill_please_mr_lostman",
+        "id": "skill_mr_lostman",
         "name": "Please Mr.Lostman",
         "type": "heal",
-        "tier": 2,
-        "target": "self",
-        "cost_hp_percent": 0,
-        "cost_mp": 20,
-        "heal_percent": 50,
-        "description": "回復【中】: 迷える者への祈り。自身の最大HPの50%を回復する。"
-    },
-    {
-        "id": "skill_strange_chameleon",
-        "name": "ストレンジ カメレオン",
-        "type": "heal",
-        "tier": 3,
-        "target": "self",
-        "min_floor": 12,
-        "cost_hp_percent": 0,
-        "cost_mp": 50,
-        "heal_percent": 100,
-        "description": "回復【全】(12階層〜): 周囲と同化し傷を完全に癒やす。MPを大量に消費し、自身のHPを全回復。"
+        "target": "single",
+        "cost_mp": 8,
+        "multiplier": 0.5,
+        "min_floor": 3,
+        "description": "MPを8消費し、最大HPの50%を回復する。"
     },
     {
         "id": "skill_little_busters",
         "name": "LITTLE BUSTERS",
         "type": "buff",
-        "tier": 1,
-        "target": "self",
-        "cost_hp_percent": 0,
-        "cost_mp": 15,
+        "target": "single",
+        "cost_mp": 10,
         "effect_percent": {
             "str": 20,
             "mag": 20,
             "def": 20,
             "spd": 20
         },
-        "description": "バフ【全ステ1段階】: はぐれ者たちの連帯感。自身の全ステータス（力・魔力・防御・素早さ）が20%上昇。"
-    },
-    {
-        "id": "skill_babylon",
-        "name": "バビロン天使の詩",
-        "type": "buff",
-        "tier": 2,
-        "target": "self",
-        "min_floor": 8,
-        "cost_hp_percent": 0,
-        "cost_mp": 25,
-        "effect_percent": {
-            "str": 40,
-            "mag": 40
-        },
-        "description": "バフ【攻撃2段階】(8階層〜): 天使の詩に鼓舞され、物理攻撃力と魔法攻撃力が一気に40%上昇。"
-    },
-    {
-        "id": "skill_scarecrow",
-        "name": "スケアクロウ",
-        "type": "debuff",
-        "tier": 1,
-        "target": "single",
-        "cost_hp_percent": 0,
-        "cost_mp": 12,
-        "effect_percent": {
-            "def": -20,
-            "spd": -20
-        },
-        "description": "デバフ【防御/敏捷1段階】: カカシのように敵を縫い留め、単体の防御力と素早さを20%下げる。"
+        "min_floor": 5,
+        "description": "MPを10消費し、自身の全ステータスを1段階（20%）上昇させる。"
     },
     {
         "id": "skill_tokyo_zombie",
         "name": "Tokyo Zombie",
         "type": "debuff",
-        "tier": 2,
-        "target": "all",
-        "min_floor": 10,
-        "cost_hp_percent": 0,
-        "cost_mp": 30,
+        "target": "single",
+        "cost_mp": 12,
         "effect_percent": {
             "str": -40,
             "mag": -40,
             "def": -40,
             "spd": -40
         },
-        "description": "デバフ【全ステ2段階】(10階層〜): 真夜中のノック。敵全体の全ステータスを40%低下させる恐るべき呪い。"
+        "min_floor": 10,
+        "description": "MPを12消費し、敵単体の全ステータスを2段階（40%）低下させる。"
+    },
+    {
+        "id": "skill_good_dreams",
+        "name": "GOOD DREAMS",
+        "type": "ultimate",
+        "target": "all",
+        "cost_mp": 999,
+        "multiplier": 5.0,
+        "condition": "hp_under_20",
+        "min_floor": 20,
+        "description": "【条件: HP20%以下】全MPを消費し、敵全体に5.0倍の防御無視ダメージ。"
     }
 ]

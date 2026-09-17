@@ -82,10 +82,10 @@ def generate_alt_and_enemy_name(image_path, filename):
     # ----------------------------------------------------
     enemy_system_prompt = (
         "あなたは中二病のネーミングセンスを持つ熟練のシステムエンジニアです。"
-        "提供された画像の説明から、RPGのボスキャラクター風の名前を考案してください。\n"
+        "提供された画像の説明から、RPGの敵キャラクター風の名前を考案してください。\n"
         "【厳守する条件】\n"
-        "1. 「終焉」「深淵」「漆黒」「幻影」などの大げさで中二病的な表現を使うこと。\n"
-        "2. 「デッドロック」「カーネルパニック」「ゼロデイ」「オーバーフロー」などの『ITインフラ・ネットワーク・プログラミング用語』を必ず混ぜること。\n"
+        "1. 過剰な装飾の中二病用語を混ぜて、大袈裟でカッコつけるような言葉を使うこと。\n"
+        "2. ITインフラ・ネットワーク・プログラミング用語のような言葉を少しだけ混ぜて、ちょっとしたアクセントにすること。\n"
         "3. 名前の最後は必ず「 エリカ」で終わること。\n"
         "4. 挨拶や説明は一切不要です。生成した名前だけを1行で出力してください。"
     )
@@ -99,8 +99,7 @@ def generate_alt_and_enemy_name(image_path, filename):
                 {"role": "user", "content": enemy_user_prompt}
             ],
             temperature=0.8, 
-            max_tokens=50
-        )
+            max_tokens=100        )
         enemy_name = (enemy_response.choices[0].message.content or "").strip()
         enemy_name = enemy_name.replace('"', '').replace('「', '').replace('」', '').replace('\n', '')
         
