@@ -926,7 +926,10 @@
                     player.value.mp = player.value.maxMp;
                     statPoints.value += 5; // 基本ポイント
 
-                    initYouTubePlayer();
+                    // Vueの画面描画（v-ifの切り替え）が完了してからプレイヤーを初期化する
+                    nextTick(() => {
+                        initYouTubePlayer();
+                    });
                 };
 
                 const initYouTubePlayer = () => {
@@ -939,10 +942,7 @@
                     }
 
                     const loadPlayer = () => {
-                        if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
-                            ytPlayer.loadVideoById(targetVideoId);
-                            return;
-                        }
+                        // 毎回新しいプレイヤーインスタンスを作成する
                         ytPlayer = new window.YT.Player('youtube-player', {
                             videoId: targetVideoId,
                             playerVars: { 'playsinline': 1 },
@@ -1016,8 +1016,8 @@
                 };
 
                 const goToNextFloor = () => {
-                    if (ytPlayer && typeof ytPlayer.pauseVideo === 'function') {
-                        ytPlayer.pauseVideo();
+                    if (ytPlayer && typeof ytPlayer.destroy === 'function') {
+                        ytPlayer.destroy();
                     }
                     clearInterval(watchTimer);
                     watchTimer = null;
