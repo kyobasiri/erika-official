@@ -658,7 +658,12 @@
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ prompt: finalPrompt })
                         });
-                        if (!res.ok) throw new Error("画像生成APIエラー");
+                        if (!res.ok) {
+                            // サーバーから返ってきたエラーのJSONを読み取ってコンソールに出す
+                            const errData = await res.json().catch(() => ({}));
+                            console.error("サーバーエラー詳細:", errData);
+                            throw new Error(`画像生成APIエラー: ${errData.error || res.status}`);
+                        }
                         const data = await res.json();
 
                         player.value.avatarUrl = data.avatarUrl;

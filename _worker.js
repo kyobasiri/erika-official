@@ -24,7 +24,7 @@ export default {
 
                 // Workers AI (Fluxモデル) を呼び出し
                 const imageResponse = await env.AI.run(
-                    '@cf/black-forest-labs/flux-2-klein-9b',
+                    '@cf/black-forest-labs/flux-2-klein-4b',
                     { prompt: prompt }
                 );
 
