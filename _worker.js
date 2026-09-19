@@ -24,16 +24,20 @@ export default {
 
                 // Workers AI (Fluxモデル) を呼び出し
                 const imageResponse = await env.AI.run(
-                    '@cf/lykon/dreamshaper-8-lcm', // ★ここをSDXLに変更
+                    '@cf/black-forest-labs/flux-1-schnell',
                     { prompt: prompt }
                 );
 
-                // ファイル名を生成（タイムスタンプ + ランダム文字列）
-                const fileName = `avatar-${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
+                // ★追加：Fluxは文字列(Base64)で画像を返すため、バイナリデータに変換する
+                const binaryString = atob(imageResponse.image);
+                const img = Uint8Array.from(binaryString, (m) => m.codePointAt(0));
 
-                // R2バケットへ画像を保存
-                await env.R2_BUCKET.put(fileName, imageResponse, {
-                    httpMetadata: { contentType: 'image/png' },
+                // ファイル名を生成（Fluxのデフォルト出力に合わせて .jpeg に変更）
+                const fileName = `avatar-${Date.now()}-${Math.random().toString(36).substring(7)}.jpeg`;
+
+                // R2バケットへ画像を保存（変換した img を保存し、Content-Type を image/jpeg にする）
+                await env.R2_BUCKET.put(fileName, img, {
+                    httpMetadata: { contentType: 'image/jpeg' },
                 });
 
                 // フロントエンドからアクセスするためのURLを構築
