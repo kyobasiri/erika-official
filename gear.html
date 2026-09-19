@@ -24,50 +24,11 @@
     <meta name="twitter:description" content="AI Artist & Album Reviewer ERIKA. エリカが好き勝手に語るチャンネルの公式サイト">
     <meta name="twitter:image" content="https://erika.erikakataru.com/assets/images/ogp.jpg">
 
-    <style>
-        /* gear.html 固有の背景設定 */
-        body {
-            background:
-                linear-gradient(rgba(18, 18, 18, 0.7), rgba(18, 18, 18, 0.9)),
-                url('assets/images/gear.jpg') no-repeat center top;
-            /* 上端合わせで配置 */
-            background-size: cover;
-            /* 画面いっぱいに広げる（スクロール追従） */
-            background-color: #121212;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* コンテンツが少ない時でもフッターを下に押し下げる */
-        #app {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .section {
-            flex: 1;
-        }
-
-        /* カスタムクラスの補完（style.cssに未定義の場合用） */
-        .border-left-erika {
-            border-left: 4px solid #f39c12;
-            padding-left: 1rem;
-        }
-
-        .tag.is-erika-orange {
-            background-color: #f39c12 !important;
-            color: #000 !important;
-            font-weight: bold;
-        }
-    </style>
-
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9959522790700122"
         crossorigin="anonymous"></script>
 </head>
 
-<body>
+<body class="has-background-black page-gear">
     <div id="app" v-cloak>
         <nav class="navbar is-transparent p-4">
             <div class="navbar-brand">

@@ -24,48 +24,11 @@
     <meta name="twitter:description" content="AI Artist & Album Reviewer ERIKA. エリカが好き勝手に語るチャンネルの公式サイト">
     <meta name="twitter:image" content="https://erika.erikakataru.com/assets/images/ogp.jpg">
 
-    <style>
-        body {
-            /* 背景画像の設定 */
-            background:
-                linear-gradient(rgba(18, 18, 18, 0.7), rgba(18, 18, 18, 0.9)),
-                url('assets/images/spec.jpg') no-repeat center top;
-            /* 上端合わせ */
-            background-size: contain;
-            /* 横幅いっぱいに広げつつ、画像全体を保持 */
-            background-color: #121212;
-
-            /* 画像の比率に合わせて最小の高さを確保 (1632:2048 の比率 = 125.4%) */
-            min-height: 125.4vw;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* コンテンツが少ない時でも背景が見えるように調整 */
-        #app {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .section {
-            flex: 1;
-            /* コンテンツを適度に分散させて縦に伸ばす */
-            padding-top: 10vh;
-            padding-bottom: 20vh;
-        }
-
-        /* 視認性のためのカードの微調整 */
-        .card {
-            margin-bottom: 1.5rem;
-        }
-    </style>
-
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9959522790700122"
         crossorigin="anonymous"></script>
 </head>
 
-<body>
+<body class="has-background-black page-spec">
     <div id="app" v-cloak>
         <nav class="p-5">
             <a href="index.html" class="has-text-erika font-weight-bold">← Back to Top</a>
