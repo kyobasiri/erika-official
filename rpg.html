@@ -533,7 +533,8 @@
                     const loadBGMPlayer = () => {
                         bgmPlayer = new window.YT.Player('battle-bgm-player', {
                             videoId: targetVideoId,
-                            playerVars: { 'playsinline': 1, 'loop': 1, 'playlist': targetVideoId }, // ループ再生
+                            // ★修正: originを追加
+                            playerVars: { 'playsinline': 1, 'loop': 1, 'playlist': targetVideoId, 'origin': window.location.origin },
                             events: {
                                 'onReady': (event) => { event.target.setVolume(30); event.target.playVideo(); }
                             }
@@ -1130,8 +1131,19 @@
                         });
 
                         setTimeout(() => {
-                            currentEnemies.value.forEach(e => { if (e.hp <= 0) e.isDead = true; });
-                            if (isAnyEnemyDefeated) playSE('defeat');
+                            // ★修正: 変数を正しく宣言して撃破判定を行う
+                            let isAnyEnemyDefeated = false;
+                            currentEnemies.value.forEach(e => {
+                                if (e.hp <= 0 && !e.isDead) {
+                                    e.isDead = true;
+                                    isAnyEnemyDefeated = true;
+                                }
+                            });
+
+                            if (isAnyEnemyDefeated && typeof playSE === 'function') {
+                                playSE('defeat');
+                            }
+
                             const isAllEnemiesDead = currentEnemies.value.every(e => e.isDead);
 
                             if (isAllEnemiesDead) {
@@ -1140,29 +1152,29 @@
                                 // 10階層のボスを倒したらゲームクリア
                                 if (battleState.value.floor >= 10 && battleState.value.enemyCount >= 5) {
                                     addLog(`【討伐完了】全てのエリカを鎮めた...！`, 'system');
-                                    playSE('floor_clear');
+                                    if (typeof playSE === 'function') playSE('floor_clear');
                                     setTimeout(() => { stopBGM(); }, 3000);
                                     setTimeout(() => { gameState.value = 'gameclear'; isProcessing.value = false; }, 3000);
                                 }
                                 // 通常の進行
                                 else if (battleState.value.enemyCount < 5) {
-                                    playSE('wave_clear');
+                                    if (typeof playSE === 'function') playSE('wave_clear');
                                     battleState.value.enemyCount++;
                                     setTimeout(() => { startNextWave(); isProcessing.value = false; }, 1500);
                                 } else {
-                                    playSE('floor_clear');
                                     addLog(`階層クリア！！`, 'system');
+                                    if (typeof playSE === 'function') playSE('floor_clear');
                                     setTimeout(() => { enterRewardRoom(); isProcessing.value = false; }, 1500);
                                 }
                             }
-                            // 【修正】プレイヤーが倒れた場合（ゲームオーバー）の処理を復活
+                            // プレイヤーが倒れた場合
                             else if (player.value.hp <= 0) {
                                 addLog(`力尽きた...`, 'system');
-                                stopBGM(); // ゲームオーバー時にもBGMを止める
+                                stopBGM();
                                 gameState.value = 'gameover';
                                 isProcessing.value = false;
                             }
-                            // 【修正】誰も倒れていない場合は次のターンへ
+                            // 誰も倒れていない場合は次のターンへ
                             else {
                                 battleState.value.turn++;
                                 isProcessing.value = false;
@@ -1199,10 +1211,10 @@
                     }
 
                     const loadPlayer = () => {
-                        // 毎回新しいプレイヤーインスタンスを作成する
                         ytPlayer = new window.YT.Player('youtube-player', {
                             videoId: targetVideoId,
-                            playerVars: { 'playsinline': 1 },
+                            // ★修正: originを追加
+                            playerVars: { 'playsinline': 1, 'origin': window.location.origin },
                             events: { 'onStateChange': onPlayerStateChange }
                         });
                     };
