@@ -9,7 +9,7 @@ binding = "AI"
 # ここがKVの設定です（JSONの配列 [[ ]] を TOMLのテーブル形式にします）
 [[kv_namespaces]]
 binding = "KV_BINDING" # プログラム内で使用する名前
-id = "8bd96d4e26724747a6204d8d01d7d689" # あなたがコピーしたID
+id = "8bd96d4e26724747a6204d8d01d7d689"
 
 # 3. R2 のバインディング
 [[r2_buckets]]
