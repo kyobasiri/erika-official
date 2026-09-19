@@ -580,7 +580,8 @@
 
                     // キャラメイク質問取得
                     try {
-                        const res = await fetch('assets/charmake.json');
+                        const res = await fetch('assets/charmake.json?t=' + new Date().getTime()); // キャッシュ対策付き
+                        if (!res.ok) throw new Error("charmake.json の読み込みに失敗しました");
                         const data = await res.json();
                         charmakeQuestions.value = data.questions;
                     } catch (e) {
