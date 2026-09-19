@@ -24,7 +24,7 @@ export default {
 
                 // Workers AI (Fluxモデル) を呼び出し
                 const imageResponse = await env.AI.run(
-                    '@cf/bytedance/stable-diffusion-xl-lightning', // ★ここをSDXLに変更
+                    '@cf/black-forest-labs/flux-1-schnell', // ★ここをSDXLに変更
                     { prompt: prompt }
                 );
 
