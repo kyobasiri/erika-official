@@ -8,7 +8,442 @@
     <link rel="stylesheet" href="css/lib/bulma.min.css">
     <link rel="stylesheet" href="css/style.css">
     <link rel="icon" href="assets/images/icon.png" type="image/png">
+    <link rel="apple-touch-icon" href="assets/images/icon.png">
 
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="エリカの絵合わせ | Erika Project">
+    <meta property="og:description" content="AI Artist & Album Reviewer ERIKA. エリカが好き勝手に語るチャンネルの公式サイト">
+    <meta property="og:url" content="https://erika.erikakataru.com/">
+    <meta property="og:image" content="https://erika.erikakataru.com/assets/images/ogp.jpg">
+    <meta property="og:site_name" content="Erika Project">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@erikakataru">
+    <meta name="twitter:title" content="エリカの絵合わせ | Erika Project">
+    <meta name="twitter:description" content="エリカの画像を記憶するマッチングゲーム！">
+    <meta name="twitter:image" content="https://erika.erikakataru.com/assets/images/ogp.jpg">
+
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9959522790700122"
+        crossorigin="anonymous"></script>
+</head>
+
+<body>
+    <div id="game-app" v-cloak>
+        <nav class="p-5">
+            <a href="index.html" class="has-text-warning font-weight-bold">← Back to Top</a>
+        </nav>
+
+        <section class="section pt-0">
+            <div class="container has-text-centered">
+                <h1 class="title is-2 has-text-white mb-2">ERIKA MEMORY</h1>
+
+                <!-- BGM用非表示プレイヤー -->
+                <div id="bgm-player" style="display: none;"></div>
+
+                <div v-if="isLoading" class="has-text-warning my-6">
+                    ギャラリーデータを読み込んでいます...
+                </div>
+
+                <div v-else>
+                    <!-- ステータス表示 -->
+                    <div class="box mb-5"
+                        style="background: rgba(0,0,0,0.2); border: 1px solid #555; max-width: 600px; margin: 0 auto;">
+                        <div class="columns is-mobile">
+                            <div class="column">
+                                <p class="is-size-7 has-text-grey-light">揃ったペア</p>
+                                <p class="is-size-4 has-text-white">{{ matchedPairs }} / 8</p>
+                            </div>
+                            <div class="column">
+                                <p class="is-size-7 has-text-grey-light">お手つき制限</p>
+                                <p class="is-size-4" :class="mistakes >= 3 ? 'has-text-danger' : 'has-text-warning'">
+                                    {{ mistakes }} / 4
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-if="gameState === 'memorize'" class="notification is-warning is-light"
+                        style="max-width: 600px; margin: 0 auto 1.5rem;">
+                        <strong>配置を覚えてください！ (3秒後に裏返ります)</strong>
+                    </div>
+
+                    <!-- ゲームボード (クリア時は非表示) -->
+                    <div class="memory-game" v-show="gameState !== 'clear'">
+                        <div class="memory-card" v-for="(card, index) in cards" :key="card.id"
+                            :class="{ 'is-flipped': card.isFlipped, 'is-matched': card.isMatched }"
+                            @click="flipCard(card)">
+                            <div class="card-inner">
+                                <div class="card-face card-front">E</div>
+                                <div class="card-face card-back">
+                                    <img :src="card.url" alt="Gallery Image">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ゲームオーバー表示 -->
+                    <div v-if="gameState === 'gameover'" class="notification is-danger is-light mt-5"
+                        style="max-width: 600px; margin: 0 auto;">
+                        <h2 class="title is-4">Game Over...</h2>
+                        <p class="mb-4">お手つきが4回に達しました。</p>
+                        <button class="button is-danger is-rounded" @click="initGame">
+                            <strong>リトライする</strong>
+                        </button>
+                    </div>
+
+                    <!-- クリア表示 ＆ 横スクロール演出 -->
+                    <div v-if="gameState === 'clear'" class="mt-5" style="max-width: 800px; margin: 0 auto;">
+                        <h2 class="title is-1 has-text-warning" style="text-shadow: 0 0 20px rgba(243, 156, 18, 0.8);">
+                            Clear!!</h2>
+                        <p class="mb-5 has-text-white">見事すべての記憶を取り戻しました！</p>
+
+                        <!-- スライダー演出 -->
+                        <div class="marquee-container mb-6">
+                            <div class="marquee-track">
+                                <template v-for="loop in 2" :key="loop">
+                                    <img v-for="img in uniqueImages" :key="img + loop" :src="img" class="marquee-img">
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- 画像生成報酬 -->
+                        <div class="notification is-dark mb-5" style="border: 1px solid #f39c12; text-align: left;">
+                            <h3 class="title is-4 has-text-erika has-text-centered">🎁 クリア特典：記憶の具現化</h3>
+                            <p class="is-size-7 mb-4 has-text-centered">
+                                クリアの記念に、Cloudflare Workers AIの力で新しい姿を1枚生成できます。
+                            </p>
+
+                            <div v-if="!hasGeneratedReward">
+                                <!-- 選択されたキーワードが飛んでくるエリア -->
+                                <div class="box mb-4"
+                                    style="background: rgba(0,0,0,0.5); min-height: 80px; border: 1px dashed #f39c12;">
+                                    <p class="is-size-7 has-text-grey-light mb-2">【組み込まれるプロンプト（クリックで解除）】</p>
+                                    <transition-group name="tag-fly" tag="div" class="tags">
+                                        <span class="tag is-warning is-medium" v-for="tag in selectedTags"
+                                            :key="tag.label"
+                                            style="cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3);"
+                                            @click="toggleRewardTag(tag.label, tag.prompt)">
+                                            {{ tag.label }}
+                                            <button class="delete is-small ml-2"></button>
+                                        </span>
+                                    </transition-group>
+                                    <p v-if="selectedTags.length === 0" class="is-size-7 has-text-grey">
+                                        下のリストから要素を選んでください。</p>
+                                </div>
+
+                                <!-- JSONから読み込んだカテゴリ別タグリスト -->
+                                <div
+                                    style="max-height: 250px; overflow-y: auto; padding-right: 10px; border-top: 1px solid #555; padding-top: 15px; margin-bottom: 1.5rem;">
+                                    <div v-for="(prompts, category) in rewardCategories" :key="category" class="mb-4">
+                                        <p class="has-text-weight-bold mb-2 has-text-erika">{{ category }}</p>
+                                        <div class="tags">
+                                            <a class="tag is-medium" v-for="(prompt, label) in prompts" :key="label"
+                                                :class="isTagSelected(label) ? 'is-dark has-text-grey is-hidden' : 'is-dark is-outlined'"
+                                                @click="toggleRewardTag(label, prompt)" style="cursor: pointer;">
+                                                {{ label }}
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="field">
+                                    <label class="label has-text-grey-light is-size-7">自由入力（任意）</label>
+                                    <div class="control">
+                                        <input class="input has-background-black has-text-white" type="text"
+                                            v-model="freeTextInput" placeholder="自由に入力できます">
+                                    </div>
+                                </div>
+
+                                <div class="has-text-centered mt-5">
+                                    <button class="button is-warning is-rounded" @click="generateRewardImage"
+                                        :disabled="isGeneratingReward || (selectedTags.length === 0 && !freeTextInput)">
+                                        <strong>{{ isGeneratingReward ? '具現化中...' : '画像を生成する (1回のみ)' }}</strong>
+                                    </button>
+                                </div>
+                                <progress v-if="isGeneratingReward" class="progress is-warning is-small mt-3"
+                                    max="100"></progress>
+                            </div>
+
+                            <div v-else class="has-text-centered">
+                                <p class="has-text-success has-text-weight-bold mb-3">生成完了！</p>
+                                <figure class="image is-square mx-auto" style="max-width: 300px;">
+                                    <img :src="rewardImageUrl"
+                                        style="border-radius: 8px; border: 2px solid #f39c12; object-fit: cover;">
+                                </figure>
+                                <a :href="rewardImageUrl" target="_blank"
+                                    class="button is-small is-dark mt-3">拡大して保存</a>
+                            </div>
+                        </div>
+
+                        <button class="button is-warning is-rounded is-large" @click="initGame">
+                            <strong>次の記憶（別の画像）に挑戦する</strong>
+                        </button>
+                    </div>
+
+                    <div v-if="gameState === 'playing'" class="mt-4">
+                        <button class="button is-dark is-rounded is-small" @click="initGame">
+                            リセットして引き直す
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script type="module">
+        import { createApp, ref, onMounted } from './js/lib/vue.esm-browser.js';
+
+        createApp({
+            setup() {
+                const galleryData = ref([]);
+                const uniqueImages = ref([]);
+                const cards = ref([]);
+                const flippedCards = ref([]);
+                const matchedPairs = ref(0);
+                const mistakes = ref(0);
+                const isLocked = ref(false);
+                const isLoading = ref(true);
+
+                // BGM関連
+                const thePillowsSongs = ref([]);
+                let bgmPlayer = null;
+
+                // 報酬関連
+                const hasGeneratedReward = ref(false);
+                const isGeneratingReward = ref(false);
+                const rewardImageUrl = ref(null);
+                const freeTextInput = ref('');
+
+                const rewardCategories = ref({});
+                const selectedTags = ref([]);
+
+                const gameState = ref('memorize');
+
+                // --- BGM制御 ---
+                const initAndPlayBGM = () => {
+                    if (thePillowsSongs.value.length === 0) return;
+
+                    const randomSong = thePillowsSongs.value[Math.floor(Math.random() * thePillowsSongs.value.length)];
+                    let targetVideoId = 'xUboS2Fw1-o';
+                    if (randomSong.embed_url) targetVideoId = randomSong.embed_url.split('/').pop();
+                    else if (randomSong.share_url) targetVideoId = randomSong.share_url.split('/').pop();
+
+                    const loadBGMPlayer = () => {
+                        bgmPlayer = new window.YT.Player('bgm-player', {
+                            videoId: targetVideoId,
+                            playerVars: { 'playsinline': 1, 'loop': 1, 'playlist': targetVideoId },
+                            events: {
+                                'onReady': (event) => {
+                                    event.target.setVolume(20);
+                                    event.target.playVideo();
+                                }
+                            }
+                        });
+                    };
+
+                    if (!window.YT) {
+                        const tag = document.createElement('script');
+                        tag.src = "https://www.youtube.com/iframe_api";
+                        const firstScriptTag = document.getElementsByTagName('script')[0];
+                        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+                        window.onYouTubeIframeAPIReady = loadBGMPlayer;
+                    } else {
+                        if (bgmPlayer && typeof bgmPlayer.destroy === 'function') bgmPlayer.destroy();
+                        loadBGMPlayer();
+                    }
+                };
+
+                const stopBGM = () => {
+                    if (bgmPlayer && typeof bgmPlayer.stopVideo === 'function') {
+                        bgmPlayer.stopVideo();
+                    }
+                };
+
+                // --- 報酬画像生成 ---
+                const isTagSelected = (label) => selectedTags.value.some(t => t.label === label);
+
+                const toggleRewardTag = (label, prompt) => {
+                    const index = selectedTags.value.findIndex(t => t.label === label);
+                    if (index > -1) {
+                        selectedTags.value.splice(index, 1);
+                    } else {
+                        selectedTags.value.push({ label, prompt });
+                    }
+                };
+
+                const generateRewardImage = async () => {
+                    if (hasGeneratedReward.value) return;
+                    isGeneratingReward.value = true;
+
+                    const basePrompt = "masterpiece, best quality, ultra_detailed, very aesthetic";
+                    const promptsOnly = selectedTags.value.map(t => t.prompt);
+
+                    // タグと自由入力を結合
+                    const finalPromptArray = [basePrompt, ...promptsOnly];
+                    if (freeTextInput.value) {
+                        finalPromptArray.push(freeTextInput.value);
+                    }
+                    const finalPrompt = finalPromptArray.join(', ');
+
+                    try {
+                        const res = await fetch('/api/generate-avatar', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ prompt: finalPrompt })
+                        });
+                        if (!res.ok) throw new Error("画像生成に失敗しました");
+                        const data = await res.json();
+
+                        rewardImageUrl.value = data.avatarUrl;
+                        hasGeneratedReward.value = true;
+                    } catch (e) {
+                        console.error(e);
+                        alert("画像の生成に失敗しました。時間をおいて再試行してください。");
+                    } finally {
+                        isGeneratingReward.value = false;
+                    }
+                };
+
+                // --- ゲームロジック ---
+                const fetchGallery = async () => {
+                    try {
+                        const res = await fetch(`assets/gallery.json?t=${new Date().getTime()}`);
+                        galleryData.value = await res.json();
+                        initGame();
+                    } catch (e) {
+                        console.error("Gallery data could not be fetched.", e);
+                    } finally {
+                        isLoading.value = false;
+                    }
+                };
+
+                const initGame = () => {
+                    stopBGM();
+                    matchedPairs.value = 0;
+                    mistakes.value = 0;
+                    flippedCards.value = [];
+                    isLocked.value = true;
+                    gameState.value = 'memorize';
+
+                    // 報酬のリセット
+                    hasGeneratedReward.value = false;
+                    rewardImageUrl.value = null;
+                    freeTextInput.value = '';
+                    selectedTags.value = [];
+
+                    let allImages = [];
+                    galleryData.value.forEach(folder => {
+                        folder.images.forEach(img => {
+                            allImages.push(`assets/images/gallery/${folder.name}/${img.file}`);
+                        });
+                    });
+
+                    const selectedImages = allImages.sort(() => 0.5 - Math.random()).slice(0, 8);
+                    uniqueImages.value = selectedImages;
+
+                    let deck = [];
+                    selectedImages.forEach((url, index) => {
+                        deck.push({ id: `${index}a`, pairId: index, url: url, isFlipped: true, isMatched: false });
+                        deck.push({ id: `${index}b`, pairId: index, url: url, isFlipped: true, isMatched: false });
+                    });
+
+                    cards.value = deck.sort(() => 0.5 - Math.random());
+
+                    setTimeout(() => {
+                        cards.value.forEach(card => card.isFlipped = false);
+                        gameState.value = 'playing';
+                        isLocked.value = false;
+                        initAndPlayBGM();
+                    }, 3000);
+                };
+
+                const flipCard = (card) => {
+                    if (isLocked.value || card.isFlipped || card.isMatched || gameState.value !== 'playing') return;
+
+                    card.isFlipped = true;
+                    flippedCards.value.push(card);
+
+                    if (flippedCards.value.length === 2) {
+                        checkMatch();
+                    }
+                };
+
+                const checkMatch = () => {
+                    isLocked.value = true;
+                    const [card1, card2] = flippedCards.value;
+
+                    if (card1.pairId === card2.pairId) {
+                        card1.isMatched = true;
+                        card2.isMatched = true;
+                        matchedPairs.value++;
+                        flippedCards.value = [];
+
+                        if (matchedPairs.value === 8) {
+                            stopBGM();
+                            setTimeout(() => { gameState.value = 'clear'; }, 500);
+                        } else {
+                            isLocked.value = false;
+                        }
+                    } else {
+                        mistakes.value++;
+                        if (mistakes.value >= 4) {
+                            stopBGM();
+                            setTimeout(() => { gameState.value = 'gameover'; }, 800);
+                        } else {
+                            setTimeout(() => {
+                                card1.isFlipped = false;
+                                card2.isFlipped = false;
+                                flippedCards.value = [];
+                                isLocked.value = false;
+                            }, 1000);
+                        }
+                    }
+                };
+
+                onMounted(async () => {
+                    fetchGallery();
+
+                    try {
+                        const res = await fetch('assets/thepillows_releases_tab.json');
+                        if (res.ok) {
+                            thePillowsSongs.value = await res.json();
+                        }
+                    } catch (e) {
+                        console.error("楽曲リストの取得に失敗しました", e);
+                    }
+
+                    // rpgclear.jsonの読み込み
+                    try {
+                        const res = await fetch('assets/rpgclear.json');
+                        if (res.ok) {
+                            rewardCategories.value = await res.json();
+                        }
+                    } catch (e) {
+                        console.error("rpgclear.jsonの取得に失敗しました", e);
+                    }
+                });
+
+                return {
+                    cards, matchedPairs, mistakes, gameState, isLoading, uniqueImages,
+                    flipCard, initGame,
+                    hasGeneratedReward, isGeneratingReward, rewardImageUrl, freeTextInput, generateRewardImage,
+                    rewardCategories, selectedTags, isTagSelected, toggleRewardTag
+                };
+            }
+        }).mount('#game-app');
+    </script>
+</body>
+
+</html>
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>エリカの絵合わせ | Erika Project</title>
+    <link rel="stylesheet" href="css/lib/bulma.min.css">
+    <link rel="stylesheet" href="css/style.css">
     <link rel="icon" href="assets/images/icon.png" type="image/png">
     <link rel="apple-touch-icon" href="assets/images/icon.png">
 
@@ -39,6 +474,9 @@
             <div class="container has-text-centered">
                 <h1 class="title is-2 has-text-white mb-2">ERIKA MEMORY</h1>
 
+                <!-- BGM用非表示プレイヤー -->
+                <div id="bgm-player" style="display: none;"></div>
+
                 <div v-if="isLoading" class="has-text-warning my-6">
                     ギャラリーデータを読み込んでいます...
                 </div>
@@ -67,7 +505,7 @@
                     </div>
 
                     <!-- ゲームボード (クリア時は非表示) -->
-                    <div class="memory-game">
+                    <div class="memory-game" v-show="gameState !== 'clear'">
                         <div class="memory-card" v-for="(card, index) in cards" :key="card.id"
                             :class="{ 'is-flipped': card.isFlipped, 'is-matched': card.isMatched }"
                             @click="flipCard(card)">
@@ -91,7 +529,7 @@
                     </div>
 
                     <!-- クリア表示 ＆ 横スクロール演出 -->
-                    <div v-if="gameState === 'clear'" class="mt-5">
+                    <div v-if="gameState === 'clear'" class="mt-5" style="max-width: 800px; margin: 0 auto;">
                         <h2 class="title is-1 has-text-warning" style="text-shadow: 0 0 20px rgba(243, 156, 18, 0.8);">
                             Clear!!</h2>
                         <p class="mb-5 has-text-white">見事すべての記憶を取り戻しました！</p>
@@ -99,10 +537,78 @@
                         <!-- スライダー演出 -->
                         <div class="marquee-container mb-6">
                             <div class="marquee-track">
-                                <!-- 途切れないように同じ画像を2周分レンダリング -->
                                 <template v-for="loop in 2" :key="loop">
                                     <img v-for="img in uniqueImages" :key="img + loop" :src="img" class="marquee-img">
                                 </template>
+                            </div>
+                        </div>
+
+                        <!-- 画像生成報酬 -->
+                        <div class="notification is-dark mb-5" style="border: 1px solid #f39c12; text-align: left;">
+                            <h3 class="title is-4 has-text-erika has-text-centered">🎁 クリア特典：記憶の具現化</h3>
+                            <p class="is-size-7 mb-4 has-text-centered">
+                                クリアの記念に、Cloudflare Workers AIの力で新しい姿を1枚生成できます。
+                            </p>
+
+                            <div v-if="!hasGeneratedReward">
+                                <!-- 選択されたキーワードが飛んでくるエリア -->
+                                <div class="box mb-4"
+                                    style="background: rgba(0,0,0,0.5); min-height: 80px; border: 1px dashed #f39c12;">
+                                    <p class="is-size-7 has-text-grey-light mb-2">【組み込まれるプロンプト（クリックで解除）】</p>
+                                    <transition-group name="tag-fly" tag="div" class="tags">
+                                        <span class="tag is-warning is-medium" v-for="tag in selectedTags"
+                                            :key="tag.label"
+                                            style="cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3);"
+                                            @click="toggleRewardTag(tag.label, tag.prompt)">
+                                            {{ tag.label }}
+                                            <button class="delete is-small ml-2"></button>
+                                        </span>
+                                    </transition-group>
+                                    <p v-if="selectedTags.length === 0" class="is-size-7 has-text-grey">
+                                        下のリストから要素を選んでください。</p>
+                                </div>
+
+                                <!-- JSONから読み込んだカテゴリ別タグリスト -->
+                                <div
+                                    style="max-height: 250px; overflow-y: auto; padding-right: 10px; border-top: 1px solid #555; padding-top: 15px; margin-bottom: 1.5rem;">
+                                    <div v-for="(prompts, category) in rewardCategories" :key="category" class="mb-4">
+                                        <p class="has-text-weight-bold mb-2 has-text-erika">{{ category }}</p>
+                                        <div class="tags">
+                                            <a class="tag is-medium" v-for="(prompt, label) in prompts" :key="label"
+                                                :class="isTagSelected(label) ? 'is-dark has-text-grey is-hidden' : 'is-dark is-outlined'"
+                                                @click="toggleRewardTag(label, prompt)" style="cursor: pointer;">
+                                                {{ label }}
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="field">
+                                    <label class="label has-text-grey-light is-size-7">自由入力（任意）</label>
+                                    <div class="control">
+                                        <input class="input has-background-black has-text-white" type="text"
+                                            v-model="freeTextInput" placeholder="自由に入力できます">
+                                    </div>
+                                </div>
+
+                                <div class="has-text-centered mt-5">
+                                    <button class="button is-warning is-rounded" @click="generateRewardImage"
+                                        :disabled="isGeneratingReward || (selectedTags.length === 0 && !freeTextInput)">
+                                        <strong>{{ isGeneratingReward ? '具現化中...' : '画像を生成する (1回のみ)' }}</strong>
+                                    </button>
+                                </div>
+                                <progress v-if="isGeneratingReward" class="progress is-warning is-small mt-3"
+                                    max="100"></progress>
+                            </div>
+
+                            <div v-else class="has-text-centered">
+                                <p class="has-text-success has-text-weight-bold mb-3">生成完了！</p>
+                                <figure class="image is-square mx-auto" style="max-width: 300px;">
+                                    <img :src="rewardImageUrl"
+                                        style="border-radius: 8px; border: 2px solid #f39c12; object-fit: cover;">
+                                </figure>
+                                <a :href="rewardImageUrl" target="_blank"
+                                    class="button is-small is-dark mt-3">拡大して保存</a>
                             </div>
                         </div>
 
@@ -127,7 +633,7 @@
         createApp({
             setup() {
                 const galleryData = ref([]);
-                const uniqueImages = ref([]); // クリア演出用
+                const uniqueImages = ref([]);
                 const cards = ref([]);
                 const flippedCards = ref([]);
                 const matchedPairs = ref(0);
@@ -135,9 +641,107 @@
                 const isLocked = ref(false);
                 const isLoading = ref(true);
 
-                // 状態管理: 'memorize' (暗記中), 'playing' (プレイ中), 'gameover' (失敗), 'clear' (成功)
+                // BGM関連
+                const thePillowsSongs = ref([]);
+                let bgmPlayer = null;
+
+                // 報酬関連
+                const hasGeneratedReward = ref(false);
+                const isGeneratingReward = ref(false);
+                const rewardImageUrl = ref(null);
+                const freeTextInput = ref('');
+
+                const rewardCategories = ref({});
+                const selectedTags = ref([]);
+
                 const gameState = ref('memorize');
 
+                // --- BGM制御 ---
+                const initAndPlayBGM = () => {
+                    if (thePillowsSongs.value.length === 0) return;
+
+                    const randomSong = thePillowsSongs.value[Math.floor(Math.random() * thePillowsSongs.value.length)];
+                    let targetVideoId = 'xUboS2Fw1-o';
+                    if (randomSong.embed_url) targetVideoId = randomSong.embed_url.split('/').pop();
+                    else if (randomSong.share_url) targetVideoId = randomSong.share_url.split('/').pop();
+
+                    const loadBGMPlayer = () => {
+                        bgmPlayer = new window.YT.Player('bgm-player', {
+                            videoId: targetVideoId,
+                            playerVars: { 'playsinline': 1, 'loop': 1, 'playlist': targetVideoId },
+                            events: {
+                                'onReady': (event) => {
+                                    event.target.setVolume(20);
+                                    event.target.playVideo();
+                                }
+                            }
+                        });
+                    };
+
+                    if (!window.YT) {
+                        const tag = document.createElement('script');
+                        tag.src = "https://www.youtube.com/iframe_api";
+                        const firstScriptTag = document.getElementsByTagName('script')[0];
+                        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+                        window.onYouTubeIframeAPIReady = loadBGMPlayer;
+                    } else {
+                        if (bgmPlayer && typeof bgmPlayer.destroy === 'function') bgmPlayer.destroy();
+                        loadBGMPlayer();
+                    }
+                };
+
+                const stopBGM = () => {
+                    if (bgmPlayer && typeof bgmPlayer.stopVideo === 'function') {
+                        bgmPlayer.stopVideo();
+                    }
+                };
+
+                // --- 報酬画像生成 ---
+                const isTagSelected = (label) => selectedTags.value.some(t => t.label === label);
+
+                const toggleRewardTag = (label, prompt) => {
+                    const index = selectedTags.value.findIndex(t => t.label === label);
+                    if (index > -1) {
+                        selectedTags.value.splice(index, 1);
+                    } else {
+                        selectedTags.value.push({ label, prompt });
+                    }
+                };
+
+                const generateRewardImage = async () => {
+                    if (hasGeneratedReward.value) return;
+                    isGeneratingReward.value = true;
+
+                    const basePrompt = "masterpiece, best quality, ultra_detailed, very aesthetic";
+                    const promptsOnly = selectedTags.value.map(t => t.prompt);
+
+                    // タグと自由入力を結合
+                    const finalPromptArray = [basePrompt, ...promptsOnly];
+                    if (freeTextInput.value) {
+                        finalPromptArray.push(freeTextInput.value);
+                    }
+                    const finalPrompt = finalPromptArray.join(', ');
+
+                    try {
+                        const res = await fetch('/api/generate-avatar', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ prompt: finalPrompt })
+                        });
+                        if (!res.ok) throw new Error("画像生成に失敗しました");
+                        const data = await res.json();
+
+                        rewardImageUrl.value = data.avatarUrl;
+                        hasGeneratedReward.value = true;
+                    } catch (e) {
+                        console.error(e);
+                        alert("画像の生成に失敗しました。時間をおいて再試行してください。");
+                    } finally {
+                        isGeneratingReward.value = false;
+                    }
+                };
+
+                // --- ゲームロジック ---
                 const fetchGallery = async () => {
                     try {
                         const res = await fetch(`assets/gallery.json?t=${new Date().getTime()}`);
@@ -151,11 +755,18 @@
                 };
 
                 const initGame = () => {
+                    stopBGM();
                     matchedPairs.value = 0;
                     mistakes.value = 0;
                     flippedCards.value = [];
-                    isLocked.value = true; // 暗記中はクリック不可
+                    isLocked.value = true;
                     gameState.value = 'memorize';
+
+                    // 報酬のリセット
+                    hasGeneratedReward.value = false;
+                    rewardImageUrl.value = null;
+                    freeTextInput.value = '';
+                    selectedTags.value = [];
 
                     let allImages = [];
                     galleryData.value.forEach(folder => {
@@ -164,7 +775,6 @@
                         });
                     });
 
-                    // 8枚ランダム抽出して保存
                     const selectedImages = allImages.sort(() => 0.5 - Math.random()).slice(0, 8);
                     uniqueImages.value = selectedImages;
 
@@ -174,14 +784,13 @@
                         deck.push({ id: `${index}b`, pairId: index, url: url, isFlipped: true, isMatched: false });
                     });
 
-                    // シャッフルして初期配置（すべて表向き）
                     cards.value = deck.sort(() => 0.5 - Math.random());
 
-                    // 3秒後にすべて裏返してゲームスタート
                     setTimeout(() => {
                         cards.value.forEach(card => card.isFlipped = false);
                         gameState.value = 'playing';
                         isLocked.value = false;
+                        initAndPlayBGM();
                     }, 3000);
                 };
 
@@ -207,14 +816,15 @@
                         flippedCards.value = [];
 
                         if (matchedPairs.value === 8) {
+                            stopBGM();
                             setTimeout(() => { gameState.value = 'clear'; }, 500);
                         } else {
                             isLocked.value = false;
                         }
                     } else {
-                        // お手つき処理
                         mistakes.value++;
                         if (mistakes.value >= 4) {
+                            stopBGM();
                             setTimeout(() => { gameState.value = 'gameover'; }, 800);
                         } else {
                             setTimeout(() => {
@@ -227,11 +837,34 @@
                     }
                 };
 
-                onMounted(fetchGallery);
+                onMounted(async () => {
+                    fetchGallery();
+
+                    try {
+                        const res = await fetch('assets/thepillows_releases_tab.json');
+                        if (res.ok) {
+                            thePillowsSongs.value = await res.json();
+                        }
+                    } catch (e) {
+                        console.error("楽曲リストの取得に失敗しました", e);
+                    }
+
+                    // rpgclear.jsonの読み込み
+                    try {
+                        const res = await fetch('assets/rpgclear.json');
+                        if (res.ok) {
+                            rewardCategories.value = await res.json();
+                        }
+                    } catch (e) {
+                        console.error("rpgclear.jsonの取得に失敗しました", e);
+                    }
+                });
 
                 return {
                     cards, matchedPairs, mistakes, gameState, isLoading, uniqueImages,
-                    flipCard, initGame
+                    flipCard, initGame,
+                    hasGeneratedReward, isGeneratingReward, rewardImageUrl, freeTextInput, generateRewardImage,
+                    rewardCategories, selectedTags, isTagSelected, toggleRewardTag
                 };
             }
         }).mount('#game-app');
