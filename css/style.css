@@ -609,3 +609,19 @@ body.index-page {
 .popup-heal {
     color: #23d160;
 }
+
+/* タグが下から上に飛んでくるアニメーション */
+.tag-fly-enter-active,
+.tag-fly-leave-active {
+    transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.tag-fly-enter-from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.8);
+}
+
+.tag-fly-leave-to {
+    opacity: 0;
+    transform: scale(0.8);
+}

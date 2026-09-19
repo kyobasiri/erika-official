@@ -16,7 +16,7 @@
         "target": "single",
         "cost_hp_percent": 20,
         "multiplier": 2.5,
-        "min_floor": 5,
+        "min_floor": 3,
         "description": "現在HPの20%を消費し、敵単体に2.5倍の強力な物理ダメージ。"
     },
     {
@@ -25,8 +25,8 @@
         "type": "attack_physical",
         "target": "all",
         "cost_hp_percent": 25,
-        "multiplier": 2.0,
-        "min_floor": 10,
+        "multiplier": 2,
+        "min_floor": 3,
         "description": "現在HPの25%を消費し、敵全体に2.0倍の物理ダメージ。"
     },
     {
@@ -46,7 +46,7 @@
         "target": "all",
         "cost_mp": 15,
         "multiplier": 2.5,
-        "min_floor": 15,
+        "min_floor": 3,
         "description": "MPを15消費し、敵全体に2.5倍の魔法ダメージ。"
     },
     {
@@ -55,8 +55,8 @@
         "type": "heal",
         "target": "single",
         "cost_mp": 8,
-        "multiplier": 0.5,
-        "min_floor": 3,
+        "multiplier": 0.3,
+        "min_floor": 1,
         "description": "MPを8消費し、最大HPの50%を回復する。"
     },
     {
@@ -86,7 +86,7 @@
             "def": -40,
             "spd": -40
         },
-        "min_floor": 10,
+        "min_floor": 7,
         "description": "MPを12消費し、敵単体の全ステータスを2段階（40%）低下させる。"
     },
     {
@@ -95,9 +95,788 @@
         "type": "ultimate",
         "target": "all",
         "cost_mp": 999,
-        "multiplier": 5.0,
+        "multiplier": 5,
+        "condition": "hp_under_8",
+        "min_floor": 8,
+        "description": "【条件: HP8%以下】全MPを消費し、敵全体に5.0倍の防御無視ダメージ。"
+    },
+    {
+        "id": "skill_primer_beat",
+        "name": "Primer Beat",
+        "type": "attack_physical",
+        "target": "single",
+        "cost_hp_percent": 5,
+        "multiplier": 1.2,
+        "min_floor": 1,
+        "description": "現在HPの5%を消費し、敵単体に1.2倍の物理ダメージ。"
+    },
+    {
+        "id": "skill_paper_triangle",
+        "name": "Paper Triangle",
+        "type": "attack_physical",
+        "target": "single",
+        "cost_hp_percent": 7,
+        "multiplier": 1.3,
+        "min_floor": 1,
+        "description": "現在HPの7%を消費し、敵単体に1.3倍の物理ダメージ。"
+    },
+    {
+        "id": "skill_ice_pick",
+        "name": "ICE PICK",
+        "type": "attack_physical",
+        "target": "single",
+        "cost_hp_percent": 12,
+        "multiplier": 1.7,
+        "min_floor": 2,
+        "description": "現在HPの12%を消費し、敵単体に1.7倍の物理ダメージ。"
+    },
+    {
+        "id": "skill_spiky_goose",
+        "name": "Spiky Goose",
+        "type": "attack_physical",
+        "target": "single",
+        "cost_hp_percent": 14,
+        "multiplier": 1.8,
+        "min_floor": 2,
+        "description": "現在HPの14%を消費し、敵単体に1.8倍の物理ダメージ。"
+    },
+    {
+        "id": "skill_boon_boon_rock",
+        "name": "BOON BOON ROCK",
+        "type": "attack_physical",
+        "target": "single",
+        "cost_hp_percent": 15,
+        "multiplier": 2.0,
+        "min_floor": 4,
+        "description": "現在HPの15%を消費し、敵単体に2.0倍の物理ダメージ。"
+    },
+    {
+        "id": "skill_blues_drive_monster",
+        "name": "Blues Drive Monster",
+        "type": "attack_physical",
+        "target": "single",
+        "cost_hp_percent": 25,
+        "multiplier": 3.5,
+        "min_floor": 5,
+        "description": "現在HPの25%を消費し、敵単体に3.5倍の物理ダメージ。"
+    },
+    {
+        "id": "skill_last_dinosaur",
+        "name": "LAST DINOSAUR",
+        "type": "attack_physical",
+        "target": "single",
+        "cost_hp_percent": 35,
+        "multiplier": 4.2,
+        "min_floor": 7,
+        "description": "現在HPの35%を消費し、敵単体に4.2倍の物理ダメージ。"
+    },
+    {
+        "id": "skill_fun_fun_fun_ok",
+        "name": "FUN FUN FUN OK!",
+        "type": "attack_physical",
+        "target": "all",
+        "cost_hp_percent": 8,
+        "multiplier": 0.85,
+        "min_floor": 1,
+        "description": "現在HPの8%を消費し、敵全体に0.85倍の物理ダメージ。"
+    },
+    {
+        "id": "skill_naked_shuffle",
+        "name": "NAKED SHUFFLE",
+        "type": "attack_physical",
+        "target": "all",
+        "cost_hp_percent": 12,
+        "multiplier": 1.3,
+        "min_floor": 2,
+        "description": "現在HPの12%を消費し、敵全体に1.3倍の物理ダメージ。"
+    },
+    {
+        "id": "skill_rush",
+        "name": "RUSH",
+        "type": "attack_physical",
+        "target": "all",
+        "cost_hp_percent": 18,
+        "multiplier": 1.5,
+        "min_floor": 3,
+        "description": "現在HPの18%を消費し、敵全体に1.5倍の物理ダメージ。"
+    },
+    {
+        "id": "skill_wake_up_frenzy",
+        "name": "Wake Up,Frenzy!",
+        "type": "attack_physical",
+        "target": "all",
+        "cost_hp_percent": 20,
+        "multiplier": 1.8,
+        "min_floor": 4,
+        "description": "現在HPの20%を消費し、敵全体に1.8倍の物理ダメージ。"
+    },
+    {
+        "id": "skill_over_amp",
+        "name": "OVER AMP",
+        "type": "attack_physical",
+        "target": "all",
+        "cost_hp_percent": 22,
+        "multiplier": 2.2,
+        "min_floor": 5,
+        "description": "現在HPの22%を消費し、敵全体に2.2倍の物理ダメージ。"
+    },
+    {
+        "id": "skill_thunder_whales_picnic",
+        "name": "THUNDER WHALES PICNIC",
+        "type": "attack_physical",
+        "target": "all",
+        "cost_hp_percent": 30,
+        "multiplier": 3.2,
+        "min_floor": 6,
+        "description": "現在HPの30%を消費し、敵全体に3.2倍の物理ダメージ。"
+    },
+    {
+        "id": "skill_suicide_diving",
+        "name": "SUICIDE DIVING",
+        "type": "attack_physical",
+        "target": "single",
+        "cost_hp_percent": 45,
+        "multiplier": 4.8,
+        "min_floor": 8,
+        "description": "現在HPの45%を消費し、敵単体に4.8倍の物理ダメージ。"
+    },
+    {
+        "id": "skill_the_killing_field",
+        "name": "THE KILLING FIELD",
+        "type": "attack_physical",
+        "target": "all",
+        "cost_hp_percent": 50,
+        "multiplier": 5.5,
+        "min_floor": 8,
+        "description": "現在HPの50%を消費し、敵全体に5.5倍の物理ダメージ。"
+    },
+    {
+        "id": "skill_lemon_drops",
+        "name": "Lemon Drops",
+        "type": "attack_magic",
+        "target": "single",
+        "cost_mp": 3,
+        "multiplier": 1.1,
+        "min_floor": 1,
+        "description": "MPを3消費し、敵単体に1.1倍の魔法ダメージ。"
+    },
+    {
+        "id": "skill_purple_apple",
+        "name": "Purple Apple",
+        "type": "attack_magic",
+        "target": "single",
+        "cost_mp": 5,
+        "multiplier": 1.35,
+        "min_floor": 1,
+        "description": "MPを5消費し、敵単体に1.35倍の魔法ダメージ。"
+    },
+    {
+        "id": "skill_finger_post_of_magic",
+        "name": "Finger post of magic",
+        "type": "attack_magic",
+        "target": "single",
+        "cost_mp": 8,
+        "multiplier": 1.7,
+        "min_floor": 2,
+        "description": "MPを8消費し、敵単体に1.7倍の魔法ダメージ。"
+    },
+    {
+        "id": "skill_moon_is_mine",
+        "name": "Moon is mine",
+        "type": "attack_magic",
+        "target": "single",
+        "cost_mp": 12,
+        "multiplier": 2.15,
+        "min_floor": 3,
+        "description": "MPを12消費し、敵単体に2.15倍の魔法ダメージ。"
+    },
+    {
+        "id": "skill_binary_star",
+        "name": "Binary Star",
+        "type": "attack_magic",
+        "target": "single",
+        "cost_mp": 17,
+        "multiplier": 2.7,
+        "min_floor": 4,
+        "description": "MPを17消費し、敵単体に2.7倍の魔法ダメージ。"
+    },
+    {
+        "id": "skill_star_overhead",
+        "name": "Star overhead",
+        "type": "attack_magic",
+        "target": "single",
+        "cost_mp": 23,
+        "multiplier": 3.4,
+        "min_floor": 5,
+        "description": "MPを23消費し、敵単体に3.4倍の魔法ダメージ。"
+    },
+    {
+        "id": "skill_beyond_the_moon",
+        "name": "Beyond the moon",
+        "type": "attack_magic",
+        "target": "single",
+        "cost_mp": 30,
+        "multiplier": 4.3,
+        "min_floor": 7,
+        "description": "MPを30消費し、敵単体に4.3倍の魔法ダメージ。"
+    },
+    {
+        "id": "skill_dance_with_god",
+        "name": "Dance with God",
+        "type": "attack_magic",
+        "target": "single",
+        "cost_mp": 40,
+        "multiplier": 5.2,
+        "min_floor": 8,
+        "description": "MPを40消費し、敵単体に5.2倍の魔法ダメージ。"
+    },
+    {
+        "id": "skill_rain_brain",
+        "name": "RAIN BRAIN",
+        "type": "attack_magic",
+        "target": "all",
+        "cost_mp": 6,
+        "multiplier": 0.9,
+        "min_floor": 1,
+        "description": "MPを6消費し、敵全体に0.9倍の魔法ダメージ。"
+    },
+    {
+        "id": "skill_colorful_pumpkin_fields",
+        "name": "カラフル・パンプキン・フィールズ",
+        "type": "attack_magic",
+        "target": "all",
+        "cost_mp": 9,
+        "multiplier": 1.2,
+        "min_floor": 2,
+        "description": "MPを9消費し、敵全体に1.2倍の魔法ダメージ。"
+    },
+    {
+        "id": "skill_emerald_city",
+        "name": "EMERALD CITY",
+        "type": "attack_magic",
+        "target": "all",
+        "cost_mp": 13,
+        "multiplier": 1.5,
+        "min_floor": 3,
+        "description": "MPを13消費し、敵全体に1.5倍の魔法ダメージ。"
+    },
+    {
+        "id": "skill_subtropical_fantasy",
+        "name": "Subtropical Fantasy",
+        "type": "attack_magic",
+        "target": "all",
+        "cost_mp": 18,
+        "multiplier": 1.9,
+        "min_floor": 4,
+        "description": "MPを18消費し、敵全体に1.9倍の魔法ダメージ。"
+    },
+    {
+        "id": "skill_crazy_sunshine",
+        "name": "Crazy Sunshine",
+        "type": "attack_magic",
+        "target": "all",
+        "cost_mp": 24,
+        "multiplier": 2.4,
+        "min_floor": 5,
+        "description": "MPを24消費し、敵全体に2.4倍の魔法ダメージ。"
+    },
+    {
+        "id": "skill_march_of_the_god",
+        "name": "MARCH OF THE GOD",
+        "type": "attack_magic",
+        "target": "all",
+        "cost_mp": 31,
+        "multiplier": 3,
+        "min_floor": 6,
+        "description": "MPを31消費し、敵全体に3.0倍の魔法ダメージ。"
+    },
+    {
+        "id": "skill_terminal_heavens_rock",
+        "name": "ターミナル・ヘヴンズ・ロック",
+        "type": "attack_magic",
+        "target": "all",
+        "cost_mp": 39,
+        "multiplier": 3.7,
+        "min_floor": 7,
+        "description": "MPを39消費し、敵全体に3.7倍の魔法ダメージ。"
+    },
+    {
+        "id": "skill_sayonara_universe",
+        "name": "さよならユニバース",
+        "type": "attack_magic",
+        "target": "all",
+        "cost_mp": 48,
+        "multiplier": 4.5,
+        "min_floor": 8,
+        "description": "MPを48消費し、敵全体に4.5倍の魔法ダメージ。"
+    },
+    {
+        "id": "skill_good_morning_good_news",
+        "name": "Good morning good news",
+        "type": "heal",
+        "target": "single",
+        "cost_mp": 3,
+        "multiplier": 0.2,
+        "min_floor": 1,
+        "description": "MPを3消費し、最大HPの20%を回復する。"
+    },
+    {
+        "id": "skill_smile",
+        "name": "Smile",
+        "type": "heal",
+        "target": "single",
+        "cost_mp": 5,
+        "multiplier": 0.3,
+        "min_floor": 2,
+        "description": "MPを5消費し、最大HPの30%を回復する。"
+    },
+    {
+        "id": "skill_song_for_you",
+        "name": "Song for you",
+        "type": "heal",
+        "target": "single",
+        "cost_mp": 7,
+        "multiplier": 0.4,
+        "min_floor": 3,
+        "description": "MPを7消費し、最大HPの40%を回復する。"
+    },
+    {
+        "id": "skill_rescue",
+        "name": "Rescue",
+        "type": "heal",
+        "target": "single",
+        "cost_mp": 10,
+        "multiplier": 0.55,
+        "min_floor": 4,
+        "description": "MPを10消費し、最大HPの55%を回復する。"
+    },
+    {
+        "id": "skill_beautiful_morning_with_you",
+        "name": "Beautiful morning with you",
+        "type": "heal",
+        "target": "single",
+        "cost_mp": 13,
+        "multiplier": 0.65,
+        "min_floor": 5,
+        "description": "MPを13消費し、最大HPの65%を回復する。"
+    },
+    {
+        "id": "skill_our_love_and_peace",
+        "name": "Our love and peace",
+        "type": "heal",
+        "target": "single",
+        "cost_mp": 16,
+        "multiplier": 0.75,
+        "min_floor": 6,
+        "description": "MPを16消費し、最大HPの75%を回復する。"
+    },
+    {
+        "id": "skill_happy_bivouac",
+        "name": "HAPPY BIVOUAC",
+        "type": "heal",
+        "target": "single",
+        "cost_mp": 20,
+        "multiplier": 0.85,
+        "min_floor": 7,
+        "description": "MPを20消費し、最大HPの85%を回復する。"
+    },
+    {
+        "id": "skill_one_life",
+        "name": "ONE LIFE",
+        "type": "heal",
+        "target": "single",
+        "cost_mp": 24,
+        "multiplier": 1,
+        "min_floor": 8,
+        "description": "MPを24消費し、最大HPの100%を回復する。"
+    },
+    {
+        "id": "skill_thank_you_my_twilight",
+        "name": "Thank you, my twilight",
+        "type": "heal",
+        "target": "single",
+        "cost_mp": 18,
+        "multiplier": 0.7,
+        "min_floor": 7,
+        "description": "MPを18消費し、最大HPの70%を回復する。"
+    },
+    {
+        "id": "skill_happy_go_ducky",
+        "name": "Happy Go Ducky!",
+        "type": "heal",
+        "target": "single",
+        "cost_mp": 14,
+        "multiplier": 0.5,
+        "min_floor": 8,
+        "description": "MPを14消費し、最大HPの50%を回復する。"
+    },
+    {
+        "id": "skill_wonderful_sight",
+        "name": "Wonderful Sight",
+        "type": "heal",
+        "target": "single",
+        "cost_mp": 28,
+        "multiplier": 1,
+        "min_floor": 8,
+        "description": "MPを28消費し、最大HPの100%を回復する。"
+    },
+    {
+        "id": "skill_i_think_i_can",
+        "name": "I think I can",
+        "type": "buff",
+        "target": "single",
+        "cost_mp": 5,
+        "effect_percent": {
+            "str": 20
+        },
+        "min_floor": 1,
+        "description": "MPを5消費し、自身の力20%を上昇させる。"
+    },
+    {
+        "id": "skill_perfect_idea",
+        "name": "パーフェクト・アイディア",
+        "type": "buff",
+        "target": "single",
+        "cost_mp": 5,
+        "effect_percent": {
+            "mag": 20
+        },
+        "min_floor": 1,
+        "description": "MPを5消費し、自身の魔力20%を上昇させる。"
+    },
+    {
+        "id": "skill_boys_be_locksmith",
+        "name": "BOYS BE LOCKSMITH.",
+        "type": "buff",
+        "target": "single",
+        "cost_mp": 5,
+        "effect_percent": {
+            "def": 20
+        },
+        "min_floor": 1,
+        "description": "MPを5消費し、自身の防御20%を上昇させる。"
+    },
+    {
+        "id": "skill_locomotion_more",
+        "name": "Locomotion,more!more!",
+        "type": "buff",
+        "target": "single",
+        "cost_mp": 5,
+        "effect_percent": {
+            "spd": 20
+        },
+        "min_floor": 1,
+        "description": "MPを5消費し、自身の素早さ20%を上昇させる。"
+    },
+    {
+        "id": "skill_ready_steady_go",
+        "name": "Ready Steady Go!",
+        "type": "buff",
+        "target": "single",
+        "cost_mp": 8,
+        "effect_percent": {
+            "str": 20,
+            "spd": 20
+        },
+        "min_floor": 5,
+        "description": "MPを8消費し、自身の力20%・素早さ20%を上昇させる。"
+    },
+    {
+        "id": "skill_brilliant_crown",
+        "name": "Brilliant Crown",
+        "type": "buff",
+        "target": "single",
+        "cost_mp": 8,
+        "effect_percent": {
+            "mag": 20,
+            "def": 20
+        },
+        "min_floor": 5,
+        "description": "MPを8消費し、自身の魔力20%・防御20%を上昇させる。"
+    },
+    {
+        "id": "skill_no_self_control",
+        "name": "NO SELF CONTROL",
+        "type": "buff",
+        "target": "single",
+        "cost_mp": 8,
+        "effect_percent": {
+            "def": 20,
+            "spd": 20
+        },
+        "min_floor": 4,
+        "description": "MPを8消費し、自身の防御20%・素早さ20%を上昇させる。"
+    },
+    {
+        "id": "skill_clean_slate_revolution",
+        "name": "Clean Slate Revolution",
+        "type": "buff",
+        "target": "single",
+        "cost_mp": 9,
+        "effect_percent": {
+            "str": 20,
+            "mag": 20
+        },
+        "min_floor": 8,
+        "description": "MPを9消費し、自身の力20%・魔力20%を上昇させる。"
+    },
+    {
+        "id": "skill_be_wild",
+        "name": "BE WILD",
+        "type": "buff",
+        "target": "single",
+        "cost_mp": 12,
+        "effect_percent": {
+            "str": 40
+        },
+        "min_floor": 7,
+        "description": "MPを12消費し、自身の力40%を上昇させる。"
+    },
+    {
+        "id": "skill_pulse",
+        "name": "pulse",
+        "type": "buff",
+        "target": "single",
+        "cost_mp": 12,
+        "effect_percent": {
+            "mag": 40
+        },
+        "min_floor": 7,
+        "description": "MPを12消費し、自身の魔力40%を上昇させる。"
+    },
+    {
+        "id": "skill_she_is_perfect",
+        "name": "She is perfect",
+        "type": "buff",
+        "target": "single",
+        "cost_mp": 12,
+        "effect_percent": {
+            "def": 40
+        },
+        "min_floor": 7,
+        "description": "MPを12消費し、自身の防御40%を上昇させる。"
+    },
+    {
+        "id": "skill_skinny_blues",
+        "name": "Skinny Blues",
+        "type": "debuff",
+        "target": "single",
+        "cost_mp": 5,
+        "effect_percent": {
+            "str": -20
+        },
+        "min_floor": 1,
+        "description": "MPを5消費し、敵単体の力20%を低下させる。"
+    },
+    {
+        "id": "skill_sick_vibration",
+        "name": "Sick Vibration",
+        "type": "debuff",
+        "target": "single",
+        "cost_mp": 5,
+        "effect_percent": {
+            "mag": -20
+        },
+        "min_floor": 1,
+        "description": "MPを5消費し、敵単体の魔力20%を低下させる。"
+    },
+    {
+        "id": "skill_biscuit_hammer",
+        "name": "ビスケットハンマー",
+        "type": "debuff",
+        "target": "single",
+        "cost_mp": 6,
+        "effect_percent": {
+            "def": -20
+        },
+        "min_floor": 1,
+        "description": "MPを6消費し、敵単体の防御20%を低下させる。"
+    },
+    {
+        "id": "skill_slow_down",
+        "name": "Slow down",
+        "type": "debuff",
+        "target": "single",
+        "cost_mp": 6,
+        "effect_percent": {
+            "spd": -20
+        },
+        "min_floor": 2,
+        "description": "MPを6消費し、敵単体の素早さ20%を低下させる。"
+    },
+    {
+        "id": "skill_degeneration",
+        "name": "Degeneration",
+        "type": "debuff",
+        "target": "single",
+        "cost_mp": 9,
+        "effect_percent": {
+            "str": -20,
+            "mag": -20
+        },
+        "min_floor": 5,
+        "description": "MPを9消費し、敵単体の力20%・魔力20%を低下させる。"
+    },
+    {
+        "id": "skill_borderline_case",
+        "name": "Borderline Case",
+        "type": "debuff",
+        "target": "single",
+        "cost_mp": 9,
+        "effect_percent": {
+            "def": -20,
+            "spd": -20
+        },
+        "min_floor": 5,
+        "description": "MPを9消費し、敵単体の防御20%・素早さ20%を低下させる。"
+    },
+    {
+        "id": "skill_skeleton_liar",
+        "name": "Skeleton Liar",
+        "type": "debuff",
+        "target": "single",
+        "cost_mp": 12,
+        "effect_percent": {
+            "def": -40
+        },
+        "min_floor": 8,
+        "description": "MPを12消費し、敵単体の防御40%を低下させる。"
+    },
+    {
+        "id": "skill_sleepy_head",
+        "name": "Sleepy Head",
+        "type": "debuff",
+        "target": "single",
+        "cost_mp": 12,
+        "effect_percent": {
+            "spd": -40
+        },
+        "min_floor": 8,
+        "description": "MPを12消費し、敵単体の素早さ40%を低下させる。"
+    },
+    {
+        "id": "skill_ritalin_202",
+        "name": "Ritalin 202",
+        "type": "debuff",
+        "target": "all",
+        "cost_mp": 18,
+        "effect_percent": {
+            "str": -20
+        },
+        "min_floor": 5,
+        "description": "MPを18消費し、敵全体の力20%を低下させる。"
+    },
+    {
+        "id": "skill_moll_town_prisoner",
+        "name": "モールタウンプリズナー",
+        "type": "debuff",
+        "target": "all",
+        "cost_mp": 20,
+        "effect_percent": {
+            "def": -20
+        },
+        "min_floor": 5,
+        "description": "MPを20消費し、敵全体の防御20%を低下させる。"
+    },
+    {
+        "id": "skill_nightmare",
+        "name": "Nightmare",
+        "type": "debuff",
+        "target": "all",
+        "cost_mp": 28,
+        "effect_percent": {
+            "str": -20,
+            "mag": -20
+        },
+        "min_floor": 8,
+        "description": "MPを28消費し、敵全体の力20%・魔力20%を低下させる。"
+    },
+    {
+        "id": "skill_funny_bunny",
+        "name": "Funny Bunny",
+        "type": "ultimate",
+        "target": "single",
+        "cost_mp": 999,
+        "multiplier": 3.5,
+        "condition": "hp_under_30",
+        "min_floor": 4,
+        "description": "【条件: HP30%以下】全MPを消費し、敵単体に3.5倍の防御無視ダメージ。"
+    },
+    {
+        "id": "skill_carnival",
+        "name": "カーニバル",
+        "type": "ultimate",
+        "target": "all",
+        "cost_mp": 999,
+        "multiplier": 2.5,
+        "condition": "hp_under_30",
+        "min_floor": 6,
+        "description": "【条件: HP30%以下】全MPを消費し、敵全体に2.5倍の防御無視ダメージ。"
+    },
+    {
+        "id": "skill_my_foot",
+        "name": "MY FOOT",
+        "type": "ultimate",
+        "target": "single",
+        "cost_mp": 999,
+        "multiplier": 4.5,
         "condition": "hp_under_20",
+        "min_floor": 8,
+        "description": "【条件: HP20%以下】全MPを消費し、敵単体に4.5倍の防御無視ダメージ。"
+    },
+    {
+        "id": "skill_rocknroll_sinners",
+        "name": "ROCK'N'ROLL SINNERS",
+        "type": "ultimate",
+        "target": "all",
+        "cost_mp": 999,
+        "multiplier": 3.3,
+        "condition": "hp_under_20",
+        "min_floor": 10,
+        "description": "【条件: HP20%以下】全MPを消費し、敵全体に3.3倍の防御無視ダメージ。"
+    },
+    {
+        "id": "skill_third_eye",
+        "name": "サード アイ",
+        "type": "ultimate",
+        "target": "single",
+        "cost_mp": 999,
+        "multiplier": 5.5,
+        "condition": "hp_under_10",
+        "min_floor": 13,
+        "description": "【条件: HP10%以下】全MPを消費し、敵単体に5.5倍の防御無視ダメージ。"
+    },
+    {
+        "id": "skill_konoyonohatemade",
+        "name": "この世の果てまで",
+        "type": "ultimate",
+        "target": "all",
+        "cost_mp": 999,
+        "multiplier": 4.1,
+        "condition": "hp_under_10",
+        "min_floor": 15,
+        "description": "【条件: HP10%以下】全MPを消費し、敵全体に4.1倍の防御無視ダメージ。"
+    },
+    {
+        "id": "skill_no_surrender",
+        "name": "No Surrender",
+        "type": "ultimate",
+        "target": "single",
+        "cost_mp": 999,
+        "multiplier": 7,
+        "condition": "hp_under_5",
+        "min_floor": 18,
+        "description": "【条件: HP5%以下】全MPを消費し、敵単体に7.0倍の防御無視ダメージ。"
+    },
+    {
+        "id": "skill_fool_on_the_planet",
+        "name": "Fool on the planet",
+        "type": "ultimate",
+        "target": "all",
+        "cost_mp": 999,
+        "multiplier": 5.5,
+        "condition": "hp_under_5",
         "min_floor": 20,
-        "description": "【条件: HP20%以下】全MPを消費し、敵全体に5.0倍の防御無視ダメージ。"
+        "description": "【条件: HP5%以下】全MPを消費し、敵全体に5.5倍の防御無視ダメージ。"
     }
 ]

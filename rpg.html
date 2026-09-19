@@ -31,13 +31,17 @@
         <nav class="mb-4 is-flex is-justify-content-space-between is-align-items-center">
             <a href="index.html" class="has-text-warning font-weight-bold">← Back to Top</a>
             <div v-if="gameState === 'reward' || gameState === 'battle'">
-                <button class="button is-small is-dark is-outlined" @click="saveGame" :disabled="isSaving">
+                <!-- セーブボタンを is-info (青色) にして目立たせる -->
+                <button class="button is-small is-info has-text-weight-bold" @click="saveGame" :disabled="isSaving"
+                    style="box-shadow: 0 0 10px rgba(50, 152, 219, 0.4);">
                     {{ isSaving ? '保存中...' : '💾 セーブ' }}
                 </button>
             </div>
         </nav>
 
         <div class="container" style="max-width: 500px;">
+            <!-- BGM用非表示プレイヤー -->
+            <div id="battle-bgm-player" style="display: none;"></div>
 
             <!-- 【1. キャラメイク画面】 -->
             <div v-if="gameState === 'charMake'" class="box has-text-centered">
@@ -215,15 +219,23 @@
                         戻る
                     </button>
                     <div class="columns is-mobile is-multiline m-0">
-                        <div class="column is-6 p-1" v-for="skill in availableSkills" :key="skill.id">
+                        <div class="column is-12 p-1" v-for="skill in availableSkills" :key="skill.id">
                             <button class="button is-info is-light is-fullwidth"
-                                style="height: auto; flex-direction: column; align-items: flex-start; padding: 0.5rem;"
+                                style="height: auto; flex-direction: column; align-items: flex-start; padding: 0.75rem;"
                                 @click="selectSkill(skill)">
-                                <strong class="is-size-7">{{ skill.name }}</strong>
-                                <span class="is-size-7 has-text-grey" v-if="skill.cost_mp">MP: {{ skill.cost_mp
-                                    }}</span>
-                                <span class="is-size-7 has-text-danger" v-if="skill.cost_hp_percent">HP: -{{
-                                    skill.cost_hp_percent }}%</span>
+                                <div class="is-flex is-justify-content-space-between is-align-items-center"
+                                    style="width: 100%;">
+                                    <strong class="is-size-6">{{ skill.name }}</strong>
+                                    <div class="has-text-right">
+                                        <span class="is-size-7 has-text-link ml-2" v-if="skill.cost_mp">MP: {{
+                                            skill.cost_mp }}</span>
+                                        <span class="is-size-7 has-text-danger ml-2" v-if="skill.cost_hp_percent">HP:
+                                            -{{ skill.cost_hp_percent }}%</span>
+                                    </div>
+                                </div>
+                                <!-- スキルの効果説明を表示 -->
+                                <p class="is-size-7 has-text-grey-dark mt-1 has-text-left"
+                                    style="white-space: normal; line-height: 1.4;">{{ skill.description }}</p>
                             </button>
                         </div>
                     </div>
@@ -290,6 +302,83 @@
                 </button>
             </div>
 
+            <!-- 【5. ゲームクリア画面（画像生成報酬）】 -->
+            <div v-if="gameState === 'gameclear'" class="box has-text-centered p-5">
+                <h2 class="title is-2 has-text-warning mb-3" style="text-shadow: 0 0 15px #f39c12;">CONGRATULATIONS!
+                </h2>
+                <p class="is-size-5 has-text-white mb-4">見事10階層を突破し、エリカを討伐しました！</p>
+
+                <div class="notification is-dark" style="border: 1px solid #f39c12; text-align: left;">
+                    <h3 class="title is-4 has-text-erika has-text-centered">🎁 クリア特典：エリカの記憶を具現化する</h3>
+                    <p class="is-size-7 mb-4 has-text-centered">
+                        Cloudflare Workers AI (Flux) の力を使って、あなただけのエリカの姿を生成できます。<br>
+                        <strong class="has-text-warning">※生成できるのは2回までです。</strong>
+                    </p>
+
+                    <div v-if="rewardGenCount < 2">
+                        <!-- 【上部】選択されたキーワードが飛んでくるエリア -->
+                        <div class="box mb-4"
+                            style="background: rgba(0,0,0,0.5); min-height: 80px; border: 1px dashed #f39c12;">
+                            <p class="is-size-7 has-text-grey-light mb-2">【組み込まれるプロンプト（クリックで解除）】</p>
+
+                            <!-- transition-group でアニメーションを適用 -->
+                            <transition-group name="tag-fly" tag="div" class="tags">
+                                <span class="tag is-warning is-medium" v-for="tag in selectedTags" :key="tag.label"
+                                    style="cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3);"
+                                    @click="toggleRewardTag(tag.label, tag.prompt)">
+                                    {{ tag.label }}
+                                    <button class="delete is-small ml-2"></button>
+                                </span>
+                            </transition-group>
+
+                            <p v-if="selectedTags.length === 0" class="is-size-7 has-text-grey">下のリストから要素を選んでください。</p>
+                        </div>
+
+                        <!-- 【下部】JSONから読み込んだカテゴリ別タグリスト -->
+                        <div
+                            style="max-height: 300px; overflow-y: auto; padding-right: 10px; border-top: 1px solid #555; padding-top: 15px;">
+                            <div v-for="(prompts, category) in rewardCategories" :key="category" class="mb-4">
+                                <p class="has-text-weight-bold mb-2 has-text-erika">{{ category }}</p>
+                                <div class="tags">
+                                    <a class="tag is-medium" v-for="(prompt, label) in prompts" :key="label"
+                                        :class="isTagSelected(label) ? 'is-dark has-text-grey is-hidden' : 'is-dark is-outlined'"
+                                        @click="toggleRewardTag(label, prompt)" style="cursor: pointer;">
+                                        {{ label }}
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="has-text-centered mt-5">
+                            <button class="button is-warning is-large is-rounded" @click="generateRewardImage"
+                                :disabled="isGeneratingReward || selectedTags.length === 0">
+                                <strong>{{ isGeneratingReward ? '具現化中...' : `画像を生成する (残り ${2 - rewardGenCount} 回)`
+                                    }}</strong>
+                            </button>
+                        </div>
+                        <progress v-if="isGeneratingReward" class="progress is-warning is-small mt-3"
+                            max="100"></progress>
+                    </div>
+                    <div v-else class="has-text-centered py-4">
+                        <p class="has-text-danger has-text-weight-bold">規定の生成回数（2回）に達しました。</p>
+                    </div>
+
+                    <!-- 生成された画像の表示エリア -->
+                    <div class="columns is-multiline mt-5" v-if="rewardImages.length > 0">
+                        <div class="column is-6" v-for="(img, idx) in rewardImages" :key="idx">
+                            <figure class="image is-square">
+                                <img :src="img"
+                                    style="border-radius: 8px; border: 2px solid #f39c12; object-fit: cover;">
+                            </figure>
+                            <a :href="img" target="_blank" class="button is-small is-dark is-fullwidth mt-2">拡大して保存</a>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="button is-dark is-outlined is-rounded mt-5" @click="resetGame">
+                    最初からダイブし直す
+                </button>
+            </div>
         </div>
     </div>
 
@@ -329,6 +418,32 @@
                 });
                 const freeTextInput = ref('');
 
+                let bgmPlayer = null;
+
+                // --- 報酬画像生成関連 ---
+                const rewardGenCount = ref(0);
+                const isGeneratingReward = ref(false);
+                const rewardImages = ref([]);
+                // jsonデータを格納する変数
+                const rewardCategories = ref({});
+                // 選ばれたタグをオブジェクト配列 {label, prompt} で保持する
+                const selectedTags = ref([]);
+                const rewardBasePrompt = "masterpiece, best quality, ultra_detailed, absurdres,very aesthetic,delicate lines,";
+
+                const rewardTags = {
+                    situations: [
+                        { label: '🎸 ライブステージでギターを弾く', prompt: 'playing electric guitar on a live concert stage, neon lights, dynamic pose' },
+                        { label: '☕ カフェで一息', prompt: 'drinking coffee at a cozy retro cafe, relaxing atmosphere, daylight' },
+                        { label: '🌃 サイバーパンク都市', prompt: 'wearing futuristic cyberpunk techwear, standing in a rainy neon city at night' },
+                        { label: '👗 ゴスロリドレス', prompt: 'wearing elegant gothic lolita dress, dark fantasy background, roses' }
+                    ],
+                    styles: [
+                        { label: '🎨 アニメ調（セルルック）', prompt: 'anime style, cel shading, vibrant colors, studio ghibli style' },
+                        { label: '📸 シネマティック（リアル系）', prompt: 'photorealistic, cinematic lighting, 8k resolution, highly detailed' },
+                        { label: '🖌️ 水彩画風', prompt: 'watercolor painting, pastel colors, artistic, soft lighting' }
+                    ]
+                };
+
                 // --- ユーザーIDの管理 (ローカルストレージ) ---
                 const generateUUID = () => {
                     return 'xxxx-xxxx-xxxx-xxxx'.replace(/[x]/g, () => (Math.random() * 16 | 0).toString(16));
@@ -340,6 +455,72 @@
                     localStorage.setItem('erika_rpg_userid', userId);
                 }
 
+                const initAndPlayBGM = () => {
+                    if (thePillowsSongs.value.length === 0) return;
+
+                    // ランダムな曲を選択
+                    const randomSong = thePillowsSongs.value[Math.floor(Math.random() * thePillowsSongs.value.length)];
+                    let targetVideoId = 'xUboS2Fw1-o';
+                    if (randomSong.embed_url) targetVideoId = randomSong.embed_url.split('/').pop();
+                    else if (randomSong.share_url) targetVideoId = randomSong.share_url.split('/').pop();
+
+                    const loadBGMPlayer = () => {
+                        bgmPlayer = new window.YT.Player('battle-bgm-player', {
+                            videoId: targetVideoId,
+                            playerVars: { 'playsinline': 1, 'loop': 1, 'playlist': targetVideoId }, // ループ再生
+                            events: {
+                                'onReady': (event) => { event.target.setVolume(30); event.target.playVideo(); }
+                            }
+                        });
+                    };
+
+                    if (!window.YT) {
+                        const tag = document.createElement('script');
+                        tag.src = "https://www.youtube.com/iframe_api";
+                        const firstScriptTag = document.getElementsByTagName('script')[0];
+                        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+                        window.onYouTubeIframeAPIReady = loadBGMPlayer;
+                    } else {
+                        if (bgmPlayer && typeof bgmPlayer.destroy === 'function') bgmPlayer.destroy();
+                        loadBGMPlayer();
+                    }
+                };
+
+                const stopBGM = () => {
+                    if (bgmPlayer && typeof bgmPlayer.stopVideo === 'function') {
+                        bgmPlayer.stopVideo();
+                    }
+                };
+
+                // 画像生成実行
+                const generateRewardImage = async () => {
+                    if (rewardGenCount.value >= 2) return;
+                    isGeneratingReward.value = true;
+
+                    // 選択されたオブジェクト配列から prompt 文字列だけを抽出して結合
+                    const promptsOnly = selectedTags.value.map(t => t.prompt);
+                    const finalPrompt = [rewardBasePrompt, ...promptsOnly].join(', ');
+
+                    console.log("報酬画像生成プロンプト:", finalPrompt);
+
+                    try {
+                        const res = await fetch('/api/generate-avatar', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ prompt: finalPrompt })
+                        });
+                        if (!res.ok) throw new Error("画像生成に失敗しました");
+                        const data = await res.json();
+
+                        rewardImages.value.unshift(data.avatarUrl);
+                        rewardGenCount.value++;
+                    } catch (e) {
+                        console.error(e);
+                        alert("画像の生成に失敗しました。時間をおいて再試行してください。");
+                    } finally {
+                        isGeneratingReward.value = false;
+                    }
+                };
                 // --- プレイヤー状態 ---
                 const player = ref({
                     name: 'あなた',
@@ -387,6 +568,16 @@
                         thePillowsSongs.value = [{ youtube_id: '_F_BvP1tAXY' }];
                     }
 
+                    // rpgclear.jsonの読み込み
+                    try {
+                        const res = await fetch('assets/rpgclear.json');
+                        if (res.ok) {
+                            rewardCategories.value = await res.json();
+                        }
+                    } catch (e) {
+                        console.error("rpgclear.json load failed", e);
+                    }
+
                     // キャラメイク質問取得
                     try {
                         const res = await fetch('assets/charmake.json');
@@ -398,7 +589,23 @@
                             {
                                 text: "エリカに立ち向かうための「パート（プレイスタイル）」を選んでください。",
                                 type: "class",
-                                options: [{ label: "ボーカル＆ギター", class_id: "Sawa", stats: { hp: 100, mp: 20, str: 12, mag: 12, def: 10, spd: 10, luk: 10 } }]
+                                options: [
+                                    {
+                                        label: "ボーカル＆ギター", class_id: "Sawa",
+                                        stats: { hp: 120, maxHp: 120, mp: 30, maxMp: 30, str: 16, mag: 10, def: 12, spd: 12, luk: 15 },
+                                        initial_skills: ['skill_runners_high', 'skill_i_think_i_can']
+                                    },
+                                    {
+                                        label: "リードギター", class_id: "Lead",
+                                        stats: { hp: 80, maxHp: 80, mp: 60, maxMp: 60, str: 8, mag: 22, def: 8, spd: 16, luk: 10 },
+                                        initial_skills: ['skill_lemon_drops', 'skill_perfect_idea']
+                                    },
+                                    {
+                                        label: "ベース", class_id: "Bass",
+                                        stats: { hp: 180, maxHp: 180, mp: 20, maxMp: 20, str: 12, mag: 5, def: 22, spd: 8, luk: 5 },
+                                        initial_skills: ['skill_primer_beat', 'skill_boys_be_locksmith']
+                                    }
+                                ]
                             }
                         ];
                     }
@@ -430,10 +637,13 @@
                     isSaving.value = true;
                     try {
                         const saveData = {
-                            userId: userId, // 固定文字列から取得した一意のIDに変更
+                            userId: userId,
                             data: {
                                 player: player.value,
-                                battleState: { floor: battleState.value.floor }
+                                battleState: {
+                                    floor: battleState.value.floor,
+                                    enemyCount: battleState.value.enemyCount // 【追加】現在のWAVE数を保存
+                                }
                             }
                         };
                         const res = await fetch('/api/save', {
@@ -453,7 +663,6 @@
                 const loadGame = async () => {
                     isLoading.value = true;
                     try {
-                        // パラメータに一意のIDを渡す
                         const res = await fetch(`/api/load?userId=${userId}`);
                         if (!res.ok) {
                             if (res.status === 404) throw new Error("セーブデータが見つかりません。");
@@ -463,12 +672,15 @@
 
                         player.value = data.player;
                         battleState.value.floor = data.battleState.floor;
-                        battleState.value.enemyCount = 1;
+                        // 【追加】WAVE数を復元（古いセーブデータ互換のために || 1 を設定）
+                        battleState.value.enemyCount = data.battleState.enemyCount || 1;
 
                         await fetchGallery();
                         gameState.value = 'battle';
                         startNextWave();
-                        addLog(`第 ${battleState.value.floor} 階層から探索を再開した！`, 'system');
+                        addLog(`第 ${battleState.value.floor} 階層 (WAVE ${battleState.value.enemyCount}) から探索を再開した！`, 'system');
+
+                        initAndPlayBGM();
                     } catch (e) {
                         console.error(e);
                         alert(e.message);
@@ -491,6 +703,21 @@
                     currentQuestionIndex.value++;
                 };
 
+                // タグが選択されているか判定
+                const isTagSelected = (label) => {
+                    return selectedTags.value.some(t => t.label === label);
+                };
+
+                // タグの選択／解除（クリックで上の箱と下のリストを行き来する）
+                const toggleRewardTag = (label, prompt) => {
+                    const index = selectedTags.value.findIndex(t => t.label === label);
+                    if (index > -1) {
+                        selectedTags.value.splice(index, 1); // 削除（下に戻る）
+                    } else {
+                        selectedTags.value.push({ label, prompt }); // 追加（上に飛ぶ）
+                    }
+                };
+
                 const submitCharMake = async () => {
                     isGenerating.value = true;
                     try {
@@ -507,6 +734,7 @@
                         Object.assign(player.value, finalStats);
                         player.value.hp = player.value.maxHp;
                         player.value.mp = player.value.maxMp;
+                        player.value.skills = charMakeSelections.value.classStats.initial_skills || [];
 
                         const promptFragments = charMakeSelections.value.promptFragments.join(', ');
                         const finalPrompt = `A portrait of a RPG character, ${promptFragments}, ${freeTextInput.value}, masterpiece, best quality`.replace(/,\s*,/g, ',');
@@ -532,6 +760,7 @@
                         gameState.value = 'battle';
                         startNextWave();
                         addLog(`「${player.value.className}」の姿で異世界にダイブした！`, 'system');
+                        initAndPlayBGM();
 
                     } catch (e) {
                         console.error(e);
@@ -564,12 +793,17 @@
                 const generateEnemy = (floor, isBoss) => {
                     const imgData = enemyImagesPool.value.pop() || { url: 'assets/images/gallery.jpg', name: '深淵のデッドロック エリカ' };
 
-                    let baseHp = 50 + (floor - 1) * 25;
-                    let baseStr = 8 + (floor - 1) * 3;
-                    let baseDef = 4 + (floor - 1) * 2;
-                    let baseSpd = 6 + (floor - 1) * 2;
+                    // --- generateEnemy 内のステータス計算部分を以下に書き換え ---
+                    let baseHp = 60 + (floor - 1) * 35;
+                    let baseStr = 10 + (floor - 1) * 4;
+                    let baseDef = 5 + (floor - 1) * 3;
+                    let baseSpd = 8 + (floor - 1) * 3;
 
-                    if (isBoss) baseHp = Math.floor(baseHp * 1.5);
+                    if (isBoss) {
+                        baseHp = Math.floor(baseHp * 2.0); // ボスはHP2倍
+                        baseStr = Math.floor(baseStr * 1.2);
+                        baseDef = Math.floor(baseDef * 1.2);
+                    }
 
                     const traits = [
                         { id: 'physical_target', name: '物理の標的', mult: { hp: 1.2, str: 1.0, def: 0.2, spd: 1.0 } },
@@ -623,6 +857,9 @@
                     gameState.value = 'battle';
                     startNextWave();
                     addLog(`第 ${battleState.value.floor} 階層の最初からやり直す！`, 'system');
+
+                    // 【追加】リトライ時にBGMを再生
+                    initAndPlayBGM();
                 };
 
                 // --- 戦闘ロジック ---
@@ -687,13 +924,17 @@
                             return;
                         }
 
-                        // スキル攻撃
+                        // --- スキル攻撃 ---
                         const isMagical = skill.type === 'attack_magic' || skill.type === 'ultimate';
                         const atkStat = isMagical ? getStat(attacker, 'mag') : getStat(attacker, 'str');
-                        const defStat = getStat(defender, 'def');
+
+                        // 究極スキル(ultimate)は防御無視
+                        const defStat = skill.type === 'ultimate' ? 0 : getStat(defender, 'def');
                         const mult = skill.multiplier || 1.0;
 
-                        let dmg = (atkStat * mult) - (defStat * 0.5);
+                        // 【修正】基本ダメージ（攻撃力 - 防御力/2）を出してから、スキルの倍率をかける
+                        let baseDmg = atkStat - (defStat * 0.5);
+                        let dmg = Math.max(1, baseDmg) * mult;
                         const finalDamage = Math.max(1, Math.floor(dmg * (0.95 + Math.random() * 0.1)));
                         addLog(`${defender.name || defender.enemyName} に ${finalDamage} のダメージ！`, 'damage');
                         defender.hp = Math.max(0, defender.hp - finalDamage);
@@ -756,18 +997,31 @@
 
                             if (isAllEnemiesDead) {
                                 addLog(`敵を撃破した！`, 'system');
-                                if (battleState.value.enemyCount < 5) {
+
+                                // 10階層のボスを倒したらゲームクリア
+                                if (battleState.value.floor >= 10 && battleState.value.enemyCount >= 5) {
+                                    addLog(`【討伐完了】全てのエリカを鎮めた...！`, 'system');
+                                    setTimeout(() => { stopBGM(); }, 3000);
+                                    setTimeout(() => { gameState.value = 'gameclear'; isProcessing.value = false; }, 3000);
+                                }
+                                // 通常の進行
+                                else if (battleState.value.enemyCount < 5) {
                                     battleState.value.enemyCount++;
                                     setTimeout(() => { startNextWave(); isProcessing.value = false; }, 1500);
                                 } else {
                                     addLog(`階層クリア！！`, 'system');
                                     setTimeout(() => { enterRewardRoom(); isProcessing.value = false; }, 1500);
                                 }
-                            } else if (player.value.hp <= 0) {
+                            }
+                            // 【修正】プレイヤーが倒れた場合（ゲームオーバー）の処理を復活
+                            else if (player.value.hp <= 0) {
                                 addLog(`力尽きた...`, 'system');
+                                stopBGM(); // ゲームオーバー時にもBGMを止める
                                 gameState.value = 'gameover';
                                 isProcessing.value = false;
-                            } else {
+                            }
+                            // 【修正】誰も倒れていない場合は次のターンへ
+                            else {
                                 battleState.value.turn++;
                                 isProcessing.value = false;
                             }
@@ -777,6 +1031,7 @@
 
                 // --- 報酬部屋・YouTube連動 ---
                 const enterRewardRoom = () => {
+                    stopBGM();
                     gameState.value = 'reward';
                     watchTime.value = 0;
                     hasGot30sBonus.value = false;
@@ -886,6 +1141,12 @@
                     battleState.value.enemyCount = 1;
                     gameState.value = 'battle';
                     startNextWave();
+                    initAndPlayBGM();
+                };
+
+                const resetGame = () => {
+                    localStorage.removeItem('erika_rpg_save_' + userId); // セーブを消去
+                    location.reload(); // ページをリロードして最初から
                 };
 
                 return {
@@ -895,7 +1156,10 @@
                     battleState, player, battleLogs, currentEnemies, targetIndex,
                     statList, watchTime, statPoints,
                     executeAction, allocateStat,
-                    goToNextFloor, restartFloor, saveGame, loadGame
+                    goToNextFloor, restartFloor, saveGame, loadGame, resetGame, rewardGenCount,
+                    isGeneratingReward, rewardImages, rewardTags, selectedRewardTags,
+                    toggleRewardTag, generateRewardImage,
+                    rewardCategories, selectedTags, isTagSelected
                 };
             }
         }).mount('#game-app');
