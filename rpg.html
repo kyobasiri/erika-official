@@ -85,8 +85,41 @@
                                     v-model="player.name" placeholder="名前を入力（未入力なら「あなた」）">
                             </div>
                         </div>
-                        <p class="is-size-5 mb-4 has-text-weight-bold">最後に、アバターに追加したい要素を自由に入力してください。</p>
-                        <p class="is-size-7 has-text-grey-light mb-3">例：ギターを持っている、ヘッドフォンをしている、猫耳、など</p>
+
+                        <p class="is-size-5 mb-4 has-text-weight-bold">アバターの特徴を選択してください（任意）</p>
+
+                        <!-- 選択されたキーワードが飛んでくるエリア -->
+                        <div class="box mb-4"
+                            style="background: rgba(0,0,0,0.5); min-height: 80px; border: 1px dashed #3298db;">
+                            <p class="is-size-7 has-text-grey-light mb-2">【組み込まれるプロンプト（クリックで解除）】</p>
+                            <transition-group name="tag-fly" tag="div" class="tags">
+                                <span class="tag is-info is-medium" v-for="tag in charMakeTags" :key="tag.label"
+                                    style="cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3);"
+                                    @click="toggleCharMakeTag(tag.label, tag.prompt)">
+                                    {{ tag.label }}
+                                    <button class="delete is-small ml-2"></button>
+                                </span>
+                            </transition-group>
+                            <p v-if="charMakeTags.length === 0" class="is-size-7 has-text-grey">下のリストから要素を選んでください。</p>
+                        </div>
+
+                        <!-- JSONから読み込んだ特定のカテゴリ別タグリスト -->
+                        <div
+                            style="max-height: 250px; overflow-y: auto; padding-right: 10px; border-top: 1px solid #555; padding-top: 15px; margin-bottom: 1.5rem;">
+                            <div v-for="(prompts, category) in charMakeCategories" :key="category" class="mb-4">
+                                <p class="has-text-weight-bold mb-2 has-text-info">{{ category }}</p>
+                                <div class="tags">
+                                    <a class="tag is-medium" v-for="(prompt, label) in prompts" :key="label"
+                                        :class="isCharMakeTagSelected(label) ? 'is-dark has-text-grey is-hidden' : 'is-dark is-outlined'"
+                                        @click="toggleCharMakeTag(label, prompt)" style="cursor: pointer;">
+                                        {{ label }}
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <p class="is-size-6 mb-2 has-text-weight-bold">最後に、追加したい要素を自由に入力してください。</p>
+                        <p class="is-size-7 has-text-grey-light mb-3">例：ギターを持っている、ヘッドフォンをしている、など</p>
                         <textarea class="textarea has-background-dark has-text-white mb-4" v-model="freeTextInput"
                             placeholder="自由入力（任意）"></textarea>
 
@@ -418,6 +451,18 @@
                 });
                 const freeTextInput = ref('');
 
+                // ★追加: アバター生成プロンプト用
+                const charMakeTags = ref([]);
+                const isCharMakeTagSelected = (label) => charMakeTags.value.some(t => t.label === label);
+                const toggleCharMakeTag = (label, prompt) => {
+                    const index = charMakeTags.value.findIndex(t => t.label === label);
+                    if (index > -1) {
+                        charMakeTags.value.splice(index, 1);
+                    } else {
+                        charMakeTags.value.push({ label, prompt });
+                    }
+                };
+
                 let bgmPlayer = null;
 
                 // --- 報酬画像生成関連 ---
@@ -485,6 +530,17 @@
                         loadBGMPlayer();
                     }
                 };
+
+                const charMakeCategories = computed(() => {
+                    const allowedKeys = ['顔・容姿', '髪型', '髪色', '瞳・眼鏡'];
+                    let filtered = {};
+                    for (const key of allowedKeys) {
+                        if (rewardCategories.value[key]) {
+                            filtered[key] = rewardCategories.value[key];
+                        }
+                    }
+                    return filtered;
+                });
 
                 const stopBGM = () => {
                     if (bgmPlayer && typeof bgmPlayer.stopVideo === 'function') {
@@ -694,7 +750,11 @@
                 const selectOption = (option) => {
                     const qType = charmakeQuestions.value[currentQuestionIndex.value].type;
                     if (qType === 'class') {
-                        charMakeSelections.value.classStats = option.stats;
+                        // ★修正: initial_skills を直接 classStats に含めるように修正
+                        charMakeSelections.value.classStats = {
+                            ...option.stats,
+                            initial_skills: option.initial_skills
+                        };
                         player.value.className = option.label;
                     } else if (qType === 'bonus') {
                         charMakeSelections.value.bonusStats.push(option.stats_bonus);
@@ -735,10 +795,21 @@
                         Object.assign(player.value, finalStats);
                         player.value.hp = player.value.maxHp;
                         player.value.mp = player.value.maxMp;
+
+                        // ★修正: 初期スキルを確実にセット
                         player.value.skills = charMakeSelections.value.classStats.initial_skills || [];
 
+                        // ★修正: プロンプトの文字結合を配列で行い、構文エラーを防ぐ
                         const promptFragments = charMakeSelections.value.promptFragments.join(', ');
-                        const finalPrompt = `A portrait of a RPG character, ${promptFragments}, ${freeTextInput.value}, masterpiece, best quality`.replace(/,\s*,/g, ',');
+                        const tagPrompts = charMakeTags.value.map(t => t.prompt).join(', ');
+
+                        const finalPromptArray = ["A portrait of a RPG character"];
+                        if (promptFragments) finalPromptArray.push(promptFragments);
+                        if (tagPrompts) finalPromptArray.push(tagPrompts);
+                        if (freeTextInput.value) finalPromptArray.push(freeTextInput.value);
+                        finalPromptArray.push("masterpiece, best quality");
+
+                        const finalPrompt = finalPromptArray.join(', ');
                         console.log("画像生成プロンプト:", finalPrompt);
 
                         // Worker API へリクエスト
@@ -748,7 +819,6 @@
                             body: JSON.stringify({ prompt: finalPrompt })
                         });
                         if (!res.ok) {
-                            // サーバーから返ってきたエラーのJSONを読み取ってコンソールに出す
                             const errData = await res.json().catch(() => ({}));
                             console.error("サーバーエラー詳細:", errData);
                             throw new Error(`画像生成APIエラー: ${errData.error || res.status}`);
@@ -1160,7 +1230,8 @@
                     goToNextFloor, restartFloor, saveGame, loadGame, resetGame, rewardGenCount,
                     isGeneratingReward, rewardImages, rewardTags,
                     toggleRewardTag, generateRewardImage,
-                    rewardCategories, selectedTags, isTagSelected
+                    rewardCategories, selectedTags, isTagSelected,
+                    charMakeTags, isCharMakeTagSelected, toggleCharMakeTag, charMakeCategories
                 };
             }
         }).mount('#game-app');
