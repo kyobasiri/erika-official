@@ -893,7 +893,7 @@
                     }
                 };
 
-                const generateEnemy = (floor, isBoss) => {
+                const generateEnemy = (floor, type = 'normal') => {
                     const imgData = enemyImagesPool.value.pop() || { url: 'assets/images/gallery.jpg', name: '深淵のデッドロック エリカ' };
 
                     let baseHp = 60 + (floor - 1) * 35;
@@ -906,10 +906,9 @@
                         baseStr = Math.floor(baseStr * 1.2);
                         baseDef = Math.floor(baseDef * 0.9);
                     } else if (type === 'midboss') {
-                        baseHp = Math.floor(baseHp * 0.6);   // 中ボスはHP0.6倍
-                        baseStr = Math.floor(baseStr * 0.75);// 中ボスは攻撃0.75倍
-                        baseDef = Math.floor(baseDef * 0.8); // 中ボスは防御0.8倍
-                        // 素早さは1倍そのまま
+                        baseHp = Math.floor(baseHp * 0.6);
+                        baseStr = Math.floor(baseStr * 0.75);
+                        baseDef = Math.floor(baseDef * 0.8);
                     }
 
                     const traits = [
@@ -943,29 +942,26 @@
                     availableSkills.value = allSkills.value.filter(s => player.value.skills.includes(s.id));
 
                     if (battleState.value.enemyCount === 5) {
-                        // 5WAVE目（ボス）
                         currentEnemies.value = [
                             generateEnemy(battleState.value.floor, 'boss'),
                             generateEnemy(battleState.value.floor, 'boss')
                         ];
                         targetIndex.value = 0;
                         addLog(`強大な反応... 2体のボスがあらわれた！！`, 'system');
-                        playSE('boss_appear');
+                        if (typeof playSE === 'function') playSE('boss_appear');
                     } else if (battleState.value.enemyCount === 3) {
-                        // 3WAVE目（中ボス）
                         currentEnemies.value = [
                             generateEnemy(battleState.value.floor, 'midboss'),
                             generateEnemy(battleState.value.floor, 'midboss')
                         ];
                         targetIndex.value = 0;
                         addLog(`周囲の空気が変わった... 中ボスが2体あらわれた！`, 'system');
-                        playSE('enemy_appear');
+                        if (typeof playSE === 'function') playSE('enemy_appear');
                     } else {
-                        // 1, 2, 4WAVE目（通常）
                         currentEnemies.value = [generateEnemy(battleState.value.floor, 'normal')];
                         targetIndex.value = 0;
                         addLog(`${currentEnemies.value[0].enemyName} があらわれた！`, 'system');
-                        playSE('enemy_appear');
+                        if (typeof playSE === 'function') playSE('enemy_appear');
                     }
                 };
 
