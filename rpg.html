@@ -16,12 +16,6 @@
     <meta property="og:image" content="https://erika.erikakataru.com/assets/images/ogp.jpg">
     <meta property="og:site_name" content="Erika Project">
 
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:site" content="@erikakataru">
-    <meta name="twitter:title" content="Erika Official | AI Art & Music">
-    <meta name="twitter:description" content="AI Artist & Album Reviewer ERIKA. エリカが好き勝手に語るチャンネルの公式サイト">
-    <meta name="twitter:image" content="https://erika.erikakataru.com/assets/images/ogp.jpg">
-
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9959522790700122"
         crossorigin="anonymous"></script>
 </head>
@@ -31,7 +25,6 @@
         <nav class="mb-4 is-flex is-justify-content-space-between is-align-items-center">
             <a href="index.html" class="has-text-warning font-weight-bold">← Back to Top</a>
             <div v-if="gameState === 'reward' || gameState === 'battle'">
-                <!-- セーブボタンを is-info (青色) にして目立たせる -->
                 <button class="button is-small is-info has-text-weight-bold" @click="saveGame" :disabled="isSaving"
                     style="box-shadow: 0 0 10px rgba(50, 152, 219, 0.4);">
                     {{ isSaving ? '保存中...' : '💾 セーブ' }}
@@ -40,7 +33,6 @@
         </nav>
 
         <div class="container" style="max-width: 500px;">
-            <!-- BGM用非表示プレイヤー -->
             <div id="battle-bgm-player" style="display: none;"></div>
 
             <!-- 【1. キャラメイク画面】 -->
@@ -48,7 +40,6 @@
                 <h2 class="title is-4 has-text-white mb-5">ダイブ設定（キャラクター作成）</h2>
 
                 <div v-if="!isGenerating">
-                    <!-- ロードボタン -->
                     <div v-if="currentQuestionIndex === 0" class="mb-5">
                         <button class="button is-info is-outlined is-fullwidth" @click="loadGame" :disabled="isLoading">
                             <strong>{{ isLoading ? 'ロード中...' : '💾 続きから遊ぶ (ロード)' }}</strong>
@@ -56,7 +47,6 @@
                         <hr class="has-background-grey-dark" style="margin: 1.5rem 0;">
                     </div>
 
-                    <!-- 質問ウィザード -->
                     <div v-if="currentQuestionIndex < charmakeQuestions.length">
                         <p class="is-size-5 mb-4 has-text-weight-bold">{{ charmakeQuestions[currentQuestionIndex].text
                             }}</p>
@@ -76,7 +66,6 @@
                         </div>
                     </div>
 
-                    <!-- 自由入力（最後の質問） -->
                     <div v-else>
                         <div class="field mb-5">
                             <label class="label has-text-white is-size-5">あなたの名前を教えてください。</label>
@@ -88,7 +77,6 @@
 
                         <p class="is-size-5 mb-4 has-text-weight-bold">アバターの特徴を選択してください（任意）</p>
 
-                        <!-- 選択されたキーワードが飛んでくるエリア -->
                         <div class="box mb-4"
                             style="background: rgba(0,0,0,0.5); min-height: 80px; border: 1px dashed #3298db;">
                             <p class="is-size-7 has-text-grey-light mb-2">【組み込まれるプロンプト（クリックで解除）】</p>
@@ -103,7 +91,6 @@
                             <p v-if="charMakeTags.length === 0" class="is-size-7 has-text-grey">下のリストから要素を選んでください。</p>
                         </div>
 
-                        <!-- JSONから読み込んだ特定のカテゴリ別タグリスト -->
                         <div
                             style="max-height: 250px; overflow-y: auto; padding-right: 10px; border-top: 1px solid #555; padding-top: 15px; margin-bottom: 1.5rem;">
                             <div v-for="(prompts, category) in charMakeCategories" :key="category" class="mb-4">
@@ -119,7 +106,6 @@
                         </div>
 
                         <p class="is-size-6 mb-2 has-text-weight-bold">最後に、追加したい要素を自由に入力してください。</p>
-                        <p class="is-size-7 has-text-grey-light mb-3">例：ギターを持っている、ヘッドフォンをしている、など</p>
                         <textarea class="textarea has-background-dark has-text-white mb-4" v-model="freeTextInput"
                             placeholder="自由入力（任意）"></textarea>
 
@@ -129,48 +115,41 @@
                     </div>
                 </div>
 
-                <!-- 生成中ローディング -->
                 <div v-else class="py-6">
                     <p class="is-size-5 has-text-warning mb-4">アバターを生成中...</p>
-                    <p class="is-size-7 has-text-grey-light mb-2">Cloudflare Workers AI (Flux) と通信しています</p>
                     <progress class="progress is-warning is-small" max="100"></progress>
                 </div>
             </div>
 
             <!-- 【2. 戦闘画面】 -->
             <div v-if="gameState === 'battle'">
-
-                <!-- 敵エリア -->
                 <div class="box has-text-centered mb-3">
                     <p class="is-size-7 has-text-grey-light mb-2">
                         第 {{ battleState.floor }} 階層 -
-                        <span v-if="battleState.enemyCount <= 4">WAVE {{ battleState.enemyCount }} / 5</span>
-                        <span v-else class="has-text-danger has-text-weight-bold">BOSS BATTLE</span>
+                        <span v-if="battleState.enemyCount === 3" class="has-text-info has-text-weight-bold">WAVE 3 (MID
+                            BOSS)</span>
+                        <span v-else-if="battleState.enemyCount === 5" class="has-text-danger has-text-weight-bold">WAVE
+                            5 (BOSS)</span>
+                        <span v-else>WAVE {{ battleState.enemyCount }} / 5</span>
                     </p>
 
                     <div class="columns is-mobile is-centered m-0">
                         <div class="column is-half" v-for="(enemy, index) in currentEnemies" :key="enemy.id"
                             v-show="!enemy.isDead" @click="targetIndex = index" style="cursor: pointer;">
-
                             <div :style="targetIndex === index ? 'box-shadow: 0 0 15px #f39c12; border-radius: 8px;' : ''"
                                 class="p-1" style="position: relative;">
-
-                                <!-- ポップアップ表示用 -->
                                 <div v-for="popup in enemy.popups" :key="popup.id" class="popup-text"
                                     :class="{'popup-heal': popup.type === 'heal'}">
                                     {{ popup.text }}
                                 </div>
-
                                 <p class="has-text-danger has-text-weight-bold is-size-7 mb-1"
                                     :style="{ opacity: Math.min(battleState.turn * 0.2, 1), transition: 'opacity 0.5s' }">
                                     【特性】{{ enemy.traitName }}
                                 </p>
-
                                 <figure class="image is-square mx-auto mb-2" style="max-width: 180px;">
                                     <img :src="enemy.imageUrl" :class="enemy.animClass"
                                         style="border-radius: 8px; border: 2px solid #555;">
                                 </figure>
-
                                 <p class="has-text-white is-size-7 has-text-weight-bold mb-1">{{ enemy.enemyName }}</p>
                                 <progress class="progress is-danger is-small m-0" :value="enemy.hp" :max="enemy.maxHp"
                                     style="height: 6px;"></progress>
@@ -179,7 +158,6 @@
                     </div>
                 </div>
 
-                <!-- 戦闘ログ -->
                 <div class="box mb-3 p-3 has-background-black-ter" style="border: 1px solid #555;">
                     <p class="is-size-7 has-text-grey-light mb-2"
                         style="border-bottom: 1px solid #333; padding-bottom: 4px;">📝 戦況ログ</p>
@@ -187,23 +165,20 @@
                         style="max-height: 180px; overflow-y: auto; scroll-behavior: smooth;">
                         <p v-for="(log, index) in battleLogs" :key="index" class="log-text" :class="[log.colorClass]"
                             :style="index === battleLogs.length - 1 
-                                ? 'font-size: 1.15rem; font-weight: bold; border-left: 4px solid #f39c12; padding-left: 10px; margin-top: 8px; margin-bottom: 8px; background: rgba(243, 156, 18, 0.15); padding-top: 4px; padding-bottom: 4px; animation: fadeIn 0.3s ease-out;' 
+                                ? 'font-size: 1.15rem; font-weight: bold; border-left: 4px solid #f39c12; padding-left: 10px; margin-top: 8px; margin-bottom: 8px; background: rgba(243, 156, 18, 0.15); padding-top: 4px; padding-bottom: 4px;' 
                                 : 'font-size: 0.75rem; margin-bottom: 2px; opacity: 0.7;'">
                             {{ log.text }}
                         </p>
                     </div>
                 </div>
 
-                <!-- プレイヤーエリア -->
                 <div class="box mb-3 p-3">
                     <div class="columns is-mobile is-vcentered m-0">
                         <div class="column is-narrow p-1" style="position: relative;">
-                            <!-- ポップアップ表示用 -->
                             <div v-for="popup in player.popups" :key="popup.id" class="popup-text"
                                 :class="{'popup-heal': popup.type === 'heal'}" style="top: -20px;">
                                 {{ popup.text }}
                             </div>
-
                             <figure class="image is-96x96">
                                 <img :src="player.avatarUrl" :class="player.animClass" class="is-rounded"
                                     style="border: 2px solid #f39c12; object-fit: cover; height: 100%; width: 100%;">
@@ -217,7 +192,6 @@
                             </div>
                             <progress class="progress is-success is-small mb-2" :value="player.hp" :max="player.maxHp"
                                 style="height: 6px;"></progress>
-
                             <div class="is-flex is-justify-content-space-between mb-1">
                                 <span class="has-text-info is-size-7 has-text-weight-bold">MP</span>
                                 <span class="has-text-info is-size-7">{{ player.mp }} / {{ player.maxMp }}</span>
@@ -228,7 +202,6 @@
                     </div>
                 </div>
 
-                <!-- コマンドエリア -->
                 <div class="command-area m-0" v-if="!showSkillMenu">
                     <div class="columns is-mobile is-multiline m-0">
                         <div class="column is-6 p-1">
@@ -252,12 +225,9 @@
                     </div>
                 </div>
 
-                <!-- スキル選択メニュー -->
                 <div class="skill-area m-0" v-if="showSkillMenu">
                     <button class="button is-dark is-outlined is-fullwidth is-small mb-2"
-                        @click="showSkillMenu = false">
-                        戻る
-                    </button>
+                        @click="showSkillMenu = false">戻る</button>
                     <div class="columns is-mobile is-multiline m-0">
                         <div class="column is-12 p-1" v-for="skill in availableSkills" :key="skill.id">
                             <button class="button is-info is-light is-fullwidth"
@@ -273,7 +243,6 @@
                                             -{{ skill.cost_hp_percent }}%</span>
                                     </div>
                                 </div>
-                                <!-- スキルの効果説明を表示 -->
                                 <p class="is-size-7 has-text-grey-dark mt-1 has-text-left"
                                     style="white-space: normal; line-height: 1.4;">{{ skill.description }}</p>
                             </button>
@@ -284,47 +253,40 @@
 
             <!-- 【3. 報酬・セーフエリア画面】 -->
             <div v-if="gameState === 'reward'" class="box has-text-centered mb-5">
-                <h2 class="title is-4 has-text-warning mb-2" style="text-shadow: 0 0 10px rgba(243, 156, 18, 0.5);">
-                    第 {{ battleState.floor - 1 }} 階層 クリア！</h2>
+                <h2 class="title is-4 has-text-warning mb-2" style="text-shadow: 0 0 10px rgba(243, 156, 18, 0.5);">第 {{
+                    battleState.floor - 1 }} 階層 クリア！</h2>
                 <p class="is-size-7 mb-4">音楽を聴きながら傷を癒やし、能力を強化してください。</p>
 
-                <!-- YouTube プレーヤー -->
                 <div class="video-container mb-4"
                     style="position: relative; padding-bottom: 56.25%; height: 0; border-radius: 8px; overflow: hidden; border: 1px solid #555;">
                     <div id="youtube-player" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
                     </div>
                 </div>
 
-                <!-- 視聴ボーナスゲージ -->
                 <div class="box mb-5 p-4"
                     style="background: rgba(243, 156, 18, 0.1); border: 2px solid #f39c12; box-shadow: 0 0 15px rgba(243, 156, 18, 0.3);">
                     <p class="has-text-weight-bold has-text-warning is-size-4 mb-3">🎵 視聴ボーナス: {{ watchTime }} 秒</p>
                     <progress class="progress is-warning is-medium mb-4" :value="watchTime" max="60"></progress>
-
                     <div v-if="watchTime < 30" class="notification is-dark p-4" style="border: 1px solid #3498db;">
                         <p class="is-size-5 has-text-info has-text-weight-bold">
-                            ▶ あと <span class="is-size-2 has-text-white">{{ 30 - watchTime }}</span> 秒で<br>
-                            「新たな特技 ＋ ステータス 8pt」獲得！
+                            ▶ あと <span class="is-size-2 has-text-white">{{ 30 - watchTime }}</span> 秒で<br>「新たな特技 ＋ ステータス
+                            8pt」獲得！
                         </p>
                     </div>
                     <div v-else-if="watchTime < 60" class="notification is-dark p-4" style="border: 1px solid #e74c3c;">
                         <p class="is-size-5 has-text-danger has-text-weight-bold">
-                            ▶ あと <span class="is-size-2 has-text-white">{{ 60 - watchTime }}</span> 秒で<br>
-                            「特大ボーナス ＋ ステータス 15pt」獲得！
+                            ▶ あと <span class="is-size-2 has-text-white">{{ 60 - watchTime }}</span> 秒で<br>「特大ボーナス ＋
+                            ステータス 15pt」獲得！
                         </p>
                     </div>
                     <div v-else class="notification is-success p-4">
-                        <p class="is-size-4 has-text-white has-text-weight-bold">
-                            🎉 最大ボーナス獲得済み！ 🎉
-                        </p>
+                        <p class="is-size-4 has-text-white has-text-weight-bold">🎉 最大ボーナス獲得済み！ 🎉</p>
                     </div>
                 </div>
 
-                <!-- ステータス割り振り -->
                 <div class="box p-3 mb-4" style="background: #1e1e2e;">
                     <p class="has-text-white mb-2">残りポイント: <span class="has-text-warning is-size-4">{{ statPoints
                             }}</span></p>
-
                     <div class="columns is-mobile is-multiline m-0">
                         <div class="column is-6 p-1" v-for="stat in statList" :key="stat.key">
                             <div class="is-flex is-justify-content-space-between is-align-items-center p-2"
@@ -356,7 +318,7 @@
                 </button>
             </div>
 
-            <!-- 【5. ゲームクリア画面（画像生成報酬）】 -->
+            <!-- 【5. ゲームクリア画面】 -->
             <div v-if="gameState === 'gameclear'" class="box has-text-centered p-5">
                 <h2 class="title is-2 has-text-warning mb-3" style="text-shadow: 0 0 15px #f39c12;">CONGRATULATIONS!
                 </h2>
@@ -370,12 +332,9 @@
                     </p>
 
                     <div v-if="rewardGenCount < 2">
-                        <!-- 【上部】選択されたキーワードが飛んでくるエリア -->
                         <div class="box mb-4"
                             style="background: rgba(0,0,0,0.5); min-height: 80px; border: 1px dashed #f39c12;">
                             <p class="is-size-7 has-text-grey-light mb-2">【組み込まれるプロンプト（クリックで解除）】</p>
-
-                            <!-- transition-group でアニメーションを適用 -->
                             <transition-group name="tag-fly" tag="div" class="tags">
                                 <span class="tag is-warning is-medium" v-for="tag in selectedTags" :key="tag.label"
                                     style="cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3);"
@@ -384,11 +343,9 @@
                                     <button class="delete is-small ml-2"></button>
                                 </span>
                             </transition-group>
-
                             <p v-if="selectedTags.length === 0" class="is-size-7 has-text-grey">下のリストから要素を選んでください。</p>
                         </div>
 
-                        <!-- 【下部】JSONから読み込んだカテゴリ別タグリスト -->
                         <div
                             style="max-height: 300px; overflow-y: auto; padding-right: 10px; border-top: 1px solid #555; padding-top: 15px;">
                             <div v-for="(prompts, category) in rewardCategories" :key="category" class="mb-4">
@@ -417,7 +374,6 @@
                         <p class="has-text-danger has-text-weight-bold">規定の生成回数（2回）に達しました。</p>
                     </div>
 
-                    <!-- 生成された画像の表示エリア -->
                     <div class="columns is-multiline mt-5" v-if="rewardImages.length > 0">
                         <div class="column is-6" v-for="(img, idx) in rewardImages" :key="idx">
                             <figure class="image is-square">
@@ -429,9 +385,7 @@
                     </div>
                 </div>
 
-                <button class="button is-dark is-outlined is-rounded mt-5" @click="resetGame">
-                    最初からダイブし直す
-                </button>
+                <button class="button is-dark is-outlined is-rounded mt-5" @click="resetGame">最初からダイブし直す</button>
             </div>
         </div>
     </div>
@@ -441,8 +395,7 @@
 
         createApp({
             setup() {
-                // --- ステート管理 ---
-                const gameState = ref('charMake'); // charMake, battle, reward, gameover
+                const gameState = ref('charMake');
                 const isProcessing = ref(false);
                 const isGenerating = ref(false);
                 const isSaving = ref(false);
@@ -453,7 +406,6 @@
                 const showSkillMenu = ref(false);
                 const targetIndex = ref(0);
 
-                // --- データコンテナ ---
                 const allSkills = ref([]);
                 const availableSkills = ref([]);
                 const thePillowsSongs = ref([]);
@@ -461,7 +413,6 @@
                 const currentEnemies = ref([]);
                 const battleLogs = ref([]);
 
-                // --- キャラメイク関連 ---
                 const charmakeQuestions = ref([]);
                 const currentQuestionIndex = ref(0);
                 const charMakeSelections = ref({
@@ -472,7 +423,6 @@
                 });
                 const freeTextInput = ref('');
 
-                // ★追加: アバター生成プロンプト用
                 const charMakeTags = ref([]);
                 const isCharMakeTagSelected = (label) => charMakeTags.value.some(t => t.label === label);
                 const toggleCharMakeTag = (label, prompt) => {
@@ -486,31 +436,13 @@
 
                 let bgmPlayer = null;
 
-                // --- 報酬画像生成関連 ---
                 const rewardGenCount = ref(0);
                 const isGeneratingReward = ref(false);
                 const rewardImages = ref([]);
-                // jsonデータを格納する変数
                 const rewardCategories = ref({});
-                // 選ばれたタグをオブジェクト配列 {label, prompt} で保持する
                 const selectedTags = ref([]);
                 const rewardBasePrompt = "masterpiece, best quality, ultra_detailed, absurdres,very aesthetic,delicate lines,";
 
-                const rewardTags = {
-                    situations: [
-                        { label: '🎸 ライブステージでギターを弾く', prompt: 'playing electric guitar on a live concert stage, neon lights, dynamic pose' },
-                        { label: '☕ カフェで一息', prompt: 'drinking coffee at a cozy retro cafe, relaxing atmosphere, daylight' },
-                        { label: '🌃 サイバーパンク都市', prompt: 'wearing futuristic cyberpunk techwear, standing in a rainy neon city at night' },
-                        { label: '👗 ゴスロリドレス', prompt: 'wearing elegant gothic lolita dress, dark fantasy background, roses' }
-                    ],
-                    styles: [
-                        { label: '🎨 アニメ調（セルルック）', prompt: 'anime style, cel shading, vibrant colors, studio ghibli style' },
-                        { label: '📸 シネマティック（リアル系）', prompt: 'photorealistic, cinematic lighting, 8k resolution, highly detailed' },
-                        { label: '🖌️ 水彩画風', prompt: 'watercolor painting, pastel colors, artistic, soft lighting' }
-                    ]
-                };
-
-                // --- ユーザーIDの管理 (ローカルストレージ) ---
                 const generateUUID = () => {
                     return 'xxxx-xxxx-xxxx-xxxx'.replace(/[x]/g, () => (Math.random() * 16 | 0).toString(16));
                 };
@@ -521,10 +453,27 @@
                     localStorage.setItem('erika_rpg_userid', userId);
                 }
 
+                const playSE = (seName) => {
+                    try {
+                        const audio = new Audio(`assets/se/${seName}.mp3`);
+                        audio.volume = 0.5;
+                        audio.play().catch(e => { });
+                    } catch (e) { }
+                };
+
+                const charMakeCategories = computed(() => {
+                    const allowedKeys = ['顔・容姿', '髪型', '髪色', '瞳・眼鏡'];
+                    let filtered = {};
+                    for (const key of allowedKeys) {
+                        if (rewardCategories.value[key]) {
+                            filtered[key] = rewardCategories.value[key];
+                        }
+                    }
+                    return filtered;
+                });
+
                 const initAndPlayBGM = () => {
                     if (thePillowsSongs.value.length === 0) return;
-
-                    // ランダムな曲を選択
                     const randomSong = thePillowsSongs.value[Math.floor(Math.random() * thePillowsSongs.value.length)];
                     let targetVideoId = 'xUboS2Fw1-o';
                     if (randomSong.embed_url) targetVideoId = randomSong.embed_url.split('/').pop();
@@ -533,7 +482,6 @@
                     const loadBGMPlayer = () => {
                         bgmPlayer = new window.YT.Player('battle-bgm-player', {
                             videoId: targetVideoId,
-                            // ★修正: originを追加
                             playerVars: { 'playsinline': 1, 'loop': 1, 'playlist': targetVideoId, 'origin': window.location.origin },
                             events: {
                                 'onReady': (event) => { event.target.setVolume(30); event.target.playVideo(); }
@@ -553,34 +501,17 @@
                     }
                 };
 
-                const charMakeCategories = computed(() => {
-                    const allowedKeys = ['顔・容姿', '髪型', '髪色', '瞳・眼鏡'];
-                    let filtered = {};
-                    for (const key of allowedKeys) {
-                        if (rewardCategories.value[key]) {
-                            filtered[key] = rewardCategories.value[key];
-                        }
-                    }
-                    return filtered;
-                });
-
                 const stopBGM = () => {
                     if (bgmPlayer && typeof bgmPlayer.stopVideo === 'function') {
                         bgmPlayer.stopVideo();
                     }
                 };
 
-                // 画像生成実行
                 const generateRewardImage = async () => {
                     if (rewardGenCount.value >= 2) return;
                     isGeneratingReward.value = true;
-
-                    // 選択されたオブジェクト配列から prompt 文字列だけを抽出して結合
                     const promptsOnly = selectedTags.value.map(t => t.prompt);
                     const finalPrompt = [rewardBasePrompt, ...promptsOnly].join(', ');
-
-                    console.log("報酬画像生成プロンプト:", finalPrompt);
-
                     try {
                         const res = await fetch('/api/generate-avatar', {
                             method: 'POST',
@@ -589,30 +520,28 @@
                         });
                         if (!res.ok) throw new Error("画像生成に失敗しました");
                         const data = await res.json();
-
                         rewardImages.value.unshift(data.avatarUrl);
                         rewardGenCount.value++;
                     } catch (e) {
-                        console.error(e);
                         alert("画像の生成に失敗しました。時間をおいて再試行してください。");
                     } finally {
                         isGeneratingReward.value = false;
                     }
                 };
-                // --- プレイヤー状態 ---
+
                 const player = ref({
                     name: 'あなた',
                     className: '不明',
                     avatarUrl: 'assets/images/icon.png',
                     hp: 100, maxHp: 100, mp: 20, maxMp: 20,
                     str: 10, mag: 10, def: 10, spd: 10, luk: 10,
-                    skills: ['skill_runners_high'], // 初期スキル例
+                    skills: [],
                     buffs: { str: 0, mag: 0, def: 0, spd: 0 },
                     animClass: '',
-                    popups: []
+                    popups: [],
+                    isDefending: false
                 });
 
-                // --- 報酬画面関連 ---
                 const watchTime = ref(0);
                 const statPoints = ref(0);
                 const hasGot30sBonus = ref(false);
@@ -621,35 +550,18 @@
                 let watchTimer = null;
 
                 const statList = [
-                    { key: 'maxHp', label: '最大HP (+10)' },
-                    { key: 'maxMp', label: '最大MP (+5)' },
-                    { key: 'str', label: '力 (+1)' },
-                    { key: 'mag', label: '魔力 (+1)' },
-                    { key: 'def', label: '防御 (+1)' },
-                    { key: 'spd', label: '素早さ (+1)' },
+                    { key: 'maxHp', label: '最大HP (+10)' }, { key: 'maxMp', label: '最大MP (+5)' },
+                    { key: 'str', label: '力 (+1)' }, { key: 'mag', label: '魔力 (+1)' },
+                    { key: 'def', label: '防御 (+1)' }, { key: 'spd', label: '素早さ (+1)' },
                     { key: 'luk', label: '運 (+1)' }
                 ];
 
-                // --- SE再生機能 ---
-                const playSE = (seName) => {
-                    try {
-                        const audio = new Audio(`assets/se/${seName}.mp3`);
-                        audio.volume = 0.8; // 音量（0.0 ～ 1.0）
-                        audio.play().catch(e => {
-                            // ブラウザの自動再生ブロックやファイル未配置エラーを無視
-                        });
-                    } catch (e) { }
-                };
-
-                // --- 初期化処理 ---
                 onMounted(async () => {
-                    // スキルリスト取得
                     try {
                         const res = await fetch('assets/skills.json');
                         allSkills.value = await res.json();
-                    } catch (e) { console.error("skills.json load failed", e); }
+                    } catch (e) { }
 
-                    // 楽曲リスト取得
                     try {
                         const res = await fetch('assets/thepillows_releases_tab.json');
                         thePillowsSongs.value = await res.json();
@@ -657,51 +569,31 @@
                         thePillowsSongs.value = [{ youtube_id: '_F_BvP1tAXY' }];
                     }
 
-                    // rpgclear.jsonの読み込み
                     try {
                         const res = await fetch('assets/rpgclear.json');
                         if (res.ok) {
                             rewardCategories.value = await res.json();
                         }
-                    } catch (e) {
-                        console.error("rpgclear.json load failed", e);
-                    }
+                    } catch (e) { }
 
-                    // キャラメイク質問取得
                     try {
-                        const res = await fetch('assets/charmake.json?t=' + new Date().getTime()); // キャッシュ対策付き
-                        if (!res.ok) throw new Error("charmake.json の読み込みに失敗しました");
+                        const res = await fetch('assets/charmake.json?t=' + new Date().getTime());
+                        if (!res.ok) throw new Error();
                         const data = await res.json();
                         charmakeQuestions.value = data.questions;
                     } catch (e) {
-                        console.error("charmake.json load failed", e);
-                        charmakeQuestions.value = [
-                            {
-                                text: "エリカに立ち向かうための「パート（プレイスタイル）」を選んでください。",
-                                type: "class",
-                                options: [
-                                    {
-                                        label: "ボーカル＆ギター", class_id: "Sawa",
-                                        stats: { hp: 120, maxHp: 120, mp: 30, maxMp: 30, str: 16, mag: 10, def: 12, spd: 12, luk: 15 },
-                                        initial_skills: ['skill_runners_high', 'skill_i_think_i_can']
-                                    },
-                                    {
-                                        label: "リードギター", class_id: "Lead",
-                                        stats: { hp: 80, maxHp: 80, mp: 60, maxMp: 60, str: 8, mag: 22, def: 8, spd: 16, luk: 10 },
-                                        initial_skills: ['skill_lemon_drops', 'skill_perfect_idea']
-                                    },
-                                    {
-                                        label: "ベース", class_id: "Bass",
-                                        stats: { hp: 180, maxHp: 180, mp: 20, maxMp: 20, str: 12, mag: 5, def: 22, spd: 8, luk: 5 },
-                                        initial_skills: ['skill_primer_beat', 'skill_boys_be_locksmith']
-                                    }
-                                ]
-                            }
-                        ];
+                        charmakeQuestions.value = [{
+                            text: "エリカに立ち向かうための「パート（プレイスタイル）」を選んでください。",
+                            type: "class",
+                            options: [
+                                { label: "ボーカル＆ギター", class_id: "Sawa", stats: { hp: 120, maxHp: 120, mp: 30, maxMp: 30, str: 16, mag: 10, def: 12, spd: 12, luk: 15 }, initial_skills: ['skill_runners_high', 'skill_i_think_i_can'] },
+                                { label: "リードギター", class_id: "Lead", stats: { hp: 80, maxHp: 80, mp: 60, maxMp: 60, str: 8, mag: 22, def: 8, spd: 16, luk: 10 }, initial_skills: ['skill_lemon_drops', 'skill_perfect_idea'] },
+                                { label: "ベース", class_id: "Bass", stats: { hp: 180, maxHp: 180, mp: 20, maxMp: 20, str: 12, mag: 5, def: 22, spd: 8, luk: 5 }, initial_skills: ['skill_primer_beat', 'skill_boys_be_locksmith'] }
+                            ]
+                        }];
                     }
                 });
 
-                // --- 演出・ログ関数 ---
                 const addLog = (text, type = 'normal') => {
                     let colorClass = 'has-text-grey-light';
                     if (type === 'damage') colorClass = 'has-text-danger';
@@ -717,12 +609,10 @@
                 const triggerAnim = (target, type, text) => {
                     target.animClass = type === 'damage' ? 'anim-damage anim-shake' : 'anim-heal';
                     target.popups.push({ id: Date.now() + Math.random(), text, type });
-
                     setTimeout(() => { target.animClass = ''; }, 400);
                     setTimeout(() => { target.popups.shift(); }, 800);
                 };
 
-                // --- セーブ＆ロード ---
                 const saveGame = async () => {
                     isSaving.value = true;
                     try {
@@ -730,10 +620,7 @@
                             userId: userId,
                             data: {
                                 player: player.value,
-                                battleState: {
-                                    floor: battleState.value.floor,
-                                    enemyCount: battleState.value.enemyCount // 【追加】現在のWAVE数を保存
-                                }
+                                battleState: { floor: battleState.value.floor, enemyCount: battleState.value.enemyCount }
                             }
                         };
                         const res = await fetch('/api/save', {
@@ -754,40 +641,27 @@
                     isLoading.value = true;
                     try {
                         const res = await fetch(`/api/load?userId=${userId}`);
-                        if (!res.ok) {
-                            if (res.status === 404) throw new Error("セーブデータが見つかりません。");
-                            throw new Error("通信エラーが発生しました。");
-                        }
+                        if (!res.ok) throw new Error("セーブデータが見つかりません。");
                         const data = await res.json();
-
                         player.value = data.player;
                         battleState.value.floor = data.battleState.floor;
-                        // 【追加】WAVE数を復元（古いセーブデータ互換のために || 1 を設定）
                         battleState.value.enemyCount = data.battleState.enemyCount || 1;
-
                         await fetchGallery();
                         gameState.value = 'battle';
                         startNextWave();
                         addLog(`第 ${battleState.value.floor} 階層 (WAVE ${battleState.value.enemyCount}) から探索を再開した！`, 'system');
-
                         initAndPlayBGM();
                     } catch (e) {
-                        console.error(e);
                         alert(e.message);
                     } finally {
                         isLoading.value = false;
                     }
                 };
 
-                // --- キャラメイク ロジック ---
                 const selectOption = (option) => {
                     const qType = charmakeQuestions.value[currentQuestionIndex.value].type;
                     if (qType === 'class') {
-                        // ★修正: initial_skills を直接 classStats に含めるように修正
-                        charMakeSelections.value.classStats = {
-                            ...option.stats,
-                            initial_skills: option.initial_skills
-                        };
+                        charMakeSelections.value.classStats = { ...option.stats, initial_skills: option.initial_skills };
                         player.value.className = option.class_id;
                     } else if (qType === 'bonus') {
                         charMakeSelections.value.bonusStats.push(option.stats_bonus);
@@ -797,19 +671,11 @@
                     currentQuestionIndex.value++;
                 };
 
-                // タグが選択されているか判定
-                const isTagSelected = (label) => {
-                    return selectedTags.value.some(t => t.label === label);
-                };
-
-                // タグの選択／解除（クリックで上の箱と下のリストを行き来する）
+                const isTagSelected = (label) => selectedTags.value.some(t => t.label === label);
                 const toggleRewardTag = (label, prompt) => {
                     const index = selectedTags.value.findIndex(t => t.label === label);
-                    if (index > -1) {
-                        selectedTags.value.splice(index, 1); // 削除（下に戻る）
-                    } else {
-                        selectedTags.value.push({ label, prompt }); // 追加（上に飛ぶ）
-                    }
+                    if (index > -1) selectedTags.value.splice(index, 1);
+                    else selectedTags.value.push({ label, prompt });
                 };
 
                 const submitCharMake = async () => {
@@ -821,18 +687,13 @@
                         const base = charMakeSelections.value.classStats;
                         let finalStats = { ...base };
                         charMakeSelections.value.bonusStats.forEach(bonus => {
-                            for (let key in bonus) {
-                                finalStats[key] = (finalStats[key] || 0) + bonus[key];
-                            }
+                            for (let key in bonus) finalStats[key] = (finalStats[key] || 0) + bonus[key];
                         });
                         Object.assign(player.value, finalStats);
                         player.value.hp = player.value.maxHp;
                         player.value.mp = player.value.maxMp;
-
-                        // ★修正: 初期スキルを確実にセット
                         player.value.skills = charMakeSelections.value.classStats.initial_skills || [];
 
-                        // ★修正: プロンプトの文字結合を配列で行い、構文エラーを防ぐ
                         const promptFragments = charMakeSelections.value.promptFragments.join(', ');
                         const tagPrompts = charMakeTags.value.map(t => t.prompt).join(', ');
 
@@ -843,21 +704,14 @@
                         finalPromptArray.push("masterpiece, best quality");
 
                         const finalPrompt = finalPromptArray.join(', ');
-                        console.log("画像生成プロンプト:", finalPrompt);
 
-                        // Worker API へリクエスト
                         const res = await fetch('/api/generate-avatar', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ prompt: finalPrompt })
                         });
-                        if (!res.ok) {
-                            const errData = await res.json().catch(() => ({}));
-                            console.error("サーバーエラー詳細:", errData);
-                            throw new Error(`画像生成APIエラー: ${errData.error || res.status}`);
-                        }
+                        if (!res.ok) throw new Error("画像生成APIエラー");
                         const data = await res.json();
-
                         player.value.avatarUrl = data.avatarUrl;
 
                         await fetchGallery();
@@ -867,14 +721,12 @@
                         initAndPlayBGM();
 
                     } catch (e) {
-                        console.error(e);
                         alert("アバター生成エラーが発生しました。");
                     } finally {
                         isGenerating.value = false;
                     }
                 };
 
-                // --- ギャラリー・敵生成 ---
                 const fetchGallery = async () => {
                     try {
                         const res = await fetch(`assets/gallery.json?t=${new Date().getTime()}`);
@@ -889,9 +741,7 @@
                             });
                         });
                         enemyImagesPool.value = images.sort(() => 0.5 - Math.random());
-                    } catch (e) {
-                        console.error("ギャラリー読み込み失敗", e);
-                    }
+                    } catch (e) { }
                 };
 
                 const generateEnemy = (floor, type = 'normal') => {
@@ -933,7 +783,8 @@
                         buffs: { str: 0, mag: 0, def: 0, spd: 0 },
                         isDead: false,
                         animClass: '',
-                        popups: []
+                        popups: [],
+                        isDefending: false
                     };
                 };
 
@@ -974,12 +825,9 @@
                     gameState.value = 'battle';
                     startNextWave();
                     addLog(`第 ${battleState.value.floor} 階層の最初からやり直す！`, 'system');
-
-                    // 【追加】リトライ時にBGMを再生
                     initAndPlayBGM();
                 };
 
-                // --- 戦闘ロジック ---
                 const getStat = (actor, statName) => {
                     const base = actor[statName] || 0;
                     const buffPercent = actor.buffs[statName] || 0;
@@ -987,16 +835,10 @@
                 };
 
                 const selectSkill = (skill) => {
-                    if (skill.cost_mp && player.value.mp < skill.cost_mp) {
-                        addLog('MPが足りません！', 'system'); return;
-                    }
+                    if (skill.cost_mp && player.value.mp < skill.cost_mp) { addLog('MPが足りません！', 'system'); return; }
                     const hpCost = skill.cost_hp_percent ? Math.floor(player.value.maxHp * (skill.cost_hp_percent / 100)) : 0;
-                    if (hpCost && player.value.hp <= hpCost) {
-                        addLog('HPが足りません！（使用すると倒れてしまいます）', 'system'); return;
-                    }
-                    if (skill.condition === 'hp_under_20' && player.value.hp > player.value.maxHp * 0.2) {
-                        addLog('発動条件（HP20%以下）を満たしていません！', 'system'); return;
-                    }
+                    if (hpCost && player.value.hp <= hpCost) { addLog('HPが足りません！', 'system'); return; }
+                    if (skill.condition === 'hp_under_20' && player.value.hp > player.value.maxHp * 0.2) { addLog('発動条件を満たしていません！', 'system'); return; }
                     showSkillMenu.value = false;
                     executeAction(skill);
                 };
@@ -1018,14 +860,12 @@
                             if (skill.cost_hp_percent) attacker.hp -= Math.floor(attacker.maxHp * (skill.cost_hp_percent / 100));
                         }
 
-                        // ★追加: スキルのSE再生
                         if (skill.type === 'attack_magic' || skill.type === 'ultimate' || skill.type === 'heal' || skill.type === 'buff') {
-                            playSE('skill_magic');
+                            if (typeof playSE === 'function') playSE('skill_magic');
                         } else {
-                            playSE('skill_phys');
+                            if (typeof playSE === 'function') playSE('skill_phys');
                         }
 
-                        // 回復スキル
                         if (skill.type === 'heal') {
                             if (isAoE && defender !== attacker) return;
                             const amount = Math.floor(attacker.maxHp * ((skill.multiplier * 100 || 50) / 100));
@@ -1035,7 +875,6 @@
                             return;
                         }
 
-                        // バフ・デバフ
                         if (skill.type === 'buff' || skill.type === 'debuff') {
                             const target = skill.type === 'buff' ? attacker : defender;
                             if (skill.effect_percent) {
@@ -1048,30 +887,27 @@
                             return;
                         }
 
-                        // --- スキル攻撃 ---
                         const isMagical = skill.type === 'attack_magic' || skill.type === 'ultimate';
                         const atkStat = isMagical ? getStat(attacker, 'mag') : getStat(attacker, 'str');
-
-                        // 究極スキル(ultimate)は防御無視
                         const defStat = skill.type === 'ultimate' ? 0 : getStat(defender, 'def');
                         const mult = skill.multiplier || 1.0;
 
-                        // 【修正】基本ダメージ（攻撃力 - 防御力/2）を出してから、スキルの倍率をかける
                         let baseDmg = atkStat - (defStat * 0.5);
                         let dmg = Math.max(1, baseDmg) * mult;
-                        // ★追加: 防御中はダメージ半減
+
                         if (defender.isDefending) dmg *= 0.5;
+
                         const finalDamage = Math.max(1, Math.floor(dmg * (0.95 + Math.random() * 0.1)));
                         addLog(`${defender.name || defender.enemyName} に ${finalDamage} のダメージ！`, 'damage');
                         defender.hp = Math.max(0, defender.hp - finalDamage);
                         triggerAnim(defender, 'damage', finalDamage);
-                        playSE('damage');
+                        if (typeof playSE === 'function') playSE('damage');
                         return;
                     }
 
-                    // 通常攻撃
                     addLog(`${attacker.name || attacker.enemyName} の攻撃！`);
-                    playSE('attack');
+                    if (typeof playSE === 'function') playSE('attack');
+
                     const evadeRate = Math.min(40, Math.max(0, (getStat(defender, 'spd') - getStat(attacker, 'spd')) * 2));
                     if (Math.random() * 100 < evadeRate) {
                         addLog(`${defender.name || defender.enemyName} は攻撃をかわした！`);
@@ -1084,28 +920,24 @@
                     if (!isCrit) dmg -= (getStat(defender, 'def') * 0.5);
                     else dmg *= 1.5;
 
-                    // ★追加: 防御中はダメージ半減
                     if (defender.isDefending) dmg *= 0.5;
+
                     const finalDamage = Math.max(1, Math.floor(dmg * (0.95 + Math.random() * 0.1)));
                     addLog(`${defender.name || defender.enemyName} に ${finalDamage} のダメージ！`, 'damage');
                     defender.hp = Math.max(0, defender.hp - finalDamage);
                     triggerAnim(defender, 'damage', finalDamage);
-                    playSE('damage');
+                    if (typeof playSE === 'function') playSE('damage');
                 };
 
                 const executeAction = (playerAction) => {
                     isProcessing.value = true;
                     addLog(`\n【ターン ${battleState.value.turn}】`);
 
-                    // ★追加: ターン開始時にプレイヤーの防御状態をリセット
                     player.value.isDefending = false;
-
-                    // ★追加: 防御アクションが選ばれた場合はフラグを立てる
                     if (playerAction === 'defend') {
                         player.value.isDefending = true;
                     }
 
-                    // プレイヤーの行動
                     if (typeof playerAction === 'object' && playerAction.target === 'all') {
                         addLog(`${player.value.name} の ${playerAction.name}！`);
                         if (playerAction.cost_mp) player.value.mp -= playerAction.cost_mp;
@@ -1122,7 +954,6 @@
                         performAction(player.value, currentEnemies.value[targetIndexToUse], playerAction, false);
                     }
 
-                    // 敵の行動ターン
                     setTimeout(() => {
                         currentEnemies.value.forEach(enemy => {
                             if (!enemy.isDead) {
@@ -1131,7 +962,6 @@
                         });
 
                         setTimeout(() => {
-                            // ★修正: 変数を正しく宣言して撃破判定を行う
                             let isAnyEnemyDefeated = false;
                             currentEnemies.value.forEach(e => {
                                 if (e.hp <= 0 && !e.isDead) {
@@ -1149,14 +979,12 @@
                             if (isAllEnemiesDead) {
                                 addLog(`敵を撃破した！`, 'system');
 
-                                // 10階層のボスを倒したらゲームクリア
                                 if (battleState.value.floor >= 10 && battleState.value.enemyCount >= 5) {
                                     addLog(`【討伐完了】全てのエリカを鎮めた...！`, 'system');
                                     if (typeof playSE === 'function') playSE('floor_clear');
                                     setTimeout(() => { stopBGM(); }, 3000);
                                     setTimeout(() => { gameState.value = 'gameclear'; isProcessing.value = false; }, 3000);
                                 }
-                                // 通常の進行
                                 else if (battleState.value.enemyCount < 5) {
                                     if (typeof playSE === 'function') playSE('wave_clear');
                                     battleState.value.enemyCount++;
@@ -1167,14 +995,12 @@
                                     setTimeout(() => { enterRewardRoom(); isProcessing.value = false; }, 1500);
                                 }
                             }
-                            // プレイヤーが倒れた場合
                             else if (player.value.hp <= 0) {
                                 addLog(`力尽きた...`, 'system');
                                 stopBGM();
                                 gameState.value = 'gameover';
                                 isProcessing.value = false;
                             }
-                            // 誰も倒れていない場合は次のターンへ
                             else {
                                 battleState.value.turn++;
                                 isProcessing.value = false;
@@ -1183,7 +1009,6 @@
                     }, 1000);
                 };
 
-                // --- 報酬部屋・YouTube連動 ---
                 const enterRewardRoom = () => {
                     stopBGM();
                     gameState.value = 'reward';
@@ -1193,9 +1018,8 @@
 
                     player.value.hp = player.value.maxHp;
                     player.value.mp = player.value.maxMp;
-                    statPoints.value += 5; // 基本ポイント
+                    statPoints.value += 5;
 
-                    // Vueの画面描画（v-ifの切り替え）が完了してからプレイヤーを初期化する
                     nextTick(() => {
                         initYouTubePlayer();
                     });
@@ -1203,7 +1027,7 @@
 
                 const initYouTubePlayer = () => {
                     const randomSong = thePillowsSongs.value[Math.floor(Math.random() * thePillowsSongs.value.length)];
-                    let targetVideoId = 'xUboS2Fw1-o'; // フォールバック
+                    let targetVideoId = 'xUboS2Fw1-o';
                     if (randomSong.embed_url) {
                         targetVideoId = randomSong.embed_url.split('/').pop();
                     } else if (randomSong.share_url) {
@@ -1213,7 +1037,6 @@
                     const loadPlayer = () => {
                         ytPlayer = new window.YT.Player('youtube-player', {
                             videoId: targetVideoId,
-                            // ★修正: originを追加
                             playerVars: { 'playsinline': 1, 'origin': window.location.origin },
                             events: { 'onStateChange': onPlayerStateChange }
                         });
@@ -1299,13 +1122,14 @@
                 };
 
                 const resetGame = () => {
-                    localStorage.removeItem('erika_rpg_save_' + userId); // セーブを消去
-                    location.reload(); // ページをリロードして最初から
+                    localStorage.removeItem('erika_rpg_save_' + userId);
+                    location.reload();
                 };
 
                 return {
                     gameState, isProcessing, isGenerating, isSaving, isLoading, logContainer,
                     charmakeQuestions, currentQuestionIndex, freeTextInput, selectOption, submitCharMake,
+                    charMakeTags, charMakeCategories, isCharMakeTagSelected, toggleCharMakeTag,
                     showSkillMenu, availableSkills, selectSkill,
                     battleState, player, battleLogs, currentEnemies, targetIndex,
                     statList, watchTime, statPoints,
@@ -1313,8 +1137,7 @@
                     goToNextFloor, restartFloor, saveGame, loadGame, resetGame, rewardGenCount,
                     isGeneratingReward, rewardImages, rewardTags,
                     toggleRewardTag, generateRewardImage,
-                    rewardCategories, selectedTags, isTagSelected,
-                    charMakeTags, isCharMakeTagSelected, toggleCharMakeTag, charMakeCategories
+                    rewardCategories, selectedTags, isTagSelected
                 };
             }
         }).mount('#game-app');
