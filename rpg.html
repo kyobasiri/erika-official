@@ -304,6 +304,33 @@
                     </div>
                 </div>
 
+                <div class="box p-3 mb-4" style="background: #1e1e2e;">
+                    <p class="has-text-white mb-2">スキル習得権: <span class="has-text-info is-size-4">{{ skillPoints
+                            }}</span> 回</p>
+
+                    <div class="columns is-mobile is-multiline m-0" v-if="unlearnedSkills.length > 0">
+                        <div class="column is-12 p-1" v-for="skill in unlearnedSkills" :key="skill.id">
+                            <div class="is-flex is-justify-content-space-between is-align-items-center p-2"
+                                style="background: rgba(255,255,255,0.05); border-radius: 6px;">
+                                <div class="has-text-left">
+                                    <p class="has-text-white has-text-weight-bold">{{ skill.name }}
+                                        <span class="is-size-7 has-text-link ml-2" v-if="skill.cost_mp">MP: {{
+                                            skill.cost_mp }}</span>
+                                        <span class="is-size-7 has-text-danger ml-2" v-if="skill.cost_hp_percent">HP:
+                                            -{{ skill.cost_hp_percent }}%</span>
+                                    </p>
+                                    <p class="is-size-7 has-text-grey-light">{{ skill.description }}</p>
+                                </div>
+                                <button class="button is-small is-info is-rounded ml-3" :disabled="skillPoints <= 0"
+                                    @click="learnSelectedSkill(skill)">
+                                    <strong>習得</strong>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <p v-else class="is-size-7 has-text-grey-light">現在習得できるスキルはありません。</p>
+                </div>
+
                 <button class="button is-danger is-large is-rounded is-fullwidth" @click="goToNextFloor">
                     <strong>次の階層へ進む</strong>
                 </button>
@@ -542,6 +569,8 @@
                     isDefending: false
                 });
 
+                const skillPoints = ref(0);
+
                 const watchTime = ref(0);
                 const statPoints = ref(0);
                 const hasGot30sBonus = ref(false);
@@ -763,10 +792,11 @@
                     }
 
                     const traits = [
-                        { id: 'physical_target', name: '物理の標的', mult: { hp: 1.2, str: 1.0, def: 0.2, spd: 1.0 } },
-                        { id: 'magic_target', name: '魔法の標的', mult: { hp: 1.2, str: 1.0, def: 1.0, spd: 1.0 } },
-                        { id: 'glass_cannon', name: 'ガラスの大砲', mult: { hp: 0.6, str: 1.8, def: 1.0, spd: 1.0 } },
-                        { id: 'agile_jammer', name: '俊敏な妨害兵', mult: { hp: 1.0, str: 0.7, def: 1.0, spd: 2.0 } }
+                        { id: 'all_rounder', name: 'エース', mult: { hp: 1.2, str: 1.2, def: 1.2, spd: 1.2 } },
+                        { id: 'fighter', name: 'ファイター', mult: { hp: 1.4, str: 1.3, def: 0.5, spd: 1.0 } },
+                        { id: 'iron_soldier', name: '鋼鉄兵', mult: { hp: 1.0, str: 1.0, def: 1.9, spd: 0.5 } },
+                        { id: 'berserker', name: 'ベルセルク', mult: { hp: 0.5, str: 1.9, def: 0.7, spd: 1.0 } },
+                        { id: 'thief', name: 'シーフ', mult: { hp: 1.0, str: 0.6, def: 1.0, spd: 2.1 } }
                     ];
                     const trait = traits[Math.floor(Math.random() * traits.length)];
 
@@ -784,6 +814,8 @@
                         isDead: false,
                         animClass: '',
                         popups: [],
+                        skillUses: 3, // スキル使用回数
+                        isCharging: false, // 溜め状態フラグ
                         isDefending: false
                     };
                 };
@@ -854,6 +886,14 @@
 
                     if (typeof action === 'object') {
                         const skill = action;
+
+                        // ▼▼ 追加: 命中率チェック (やけくそ用) ▼▼
+                        if (skill.hitRate && Math.random() * 100 > skill.hitRate) {
+                            addLog(`${attacker.name || attacker.enemyName} の ${skill.name} は外れた！`);
+                            return;
+                        }
+                        // ▲▲ 追加ここまで ▲▲
+
                         if (!isAoE) {
                             addLog(`${attacker.name || attacker.enemyName} の ${skill.name}！`);
                             if (skill.cost_mp) attacker.mp -= skill.cost_mp;
@@ -867,6 +907,7 @@
                         }
 
                         if (skill.type === 'heal') {
+                            // ... (既存の回復処理そのまま) ...
                             if (isAoE && defender !== attacker) return;
                             const amount = Math.floor(attacker.maxHp * ((skill.multiplier * 100 || 50) / 100));
                             attacker.hp = Math.min(attacker.maxHp, attacker.hp + amount);
@@ -876,6 +917,7 @@
                         }
 
                         if (skill.type === 'buff' || skill.type === 'debuff') {
+                            // ... (既存のバフデバフ処理そのまま) ...
                             const target = skill.type === 'buff' ? attacker : defender;
                             if (skill.effect_percent) {
                                 for (const [stat, val] of Object.entries(skill.effect_percent)) {
@@ -887,9 +929,21 @@
                             return;
                         }
 
+                        // ▼▼ 修正: 必中・防御無視・回避ロジック ▼▼
                         const isMagical = skill.type === 'attack_magic' || skill.type === 'ultimate';
+
+                        // 必中スキルでなく、魔法でもない場合は回避判定
+                        if (!skill.isSureHit && !isMagical && skill.type !== 'heal' && skill.type !== 'buff' && skill.type !== 'debuff') {
+                            const evadeRate = Math.min(40, Math.max(0, (getStat(defender, 'spd') - getStat(attacker, 'spd')) * 2));
+                            if (Math.random() * 100 < evadeRate) {
+                                addLog(`${defender.name || defender.enemyName} は攻撃をかわした！`);
+                                return;
+                            }
+                        }
+
                         const atkStat = isMagical ? getStat(attacker, 'mag') : getStat(attacker, 'str');
-                        const defStat = skill.type === 'ultimate' ? 0 : getStat(defender, 'def');
+                        // ignoreDef（防御無視）の場合は相手のDEFを0として計算
+                        const defStat = (skill.type === 'ultimate' || skill.ignoreDef) ? 0 : getStat(defender, 'def');
                         const mult = skill.multiplier || 1.0;
 
                         let baseDmg = atkStat - (defStat * 0.5);
@@ -903,6 +957,7 @@
                         triggerAnim(defender, 'damage', finalDamage);
                         if (typeof playSE === 'function') playSE('damage');
                         return;
+                        // ▲▲ 修正ここまで ▲▲
                     }
 
                     addLog(`${attacker.name || attacker.enemyName} の攻撃！`);
@@ -933,6 +988,66 @@
                     isProcessing.value = true;
                     addLog(`\n【ターン ${battleState.value.turn}】`);
 
+                    // ▼ 新しい敵のターン処理と終了判定 ▼
+                    const processEnemiesAndEndTurn = () => {
+                        setTimeout(() => {
+                            currentEnemies.value.forEach(enemy => {
+                                // 敵AI関数を呼び出す
+                                if (!enemy.isDead) processEnemyTurn(enemy, currentEnemies.value);
+                            });
+
+                            setTimeout(() => {
+                                let isAnyEnemyDefeated = false;
+                                currentEnemies.value.forEach(e => {
+                                    if (e.hp <= 0 && !e.isDead) { e.isDead = true; isAnyEnemyDefeated = true; }
+                                });
+
+                                if (isAnyEnemyDefeated && typeof playSE === 'function') playSE('defeat');
+
+                                const isAllEnemiesDead = currentEnemies.value.every(e => e.isDead);
+
+                                if (isAllEnemiesDead) {
+                                    addLog(`敵を撃破した！`, 'system');
+                                    if (battleState.value.floor >= 10 && battleState.value.enemyCount >= 5) {
+                                        addLog(`【討伐完了】全てのエリカを鎮めた...！`, 'system');
+                                        if (typeof playSE === 'function') playSE('floor_clear');
+                                        setTimeout(() => { stopBGM(); }, 3000);
+                                        setTimeout(() => { gameState.value = 'gameclear'; isProcessing.value = false; }, 3000);
+                                    }
+                                    else if (battleState.value.enemyCount < 5) {
+                                        if (typeof playSE === 'function') playSE('wave_clear');
+                                        battleState.value.enemyCount++;
+                                        setTimeout(() => { startNextWave(); isProcessing.value = false; }, 1500);
+                                    } else {
+                                        addLog(`階層クリア！！`, 'system');
+                                        if (typeof playSE === 'function') playSE('floor_clear');
+                                        setTimeout(() => { enterRewardRoom(); isProcessing.value = false; }, 1500);
+                                    }
+                                }
+                                else if (player.value.hp <= 0) {
+                                    addLog(`力尽きた...`, 'system');
+                                    stopBGM();
+                                    gameState.value = 'gameover';
+                                    isProcessing.value = false;
+                                }
+                                else {
+                                    battleState.value.turn++;
+                                    isProcessing.value = false;
+                                }
+                            }, 1000);
+                        }, 1000);
+                    };
+
+                    // ▼ プレイヤーのスタン（足払い）チェック ▼
+                    if (player.value.stunTurns > 0) {
+                        addLog(`${player.value.name} は転んでいて動けない！！`, 'damage');
+                        player.value.stunTurns--;
+                        player.value.isDefending = false;
+                        processEnemiesAndEndTurn(); // プレイヤーの行動をスキップして敵のターンへ
+                        return;
+                    }
+
+                    // ▼ プレイヤーの通常の行動処理 ▼
                     player.value.isDefending = false;
                     if (playerAction === 'defend') {
                         player.value.isDefending = true;
@@ -954,59 +1069,10 @@
                         performAction(player.value, currentEnemies.value[targetIndexToUse], playerAction, false);
                     }
 
-                    setTimeout(() => {
-                        currentEnemies.value.forEach(enemy => {
-                            if (!enemy.isDead) {
-                                performAction(enemy, player.value, 'attack');
-                            }
-                        });
+                    // プレイヤーの行動が終わったら、まとめた敵のターン処理を呼び出す
+                    processEnemiesAndEndTurn();
 
-                        setTimeout(() => {
-                            let isAnyEnemyDefeated = false;
-                            currentEnemies.value.forEach(e => {
-                                if (e.hp <= 0 && !e.isDead) {
-                                    e.isDead = true;
-                                    isAnyEnemyDefeated = true;
-                                }
-                            });
-
-                            if (isAnyEnemyDefeated && typeof playSE === 'function') {
-                                playSE('defeat');
-                            }
-
-                            const isAllEnemiesDead = currentEnemies.value.every(e => e.isDead);
-
-                            if (isAllEnemiesDead) {
-                                addLog(`敵を撃破した！`, 'system');
-
-                                if (battleState.value.floor >= 10 && battleState.value.enemyCount >= 5) {
-                                    addLog(`【討伐完了】全てのエリカを鎮めた...！`, 'system');
-                                    if (typeof playSE === 'function') playSE('floor_clear');
-                                    setTimeout(() => { stopBGM(); }, 3000);
-                                    setTimeout(() => { gameState.value = 'gameclear'; isProcessing.value = false; }, 3000);
-                                }
-                                else if (battleState.value.enemyCount < 5) {
-                                    if (typeof playSE === 'function') playSE('wave_clear');
-                                    battleState.value.enemyCount++;
-                                    setTimeout(() => { startNextWave(); isProcessing.value = false; }, 1500);
-                                } else {
-                                    addLog(`階層クリア！！`, 'system');
-                                    if (typeof playSE === 'function') playSE('floor_clear');
-                                    setTimeout(() => { enterRewardRoom(); isProcessing.value = false; }, 1500);
-                                }
-                            }
-                            else if (player.value.hp <= 0) {
-                                addLog(`力尽きた...`, 'system');
-                                stopBGM();
-                                gameState.value = 'gameover';
-                                isProcessing.value = false;
-                            }
-                            else {
-                                battleState.value.turn++;
-                                isProcessing.value = false;
-                            }
-                        }, 1000);
-                    }, 1000);
+                    // ※ここにあった古い setTimeout ブロックは削除済です
                 };
 
                 const enterRewardRoom = () => {
@@ -1084,17 +1150,15 @@
                 const checkBonuses = () => {
                     if (watchTime.value >= 30 && !hasGot30sBonus.value) {
                         hasGot30sBonus.value = true;
-                        const skillName = learnRandomSkill();
+                        skillPoints.value += 1; // スキルポイント付与
                         statPoints.value += 8;
-                        const msg = skillName ? `新たな特技「${skillName}」を習得！\nステータスポイント ＋8pt` : `ステータスポイント ＋8pt`;
-                        alert(`30秒視聴達成！\n${msg}`);
+                        alert(`30秒視聴達成！\nスキル習得権 ＋1\nステータスポイント ＋8pt`);
                     }
                     if (watchTime.value >= 60 && !hasGot60sBonus.value) {
                         hasGot60sBonus.value = true;
-                        const skillName = learnRandomSkill();
+                        skillPoints.value += 1; // スキルポイント付与
                         statPoints.value += 15;
-                        const msg = skillName ? `新たな特技「${skillName}」を習得！\nステータスポイント ＋15pt` : `ステータスポイント ＋15pt`;
-                        alert(`60秒視聴達成（特大ボーナス）！\n${msg}`);
+                        alert(`60秒視聴達成（特大ボーナス）！\nスキル習得権 ＋1\nステータスポイント ＋15pt`);
                     }
                 };
 
@@ -1126,6 +1190,149 @@
                     location.reload();
                 };
 
+                const unlearnedSkills = computed(() => {
+                    return allSkills.value.filter(s =>
+                        !player.value.skills.includes(s.id) &&
+                        (!s.min_floor || s.min_floor <= battleState.value.floor)
+                    );
+                });
+
+                const learnSelectedSkill = (skill) => {
+                    if (skillPoints.value > 0) {
+                        player.value.skills.push(skill.id);
+                        skillPoints.value--;
+                        availableSkills.value = allSkills.value.filter(s => player.value.skills.includes(s.id));
+                        alert(`特技「${skill.name}」を習得しました！`);
+                    }
+                };
+
+                const processEnemyTurn = (enemy, allEnemies) => {
+                    if (enemy.hp <= 0 || enemy.isDead) return;
+
+                    let hasSkill = enemy.skillUses > 0;
+                    let rand = Math.floor(Math.random() * 100);
+
+                    // ファイターの溜め状態チェック
+                    if (enemy.isCharging) {
+                        enemy.isCharging = false;
+                        performAction(enemy, player.value, { name: '痛恨の一撃！！', type: 'attack_physical', multiplier: 1.6 });
+                        return;
+                    }
+
+                    if (!hasSkill) {
+                        // スキル切れは通常攻撃か防御
+                        performAction(enemy, player.value, rand < 80 ? 'attack' : 'defend');
+                        return;
+                    }
+
+                    if (enemy.traitName === 'エース') {
+                        if (rand < 50) {
+                            let target = enemy;
+                            let hurtAlly = allEnemies.find(e => e !== enemy && !e.isDead && e.hp < e.maxHp * 0.5);
+                            if (hurtAlly) target = hurtAlly;
+
+                            addLog(`${enemy.enemyName} の エリカヒール！！`);
+                            let healAmount = Math.floor(target.maxHp * 0.3);
+                            target.hp = Math.min(target.maxHp, target.hp + healAmount);
+                            addLog(`${target.enemyName} のHPが ${healAmount} 回復した！`, 'heal');
+                            triggerAnim(target, 'heal', `+${healAmount}`);
+                            if (typeof playSE === 'function') playSE('skill_magic');
+                            enemy.skillUses--;
+                        } else if (rand < 80) {
+                            performAction(enemy, player.value, { name: 'エリカスペシャル！！', type: 'attack_magic', multiplier: 1.2 });
+                            enemy.skillUses--;
+                        } else {
+                            performAction(enemy, player.value, 'attack');
+                        }
+                    }
+                    else if (enemy.traitName === 'ファイター') {
+                        if (rand < 30) {
+                            addLog(`${enemy.enemyName} は 力をためている！！`, 'system');
+                            enemy.isCharging = true;
+                            enemy.skillUses--;
+                        } else if (rand < 60) {
+                            let cost = Math.floor(enemy.maxHp * 0.3);
+                            if (enemy.hp > cost) {
+                                addLog(`${enemy.enemyName} の エリカハンマー！！`);
+                                enemy.hp -= cost;
+                                triggerAnim(enemy, 'damage', `-${cost}`);
+                                performAction(enemy, player.value, { name: 'エリカハンマー！！', type: 'attack_physical', multiplier: 1.5 });
+                                enemy.skillUses--;
+                            } else {
+                                performAction(enemy, player.value, 'attack');
+                            }
+                        } else if (rand < 80) {
+                            addLog(`${enemy.enemyName} は 自身の攻撃力を上げた！！`, 'system');
+                            enemy.buffs.str += 20;
+                            triggerAnim(enemy, 'heal', 'ATK UP');
+                            enemy.skillUses--;
+                        } else {
+                            performAction(enemy, player.value, 'attack');
+                        }
+                    }
+                    else if (enemy.traitName === '鋼鉄兵') {
+                        if (rand < 40) {
+                            addLog(`${enemy.enemyName} の エリカ五月雨！！`);
+                            performAction(enemy, player.value, { name: 'エリカ五月雨！！(1撃目)', type: 'attack_physical', multiplier: 0.75 });
+                            setTimeout(() => {
+                                if (player.value.hp > 0) {
+                                    performAction(enemy, player.value, { name: 'エリカ五月雨！！(2撃目)', type: 'attack_physical', multiplier: 0.75 });
+                                }
+                            }, 300);
+                            enemy.skillUses--;
+                        } else if (rand < 70) {
+                            addLog(`エリカたちの防御力が上がった！！`, 'system');
+                            allEnemies.forEach(e => { if (!e.isDead) { e.buffs.def += 20; triggerAnim(e, 'heal', 'DEF UP'); } });
+                            enemy.skillUses--;
+                        } else {
+                            performAction(enemy, player.value, 'defend');
+                        }
+                    }
+                    else if (enemy.traitName === 'ベルセルク') {
+                        if (rand < 30) {
+                            addLog(`${enemy.enemyName} の エリカの捨て身！！`);
+                            enemy.buffs.def -= 100; // 防御力を実質0に
+                            performAction(enemy, player.value, { name: 'エリカの捨て身！！', type: 'attack_physical', multiplier: 1.5 });
+                            enemy.skillUses--;
+                        } else if (rand < 60) {
+                            performAction(enemy, player.value, { name: 'エリカの必中！！', type: 'attack_physical', multiplier: 0.9, isSureHit: true });
+                            enemy.skillUses--;
+                        } else if (rand < 80) {
+                            performAction(enemy, player.value, { name: 'エリカのやけくそ！！', type: 'attack_physical', multiplier: 2.5, ignoreDef: true, hitRate: 20 });
+                            enemy.skillUses--;
+                        } else {
+                            performAction(enemy, player.value, 'attack');
+                        }
+                    }
+                    else if (enemy.traitName === 'シーフ') {
+                        if (rand < 30) {
+                            addLog(`${enemy.enemyName} は ${player.value.name} の防御力と素早さを下げた！！`, 'system');
+                            player.value.buffs.def -= 20;
+                            player.value.buffs.spd -= 20;
+                            triggerAnim(player.value, 'damage', 'DEF/SPD DOWN');
+                            enemy.skillUses--;
+                        } else if (rand < 60) {
+                            addLog(`${enemy.enemyName} は 自身の防御力と素早さを上げた！！`, 'system');
+                            enemy.buffs.def += 20;
+                            enemy.buffs.spd += 20;
+                            triggerAnim(enemy, 'heal', 'DEF/SPD UP');
+                            enemy.skillUses--;
+                        } else if (rand < 85) {
+                            performAction(enemy, player.value, { name: 'エリカ足払い！！', type: 'attack_physical', multiplier: 1.0 });
+                            if (Math.random() < 0.3) {
+                                addLog(`${player.value.name} は転ばされてしまった！！`, 'damage');
+                                player.value.stunTurns = 2; // プレイヤーにスタンを付与
+                            }
+                            enemy.skillUses--;
+                        } else {
+                            performAction(enemy, player.value, 'attack');
+                        }
+                    }
+                    else {
+                        performAction(enemy, player.value, 'attack');
+                    }
+                };
+
                 return {
                     gameState, isProcessing, isGenerating, isSaving, isLoading, logContainer,
                     charmakeQuestions, currentQuestionIndex, freeTextInput, selectOption, submitCharMake,
@@ -1136,7 +1343,7 @@
                     executeAction, allocateStat,
                     goToNextFloor, restartFloor, saveGame, loadGame, resetGame, rewardGenCount,
                     isGeneratingReward, rewardImages,
-                    toggleRewardTag, generateRewardImage,
+                    toggleRewardTag, generateRewardImage, skillPoints, unlearnedSkills, learnSelectedSkill,
                     rewardCategories, selectedTags, isTagSelected
                 };
             }
