@@ -880,7 +880,17 @@
 
                     if (action === 'defend') {
                         if (!isAoE) addLog(`${attacker.name || attacker.enemyName} は身を守っている。`);
-                        if (attacker.mp !== undefined) attacker.mp = Math.min(attacker.maxMp, attacker.mp + 5);
+
+                        // ▼▼ 修正: 防御時のMP回復量を「最大MPの20%（最低5）」に変更 ▼▼
+                        if (attacker.mp !== undefined) {
+                            const recoverMp = Math.max(5, Math.floor(attacker.maxMp * 0.2));
+                            attacker.mp = Math.min(attacker.maxMp, attacker.mp + recoverMp);
+
+                            // プレイヤー側の防御ならログを出す（敵の防御時は出しすぎるとくどいので省略もアリですが、今回は出します）
+                            addLog(`MPが ${recoverMp} 回復した！`, 'heal');
+                        }
+                        // ▲▲ 修正ここまで ▲▲
+
                         return;
                     }
 
@@ -941,16 +951,26 @@
                             }
                         }
 
-                        const atkStat = isMagical ? getStat(attacker, 'mag') : getStat(attacker, 'str');
-                        // ignoreDef（防御無視）の場合は相手のDEFを0として計算
-                        const defStat = (skill.type === 'ultimate' || skill.ignoreDef) ? 0 : getStat(defender, 'def');
-                        const mult = skill.multiplier || 1.0;
+                        let dmg = 0;
+                        if (skill.isPercent) {
+                            // 割合ダメージの処理（現在HPに対する％）
+                            dmg = Math.max(1, Math.floor(defender.hp * (skill.isPercent / 100)));
+                        } else {
+                            // 通常のダメージ計算
+                            const atkStat = isMagical ? getStat(attacker, 'mag') : getStat(attacker, 'str');
 
-                        let baseDmg = atkStat - (defStat * 0.5);
-                        let dmg = Math.max(1, baseDmg) * mult;
+                            // ★修正: 魔法攻撃は相手の物理防御(DEF)を完全に無視する！
+                            const defStat = (skill.type === 'ultimate' || skill.ignoreDef || isMagical) ? 0 : getStat(defender, 'def');
+                            const mult = skill.multiplier || 1.0;
 
+                            let baseDmg = atkStat - (defStat * 0.5);
+                            dmg = Math.max(1, baseDmg) * mult;
+                        }
+
+                        // 防御コマンドを選んでいる場合は最終ダメージを半減
                         if (defender.isDefending) dmg *= 0.5;
 
+                        // ダメージに多少のゆらぎを持たせる
                         const finalDamage = Math.max(1, Math.floor(dmg * (0.95 + Math.random() * 0.1)));
                         addLog(`${defender.name || defender.enemyName} に ${finalDamage} のダメージ！`, 'damage');
                         defender.hp = Math.max(0, defender.hp - finalDamage);
@@ -1239,7 +1259,8 @@
                             if (typeof playSE === 'function') playSE('skill_magic');
                             enemy.skillUses--;
                         } else if (rand < 80) {
-                            performAction(enemy, player.value, { name: 'エリカスペシャル！！', type: 'attack_magic', multiplier: 1.2 });
+                            // ★修正: isPercent を追加し、残HPの20%ダメージに変更
+                            performAction(enemy, player.value, { name: 'エリカスペシャル！！', type: 'attack_magic', isPercent: 20 });
                             enemy.skillUses--;
                         } else {
                             performAction(enemy, player.value, 'attack');
