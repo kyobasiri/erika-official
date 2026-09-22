@@ -31,384 +31,314 @@
 
 <body class="bg-zinc-950 text-zinc-300 font-sans antialiased selection:bg-orange-500/30 selection:text-orange-200">
     <div id="app" v-cloak>
-        <section class="hero is-fullheight">
-            <div class="hero-body">
-                <div class="container has-text-centered">
-                    <!-- トップセクション（ここから差し替え） -->
-                    <div class="py-16 md:py-24 relative z-10">
+        <!-- トップセクション -->
+        <section class="relative min-h-[80vh] flex flex-col items-center justify-center py-20 overflow-hidden z-10">
+            <!-- 背景のアクセント発光 -->
+            <div
+                class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] md:w-[700px] h-[400px] md:h-[700px] bg-orange-500/10 rounded-full blur-[100px] pointer-events-none -z-10">
+            </div>
 
-                        <!-- 背景のアクセント発光 -->
-                        <div
-                            class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] md:w-[700px] h-[400px] md:h-[700px] bg-orange-500/10 rounded-full blur-[100px] pointer-events-none -z-10">
+            <div class="container mx-auto px-4 text-center">
+                <!-- サブタイトル -->
+                <p class="text-xs md:text-sm font-bold text-orange-400 uppercase tracking-[0.5em] mb-4">
+                    AI Artist & Album Reviewer
+                </p>
+
+                <!-- メインタイトル -->
+                <h1
+                    class="text-7xl md:text-8xl lg:text-9xl font-black text-white tracking-tighter mb-8 drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+                    ERIKA.
+                </h1>
+
+                <!-- Conceptへのリンクボタン -->
+                <div class="mt-8">
+                    <p class="text-zinc-400 text-sm mb-6">このプロジェクトの背景にある想い</p>
+                    <a href="concept.html"
+                        class="inline-block px-8 py-3 rounded-full border border-white/10 bg-white/5 backdrop-blur-md text-white font-medium transition-all duration-300 hover:bg-white/10 hover:border-white/30 hover:shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:-translate-y-1">
+                        Concept
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- 活動記録・観測日誌セクション -->
+        <section class="py-16 md:py-24 relative z-10">
+            <div class="container mx-auto px-4 max-w-6xl">
+                <!-- エリカの活動記録（最新記事） -->
+                <div class="mb-16">
+                    <div class="flex flex-col md:flex-row justify-between items-end mb-8">
+                        <div>
+                            <h2 class="text-3xl font-black text-orange-500 mb-2">Activities</h2>
+                            <p class="text-zinc-400 text-sm">エリカの活動記録（最新記事）</p>
                         </div>
+                        <a href="./blog.html"
+                            class="hidden md:inline-flex items-center text-sm font-bold text-zinc-400 hover:text-orange-400 transition-colors">
+                            すべての記事を読む <span class="ml-1">→</span>
+                        </a>
+                    </div>
 
-                        <!-- サブタイトル -->
-                        <p class="text-xs md:text-sm font-bold text-orange-400 uppercase tracking-[0.5em] mb-4">
-                            AI Artist & Album Reviewer
-                        </p>
+                    <!-- ローディング表示 -->
+                    <div v-if="recentArticles?.length === 0"
+                        class="text-zinc-500 animate-pulse flex items-center gap-3 py-8">
+                        <svg class="animate-spin h-5 w-5 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none"
+                            viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+                            </circle>
+                            <path class="opacity-75" fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                            </path>
+                        </svg>
+                        記事を読み込んでいます...
+                    </div>
 
-                        <!-- メインタイトル -->
-                        <h1
-                            class="text-7xl md:text-9xl font-black text-white tracking-tighter mb-8 drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">
-                            ERIKA.
-                        </h1>
-
-                        <!-- Conceptへのリンクボタン -->
-                        <div class="mt-8">
-                            <p class="text-zinc-400 text-sm mb-6">このプロジェクトの背景にある想い</p>
-                            <a href="concept.html"
-                                class="inline-block px-8 py-3 rounded-full border border-white/10 bg-white/5 backdrop-blur-md text-white font-medium transition-all duration-300 hover:bg-white/10 hover:border-white/30 hover:shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:-translate-y-1">
-                                Concept
+                    <!-- 記事カード -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div v-for="article in recentArticles" :key="article.id" class="group">
+                            <a :href="`./article.html?id=${article.id}`"
+                                class="flex flex-col h-full p-6 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 transition-all duration-300 hover:-translate-y-1 hover:border-orange-500/50 hover:shadow-[0_0_20px_rgba(243,156,18,0.15)] relative overflow-hidden">
+                                <div
+                                    class="absolute left-0 top-0 w-1 h-full bg-orange-500 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                                </div>
+                                <h3
+                                    class="text-lg font-bold text-white mb-4 line-clamp-2 group-hover:text-orange-400 transition-colors leading-relaxed">
+                                    {{ article.title }}
+                                </h3>
+                                <p class="text-xs text-zinc-500 mt-auto font-mono">
+                                    {{ article.id }}
+                                </p>
                             </a>
                         </div>
                     </div>
 
-                    <section class="py-16 md:py-24 relative z-10">
-                        <div class="container mx-auto px-4 max-w-6xl">
+                    <!-- スマホ用リンク -->
+                    <div class="mt-8 text-right md:hidden">
+                        <a href="./blog.html"
+                            class="inline-flex items-center text-sm font-bold text-orange-400 hover:text-orange-300 transition-colors">
+                            すべての記事を読む <span class="ml-1">→</span>
+                        </a>
+                    </div>
+                </div>
 
-                            <!-- エリカの活動記録（最新記事） -->
-                            <div class="mb-16">
-                                <!-- セクションヘッダー -->
-                                <div class="flex flex-col md:flex-row justify-between items-end mb-8">
-                                    <div>
-                                        <h2 class="text-3xl font-black text-orange-500 mb-2">Activities</h2>
-                                        <p class="text-zinc-400 text-sm">エリカの活動記録（最新記事）</p>
-                                    </div>
-                                    <!-- PC用の「すべて読む」リンク -->
-                                    <a href="./blog.html"
-                                        class="hidden md:inline-flex items-center text-sm font-bold text-zinc-400 hover:text-orange-400 transition-colors">
-                                        すべての記事を読む <span class="ml-1">→</span>
-                                    </a>
-                                </div>
+                <!-- 観測日誌バナー -->
+                <div
+                    class="relative overflow-hidden rounded-3xl bg-zinc-900/80 backdrop-blur-md border border-white/10 p-8 md:p-12 text-center shadow-[0_0_30px_rgba(0,0,0,0.5)]">
+                    <div
+                        class="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none">
+                    </div>
+                    <div
+                        class="absolute bottom-0 left-0 -ml-20 -mb-20 w-64 h-64 bg-orange-500/10 rounded-full blur-[80px] pointer-events-none">
+                    </div>
 
-                                <!-- ローディング表示（くるくる回るアイコン付き） -->
-                                <div v-if="recentArticles?.length === 0"
-                                    class="text-zinc-500 animate-pulse flex items-center gap-3 py-8">
-                                    <svg class="animate-spin h-5 w-5 text-orange-500" xmlns="http://www.w3.org/2000/svg"
-                                        fill="none" viewBox="0 0 24 24">
-                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
-                                            stroke-width="4"></circle>
-                                        <path class="opacity-75" fill="currentColor"
-                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-                                        </path>
-                                    </svg>
-                                    記事を読み込んでいます...
-                                </div>
-
-                                <!-- Vue.jsを使った記事カードのグリッド -->
-                                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    <div v-for="article in recentArticles" :key="article.id" class="group">
-                                        <a :href="`./article.html?id=${article.id}`"
-                                            class="flex flex-col h-full p-6 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 transition-all duration-300 hover:-translate-y-1 hover:border-orange-500/50 hover:shadow-[0_0_20px_rgba(243,156,18,0.15)] relative overflow-hidden">
-                                            <div
-                                                class="absolute left-0 top-0 w-1 h-full bg-orange-500 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                                            </div>
-                                            <h3
-                                                class="text-lg font-bold text-white mb-4 line-clamp-2 group-hover:text-orange-400 transition-colors leading-relaxed">
-                                                {{ article.title }}
-                                            </h3>
-                                            <p class="text-xs text-zinc-500 mt-auto font-mono">
-                                                {{ article.id }}
-                                            </p>
-                                        </a>
-                                    </div>
-                                </div>
-
-                                <!-- スマホ用の「すべて読む」リンク -->
-                                <div class="mt-8 text-right md:hidden">
-                                    <a href="./blog.html"
-                                        class="inline-flex items-center text-sm font-bold text-orange-400 hover:text-orange-300 transition-colors">
-                                        すべての記事を読む <span class="ml-1">→</span>
-                                    </a>
-                                </div>
-                            </div>
-
-                            <!-- エリカの観測日誌 (ToDo) バナー -->
-                            <div
-                                class="relative overflow-hidden rounded-3xl bg-zinc-900/80 backdrop-blur-md border border-white/10 p-8 md:p-12 text-center shadow-[0_0_30px_rgba(0,0,0,0.5)]">
-                                <!-- バナー内の装飾的な背景（青とオレンジのぼんやりとした光） -->
-                                <div
-                                    class="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none">
-                                </div>
-                                <div
-                                    class="absolute bottom-0 left-0 -ml-20 -mb-20 w-64 h-64 bg-orange-500/10 rounded-full blur-[80px] pointer-events-none">
-                                </div>
-
-                                <div class="relative z-10">
-                                    <span
-                                        class="inline-block px-3 py-1 mb-4 text-xs font-bold text-cyan-400 bg-cyan-400/10 rounded-full border border-cyan-400/20">
-                                        Tech Log
-                                    </span>
-                                    <h3 class="text-2xl md:text-3xl font-black text-white mb-4">📝 エリカの観測日誌</h3>
-                                    <p class="text-zinc-400 text-sm md:text-base mb-8 max-w-xl mx-auto leading-relaxed">
-                                        Google ToDoのタスクを活用した、本日の技術検証テーマと解説動画を毎日お届けしています。
-                                    </p>
-                                    <a href="/todo.html"
-                                        class="inline-flex items-center px-8 py-3 text-sm font-bold text-zinc-900 bg-zinc-100 rounded-full transition-all duration-300 hover:bg-white hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:-translate-y-1">
-                                        観測日誌一覧を見る
-                                    </a>
-                                </div>
-                            </div>
-
-                        </div>
-                    </section>
-
-                    <!-- メインメニューカードセクション -->
-                    <section class="py-12 md:py-20 relative z-10">
-                        <div class="container mx-auto px-4 max-w-6xl">
-
-                            <!-- Tailwindのグリッド（スマホは1列、PCは3列） -->
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-                                <!-- 1. Music Gear -->
-                                <!-- groupクラスをつけることで、カード全体にマウスが乗ったときの連動アクションを作れます -->
-                                <a href="gear.html"
-                                    class="group block p-8 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 transition-all duration-300 hover:-translate-y-1 hover:border-orange-500/50 hover:shadow-[0_0_30px_rgba(243,156,18,0.15)] relative overflow-hidden">
-                                    <!-- ホバー時に左端に現れるオレンジのアクセントライン -->
-                                    <div
-                                        class="absolute left-0 top-0 w-1 h-full bg-orange-500 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                                    </div>
-                                    <p
-                                        class="text-2xl md:text-3xl font-black text-orange-500 mb-3 group-hover:text-orange-400 transition-colors">
-                                        Music Gear</p>
-                                    <p class="text-zinc-400 text-sm md:text-base">Squier & BOSS IR-2.</p>
-                                </a>
-
-                                <!-- 2. PC Hardware -->
-                                <a href="spec.html"
-                                    class="group block p-8 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 transition-all duration-300 hover:-translate-y-1 hover:border-orange-500/50 hover:shadow-[0_0_30px_rgba(243,156,18,0.15)] relative overflow-hidden">
-                                    <div
-                                        class="absolute left-0 top-0 w-1 h-full bg-orange-500 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                                    </div>
-                                    <p
-                                        class="text-2xl md:text-3xl font-black text-orange-500 mb-3 group-hover:text-orange-400 transition-colors">
-                                        PC Hardware</p>
-                                    <p class="text-zinc-400 text-sm md:text-base">RTX 5090 / 128GB RAM.</p>
-                                </a>
-
-                                <!-- 3. Gallery -->
-                                <a href="gallery.html"
-                                    class="group block p-8 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 transition-all duration-300 hover:-translate-y-1 hover:border-orange-500/50 hover:shadow-[0_0_30px_rgba(243,156,18,0.15)] relative overflow-hidden">
-                                    <div
-                                        class="absolute left-0 top-0 w-1 h-full bg-orange-500 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                                    </div>
-                                    <p
-                                        class="text-2xl md:text-3xl font-black text-orange-500 mb-3 group-hover:text-orange-400 transition-colors">
-                                        Gallery</p>
-                                    <p class="text-zinc-400 text-sm md:text-base">AI Art Archive.</p>
-                                </a>
-
-                                <!-- 4. Memory Game -->
-                                <a href="game.html"
-                                    class="group block p-8 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 transition-all duration-300 hover:-translate-y-1 hover:border-orange-500/50 hover:shadow-[0_0_30px_rgba(243,156,18,0.15)] relative overflow-hidden">
-                                    <div
-                                        class="absolute left-0 top-0 w-1 h-full bg-orange-500 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                                    </div>
-                                    <p
-                                        class="text-2xl md:text-3xl font-black text-orange-500 mb-3 group-hover:text-orange-400 transition-colors">
-                                        Memory Game</p>
-                                    <p class="text-zinc-400 text-sm md:text-base">AI Art Match.</p>
-                                </a>
-
-                                <!-- 5. RPG Battle -->
-                                <a href="rpg.html"
-                                    class="group block p-8 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 transition-all duration-300 hover:-translate-y-1 hover:border-orange-500/50 hover:shadow-[0_0_30px_rgba(243,156,18,0.15)] relative overflow-hidden">
-                                    <div
-                                        class="absolute left-0 top-0 w-1 h-full bg-orange-500 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                                    </div>
-                                    <p
-                                        class="text-2xl md:text-3xl font-black text-orange-500 mb-3 group-hover:text-orange-400 transition-colors">
-                                        RPG Battle</p>
-                                    <p class="text-zinc-400 text-sm md:text-base">エリカ討伐戦</p>
-                                </a>
-
-                            </div>
-                        </div>
-                    </section>
-
-                    <section class="py-16 md:py-24 relative z-10">
-                        <div class="container mx-auto px-4 max-w-6xl">
-
-                            <!-- 12分割のグリッドを使用して、7:5の絶妙な比率を作ります -->
-                            <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
-
-                                <!-- Main Review (左側 / 7カラム分) -->
-                                <div class="lg:col-span-7">
-                                    <h2 class="text-3xl font-black text-orange-500 mb-1">Latest Review</h2>
-                                    <p class="text-zinc-400 text-sm mb-6">最新のアルバムレビュー</p>
-
-                                    <div
-                                        class="rounded-2xl overflow-hidden bg-black/40 backdrop-blur-md border border-white/10 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
-                                        <!-- アスペクト比 16:9 の指定 -->
-                                        <div class="aspect-video relative w-full bg-black">
-                                            <iframe class="absolute top-0 left-0 w-full h-full"
-                                                :src="`https://www.youtube.com/embed/${latestVideo.long.id}`"
-                                                title="Main Review" frameborder="0" allowfullscreen>
-                                            </iframe>
-                                        </div>
-                                        <!-- タイトルとボタンのエリア -->
-                                        <div
-                                            class="p-5 bg-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                                            <!-- truncate: タイトルが長すぎる場合に自動で「...」と省略するクラス -->
-                                            <p class="text-white font-medium truncate w-full">
-                                                {{ latestVideo.long.title }}
-                                            </p>
-                                            <a :href="`https://www.youtube.com/watch?v=${latestVideo.long.id}`"
-                                                target="_blank"
-                                                class="shrink-0 px-5 py-2 text-sm font-bold text-orange-400 border border-orange-500/50 rounded-full transition-all duration-300 hover:bg-orange-500/10 hover:shadow-[0_0_15px_rgba(243,156,18,0.2)]">
-                                                ▶ Watch on YouTube
-                                            </a>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Daily Shorts (右側 / 5カラム分) -->
-                                <div class="lg:col-span-5">
-                                    <h2 class="text-3xl font-black text-orange-500 mb-1">Daily Shorts</h2>
-                                    <p class="text-zinc-400 text-sm mb-6">毎日更新中！</p>
-
-                                    <!-- ショート動画はスマホを意識して横幅を制限し、少し浮き上がるホバーアニメーションを追加 -->
-                                    <div
-                                        class="max-w-[320px] mx-auto rounded-[24px] overflow-hidden bg-black/40 backdrop-blur-md border border-white/10 shadow-[0_0_30px_rgba(0,0,0,0.5)] transition-transform duration-300 hover:-translate-y-2">
-                                        <!-- アスペクト比 9:16（縦型）の指定 -->
-                                        <div class="aspect-[9/16] relative w-full bg-black">
-                                            <iframe class="absolute top-0 left-0 w-full h-full"
-                                                :src="`https://www.youtube.com/embed/${latestVideo.short.id}`"
-                                                title="Shorts" frameborder="0" allowfullscreen>
-                                            </iframe>
-                                        </div>
-                                        <div class="p-4 bg-white/5 text-center">
-                                            <!-- line-clamp-2: 2行を超えたら「...」で省略 -->
-                                            <p class="text-zinc-300 text-sm mb-3 line-clamp-2">{{
-                                                latestVideo.short.title }}</p>
-                                            <a :href="`https://www.youtube.com/shorts/${latestVideo.short.id}`"
-                                                target="_blank"
-                                                class="inline-block px-6 py-2 text-sm font-bold text-zinc-900 bg-zinc-100 rounded-full transition-all duration-300 hover:bg-white hover:shadow-[0_0_15px_rgba(255,255,255,0.4)]">
-                                                📱 Open Shorts
-                                            </a>
-                                        </div>
-                                    </div>
-                                </div>
-
-                            </div>
-                        </div>
-                    </section>
-
-                    <div class="has-text-centered mt-6 pt-6">
-                        <h3 class="title is-5 has-text-white mb-4">Connect with Project</h3>
-                        <p class="is-size-6 has-text-grey-light mb-5"
-                            style="max-width: 600px; margin-left: auto; margin-right: auto;">
-                            エリカが描く新しい世界や、制作の裏側にある試行錯誤。
-                            リスペクトの表現を、リアルタイムで発信しています。
+                    <div class="relative z-10">
+                        <span
+                            class="inline-block px-3 py-1 mb-4 text-xs font-bold text-cyan-400 bg-cyan-400/10 rounded-full border border-cyan-400/20">
+                            Tech Log
+                        </span>
+                        <h3 class="text-2xl md:text-3xl font-black text-white mb-4">📝 エリカの観測日誌</h3>
+                        <p class="text-zinc-400 text-sm md:text-base mb-8 max-w-xl mx-auto leading-relaxed">
+                            Google ToDoのタスクを活用した、本日の技術検証テーマと解説動画を毎日お届けしています。
                         </p>
-
-                        <section class="py-16 md:py-24 relative z-10 border-t border-white/10 mt-8">
-                            <div class="container mx-auto px-4 max-w-4xl text-center">
-
-                                <h3
-                                    class="text-3xl font-black text-white mb-4 drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
-                                    Connect with Project</h3>
-                                <p class="text-zinc-400 text-sm md:text-base mb-12 max-w-2xl mx-auto leading-relaxed">
-                                    エリカが描く新しい世界や、制作の裏側にある試行錯誤。<br class="hidden md:block">
-                                    リスペクトの表現を、リアルタイムで発信しています。
-                                </p>
-
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-
-                                    <!-- X (Twitter) -->
-                                    <a href="https://twitter.com/erikakataru" target="_blank"
-                                        class="group flex flex-col justify-center p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-zinc-400 hover:shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:-translate-y-1">
-                                        <p class="text-xs text-zinc-400 mb-2">【毎日更新】最新のAIアートと制作の断片</p>
-                                        <div class="flex items-center justify-between">
-                                            <span class="text-lg font-bold text-white group-hover:text-zinc-200">X
-                                                (Twitter)</span>
-                                            <span
-                                                class="text-zinc-600 group-hover:text-white transition-colors duration-300">↗</span>
-                                        </div>
-                                    </a>
-
-                                    <!-- YouTube Channel -->
-                                    <a href="https://youtube.com/channel/UCcLpUu88d6QTwZswJmOgtvw" target="_blank"
-                                        class="group flex flex-col justify-center p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-orange-500/50 hover:shadow-[0_0_15px_rgba(243,156,18,0.15)] hover:-translate-y-1">
-                                        <p class="text-xs text-zinc-400 mb-2">【Main】独自の視点で語るメインチャンネル</p>
-                                        <div class="flex items-center justify-between">
-                                            <span
-                                                class="text-lg font-bold text-white group-hover:text-orange-400 transition-colors">YouTube
-                                                Channel</span>
-                                            <span
-                                                class="text-zinc-600 group-hover:text-orange-400 transition-colors duration-300">↗</span>
-                                        </div>
-                                    </a>
-
-                                    <!-- note -->
-                                    <a href="https://note.com/erikakataru" target="_blank"
-                                        class="group flex flex-col justify-center p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-emerald-500/50 hover:shadow-[0_0_15px_rgba(16,185,129,0.15)] hover:-translate-y-1">
-                                        <p class="text-xs text-zinc-400 mb-2">【毎日更新】制作の裏側にある思考を綴るログ</p>
-                                        <div class="flex items-center justify-between">
-                                            <span
-                                                class="text-lg font-bold text-white group-hover:text-emerald-400 transition-colors">note</span>
-                                            <span
-                                                class="text-zinc-600 group-hover:text-emerald-400 transition-colors duration-300">↗</span>
-                                        </div>
-                                    </a>
-
-                                    <!-- Instagram -->
-                                    <a href="https://www.instagram.com/erikakataru/" target="_blank"
-                                        class="group flex flex-col justify-center p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-pink-500/50 hover:shadow-[0_0_15px_rgba(236,72,153,0.15)] hover:-translate-y-1">
-                                        <p class="text-xs text-zinc-400 mb-2">【毎日更新】ビジュアル重視のタイムライン</p>
-                                        <div class="flex items-center justify-between">
-                                            <span
-                                                class="text-lg font-bold text-white group-hover:text-pink-400 transition-colors">Instagram</span>
-                                            <span
-                                                class="text-zinc-600 group-hover:text-pink-400 transition-colors duration-300">↗</span>
-                                        </div>
-                                    </a>
-
-                                    <!-- Bluesky -->
-                                    <a href="https://bsky.app/profile/erikakataru.bsky.social" target="_blank"
-                                        class="group flex flex-col justify-center p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-blue-500/50 hover:shadow-[0_0_15px_rgba(59,130,246,0.15)] hover:-translate-y-1">
-                                        <p class="text-xs text-zinc-400 mb-2">【毎日更新】新たな発信とコミュニティ形成</p>
-                                        <div class="flex items-center justify-between">
-                                            <span
-                                                class="text-lg font-bold text-white group-hover:text-blue-400 transition-colors">Bluesky</span>
-                                            <span
-                                                class="text-zinc-600 group-hover:text-blue-400 transition-colors duration-300">↗</span>
-                                        </div>
-                                    </a>
-
-                                    <!-- Pixiv -->
-                                    <a href="https://www.pixiv.net/users/118819771" target="_blank"
-                                        class="group flex flex-col justify-center p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-cyan-500/50 hover:shadow-[0_0_15px_rgba(6,182,214,0.15)] hover:-translate-y-1">
-                                        <p class="text-xs text-zinc-400 mb-2">【Archive】高解像度アートの集積・保管庫</p>
-                                        <div class="flex items-center justify-between">
-                                            <span
-                                                class="text-lg font-bold text-white group-hover:text-cyan-400 transition-colors">Pixiv</span>
-                                            <span
-                                                class="text-zinc-600 group-hover:text-cyan-400 transition-colors duration-300">↗</span>
-                                        </div>
-                                    </a>
-
-                                </div>
-
-                                <!-- Old Link -->
-                                <div class="mt-8">
-                                    <a href="https://lit.link/erikakataru" target="_blank"
-                                        class="inline-block text-xs text-zinc-500 hover:text-zinc-300 transition-colors border-b border-transparent hover:border-zinc-500 pb-1">
-                                        旧まとめページ (Lit.Link) はこちら
-                                    </a>
-                                </div>
-                            </div>
-                        </section>
+                        <a href="/todo.html"
+                            class="inline-flex items-center px-8 py-3 text-sm font-bold text-zinc-900 bg-zinc-100 rounded-full transition-all duration-300 hover:bg-white hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:-translate-y-1">
+                            観測日誌一覧を見る
+                        </a>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- フッター（ここから差し替え） -->
+        <!-- メインメニューカードセクション -->
+        <section class="py-12 md:py-20 relative z-10">
+            <div class="container mx-auto px-4 max-w-6xl">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <a href="gear.html"
+                        class="group block p-8 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 transition-all duration-300 hover:-translate-y-1 hover:border-orange-500/50 hover:shadow-[0_0_30px_rgba(243,156,18,0.15)] relative overflow-hidden">
+                        <div
+                            class="absolute left-0 top-0 w-1 h-full bg-orange-500 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                        </div>
+                        <p
+                            class="text-2xl md:text-3xl font-black text-orange-500 mb-3 group-hover:text-orange-400 transition-colors">
+                            Music Gear</p>
+                        <p class="text-zinc-400 text-sm md:text-base">Squier & BOSS IR-2.</p>
+                    </a>
+                    <a href="spec.html"
+                        class="group block p-8 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 transition-all duration-300 hover:-translate-y-1 hover:border-orange-500/50 hover:shadow-[0_0_30px_rgba(243,156,18,0.15)] relative overflow-hidden">
+                        <div
+                            class="absolute left-0 top-0 w-1 h-full bg-orange-500 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                        </div>
+                        <p
+                            class="text-2xl md:text-3xl font-black text-orange-500 mb-3 group-hover:text-orange-400 transition-colors">
+                            PC Hardware</p>
+                        <p class="text-zinc-400 text-sm md:text-base">RTX 5090 / 128GB RAM.</p>
+                    </a>
+                    <a href="gallery.html"
+                        class="group block p-8 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 transition-all duration-300 hover:-translate-y-1 hover:border-orange-500/50 hover:shadow-[0_0_30px_rgba(243,156,18,0.15)] relative overflow-hidden">
+                        <div
+                            class="absolute left-0 top-0 w-1 h-full bg-orange-500 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                        </div>
+                        <p
+                            class="text-2xl md:text-3xl font-black text-orange-500 mb-3 group-hover:text-orange-400 transition-colors">
+                            Gallery</p>
+                        <p class="text-zinc-400 text-sm md:text-base">AI Art Archive.</p>
+                    </a>
+                    <a href="game.html"
+                        class="group block p-8 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 transition-all duration-300 hover:-translate-y-1 hover:border-orange-500/50 hover:shadow-[0_0_30px_rgba(243,156,18,0.15)] relative overflow-hidden">
+                        <div
+                            class="absolute left-0 top-0 w-1 h-full bg-orange-500 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                        </div>
+                        <p
+                            class="text-2xl md:text-3xl font-black text-orange-500 mb-3 group-hover:text-orange-400 transition-colors">
+                            Memory Game</p>
+                        <p class="text-zinc-400 text-sm md:text-base">AI Art Match.</p>
+                    </a>
+                    <a href="rpg.html"
+                        class="group block p-8 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 transition-all duration-300 hover:-translate-y-1 hover:border-orange-500/50 hover:shadow-[0_0_30px_rgba(243,156,18,0.15)] relative overflow-hidden">
+                        <div
+                            class="absolute left-0 top-0 w-1 h-full bg-orange-500 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                        </div>
+                        <p
+                            class="text-2xl md:text-3xl font-black text-orange-500 mb-3 group-hover:text-orange-400 transition-colors">
+                            RPG Battle</p>
+                        <p class="text-zinc-400 text-sm md:text-base">エリカ討伐戦</p>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- 最新レビューセクション -->
+        <section class="py-16 md:py-24 relative z-10">
+            <div class="container mx-auto px-4 max-w-6xl">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+                    <!-- Main Review -->
+                    <div class="lg:col-span-7">
+                        <h2 class="text-3xl font-black text-orange-500 mb-1">Latest Review</h2>
+                        <p class="text-zinc-400 text-sm mb-6">最新のアルバムレビュー</p>
+                        <div
+                            class="rounded-2xl overflow-hidden bg-black/40 backdrop-blur-md border border-white/10 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
+                            <div class="aspect-video relative w-full bg-black">
+                                <iframe class="absolute top-0 left-0 w-full h-full"
+                                    :src="`https://www.youtube.com/embed/${latestVideo.long.id}`" title="Main Review"
+                                    frameborder="0" allowfullscreen></iframe>
+                            </div>
+                            <div
+                                class="p-5 bg-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                <p class="text-white font-medium truncate w-full">{{ latestVideo.long.title }}</p>
+                                <a :href="`https://www.youtube.com/watch?v=${latestVideo.long.id}`" target="_blank"
+                                    class="shrink-0 px-5 py-2 text-sm font-bold text-orange-400 border border-orange-500/50 rounded-full transition-all duration-300 hover:bg-orange-500/10 hover:shadow-[0_0_15px_rgba(243,156,18,0.2)]">
+                                    ▶ Watch on YouTube
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Daily Shorts -->
+                    <div class="lg:col-span-5">
+                        <h2 class="text-3xl font-black text-orange-500 mb-1">Daily Shorts</h2>
+                        <p class="text-zinc-400 text-sm mb-6">毎日更新中！</p>
+                        <div
+                            class="max-w-[320px] mx-auto rounded-[24px] overflow-hidden bg-black/40 backdrop-blur-md border border-white/10 shadow-[0_0_30px_rgba(0,0,0,0.5)] transition-transform duration-300 hover:-translate-y-2">
+                            <div class="aspect-[9/16] relative w-full bg-black">
+                                <iframe class="absolute top-0 left-0 w-full h-full"
+                                    :src="`https://www.youtube.com/embed/${latestVideo.short.id}`" title="Shorts"
+                                    frameborder="0" allowfullscreen></iframe>
+                            </div>
+                            <div class="p-4 bg-white/5 text-center">
+                                <p class="text-zinc-300 text-sm mb-3 line-clamp-2">{{ latestVideo.short.title }}</p>
+                                <a :href="`https://www.youtube.com/shorts/${latestVideo.short.id}`" target="_blank"
+                                    class="inline-block px-6 py-2 text-sm font-bold text-zinc-900 bg-zinc-100 rounded-full transition-all duration-300 hover:bg-white hover:shadow-[0_0_15px_rgba(255,255,255,0.4)]">
+                                    📱 Open Shorts
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- リンク集セクション -->
+        <section class="py-16 md:py-24 relative z-10 border-t border-white/10">
+            <div class="container mx-auto px-4 max-w-4xl text-center">
+                <h3 class="text-3xl font-black text-white mb-4 drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">Connect
+                    with Project</h3>
+                <p class="text-zinc-400 text-sm md:text-base mb-12 max-w-2xl mx-auto leading-relaxed">
+                    エリカが描く新しい世界や、制作の裏側にある試行錯誤。<br class="hidden md:block">
+                    リスペクトの表現を、リアルタイムで発信しています。
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+                    <a href="https://twitter.com/erikakataru" target="_blank"
+                        class="group flex flex-col justify-center p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-zinc-400 hover:shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:-translate-y-1">
+                        <p class="text-xs text-zinc-400 mb-2">【毎日更新】最新のAIアートと制作の断片</p>
+                        <div class="flex items-center justify-between">
+                            <span class="text-lg font-bold text-white group-hover:text-zinc-200">X (Twitter)</span>
+                            <span class="text-zinc-600 group-hover:text-white transition-colors duration-300">↗</span>
+                        </div>
+                    </a>
+                    <a href="https://youtube.com/channel/UCcLpUu88d6QTwZswJmOgtvw" target="_blank"
+                        class="group flex flex-col justify-center p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-orange-500/50 hover:shadow-[0_0_15px_rgba(243,156,18,0.15)] hover:-translate-y-1">
+                        <p class="text-xs text-zinc-400 mb-2">【Main】独自の視点で語るメインチャンネル</p>
+                        <div class="flex items-center justify-between">
+                            <span
+                                class="text-lg font-bold text-white group-hover:text-orange-400 transition-colors">YouTube
+                                Channel</span>
+                            <span
+                                class="text-zinc-600 group-hover:text-orange-400 transition-colors duration-300">↗</span>
+                        </div>
+                    </a>
+                    <a href="https://note.com/erikakataru" target="_blank"
+                        class="group flex flex-col justify-center p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-emerald-500/50 hover:shadow-[0_0_15px_rgba(16,185,129,0.15)] hover:-translate-y-1">
+                        <p class="text-xs text-zinc-400 mb-2">【毎日更新】制作の裏側にある思考を綴るログ</p>
+                        <div class="flex items-center justify-between">
+                            <span
+                                class="text-lg font-bold text-white group-hover:text-emerald-400 transition-colors">note</span>
+                            <span
+                                class="text-zinc-600 group-hover:text-emerald-400 transition-colors duration-300">↗</span>
+                        </div>
+                    </a>
+                    <a href="https://www.instagram.com/erikakataru/" target="_blank"
+                        class="group flex flex-col justify-center p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-pink-500/50 hover:shadow-[0_0_15px_rgba(236,72,153,0.15)] hover:-translate-y-1">
+                        <p class="text-xs text-zinc-400 mb-2">【毎日更新】ビジュアル重視のタイムライン</p>
+                        <div class="flex items-center justify-between">
+                            <span
+                                class="text-lg font-bold text-white group-hover:text-pink-400 transition-colors">Instagram</span>
+                            <span
+                                class="text-zinc-600 group-hover:text-pink-400 transition-colors duration-300">↗</span>
+                        </div>
+                    </a>
+                    <a href="https://bsky.app/profile/erikakataru.bsky.social" target="_blank"
+                        class="group flex flex-col justify-center p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-blue-500/50 hover:shadow-[0_0_15px_rgba(59,130,246,0.15)] hover:-translate-y-1">
+                        <p class="text-xs text-zinc-400 mb-2">【毎日更新】新たな発信とコミュニティ形成</p>
+                        <div class="flex items-center justify-between">
+                            <span
+                                class="text-lg font-bold text-white group-hover:text-blue-400 transition-colors">Bluesky</span>
+                            <span
+                                class="text-zinc-600 group-hover:text-blue-400 transition-colors duration-300">↗</span>
+                        </div>
+                    </a>
+                    <a href="https://www.pixiv.net/users/118819771" target="_blank"
+                        class="group flex flex-col justify-center p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-cyan-500/50 hover:shadow-[0_0_15px_rgba(6,182,214,0.15)] hover:-translate-y-1">
+                        <p class="text-xs text-zinc-400 mb-2">【Archive】高解像度アートの集積・保管庫</p>
+                        <div class="flex items-center justify-between">
+                            <span
+                                class="text-lg font-bold text-white group-hover:text-cyan-400 transition-colors">Pixiv</span>
+                            <span
+                                class="text-zinc-600 group-hover:text-cyan-400 transition-colors duration-300">↗</span>
+                        </div>
+                    </a>
+                </div>
+
+                <div class="mt-8">
+                    <a href="https://lit.link/erikakataru" target="_blank"
+                        class="inline-block text-xs text-zinc-500 hover:text-zinc-300 transition-colors border-b border-transparent hover:border-zinc-500 pb-1">
+                        旧まとめページ (Lit.Link) はこちら
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- フッター -->
         <footer class="bg-black py-12 border-t border-white/10 relative z-10">
             <div class="container mx-auto px-4 text-center">
-
-                <!-- コピーライトとリンク -->
                 <p class="text-zinc-500 text-sm mb-4">&copy; 2026 Erika Project. Managed by In-house SE.</p>
                 <div class="flex justify-center gap-4 text-sm text-zinc-600 mb-12">
                     <a href="about.html" class="hover:text-zinc-300 transition-colors">About</a>
@@ -419,7 +349,7 @@
                 </div>
             </div>
         </footer>
-    </div> <!-- Main #app ends here -->
+    </div>
 
     <script type="module">
         import { createApp, ref, onMounted, onUnmounted } from './js/lib/vue.esm-browser.js';
