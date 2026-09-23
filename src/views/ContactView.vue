@@ -5,7 +5,6 @@ const isFormEnabled = ref(false)
 
 onMounted(() => {
   // グローバル関数としてreCAPTCHAのコールバックを定義
-  // @ts-ignore
   window.enableFormLink = () => {
     isFormEnabled.value = true
   }
@@ -23,7 +22,6 @@ onMounted(() => {
 
 onUnmounted(() => {
   // 画面移動時に不要になったコールバックを削除
-  // @ts-ignore
   delete window.enableFormLink
 })
 </script>
