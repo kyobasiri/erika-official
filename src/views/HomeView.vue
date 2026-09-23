@@ -10,7 +10,7 @@
         AI Artist & Album Reviewer
       </p>
       <h1 class="text-7xl md:text-8xl lg:text-9xl font-black text-white tracking-tighter mb-8 drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">
-        ERIKA.
+        ERIKA<span class="text-erika">.</span>
       </h1>
       <div class="mt-8">
         <p class="text-zinc-400 text-sm mb-6">このプロジェクトの背景にある想い</p>
