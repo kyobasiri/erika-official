@@ -2,105 +2,88 @@ export default {
     async fetch(request, env, ctx) {
         const url = new URL(request.url);
         const path = url.pathname;
-
-        // --- CORS プレフライトリクエスト対応 ---
         const corsHeaders = {
-            'Access-Control-Allow-Origin': '*', // 全許可。本番時はサイトのURLに制限推奨
+            'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
             'Access-Control-Allow-Headers': 'Content-Type',
         };
 
-        // ブラウザの仕様（OPTIONSリクエスト）への対応
         if (request.method === 'OPTIONS') {
             return new Response(null, { headers: corsHeaders });
         }
 
         try {
-            // ==========================================
-            // 1. アバター画像生成 (Workers AI + R2)
-            // ==========================================
+            // 1. アバター画像生成
             if (path === '/api/generate-avatar' && request.method === 'POST') {
+                if (!env.AI) throw new Error("Cloudflare AI のバインディング (env.AI) が設定されていません。");
+                if (!env.R2_BUCKET) throw new Error("R2 バケットのバインディング (env.R2_BUCKET) が設定されていません。");
+
                 const { prompt } = await request.json();
 
-                // Workers AI (Fluxモデル) を呼び出し
                 const imageResponse = await env.AI.run(
                     '@cf/black-forest-labs/flux-1-schnell',
                     { prompt: prompt }
                 );
 
-                // ★追加：Fluxは文字列(Base64)で画像を返すため、バイナリデータに変換する
-                const binaryString = atob(imageResponse.image);
-                const img = Uint8Array.from(binaryString, (m) => m.codePointAt(0));
+                let imgData;
+                // Base64文字列が含まれるJSONか、直接のバイナリデータかを判定
+                if (imageResponse && imageResponse.image) {
+                    const b64 = imageResponse.image.replace(/^data:image\/\w+;base64,/, "");
+                    const binaryString = atob(b64);
+                    imgData = Uint8Array.from(binaryString, (m) => m.codePointAt(0));
+                } else {
+                    imgData = imageResponse; // 生データの場合はそのまま扱う
+                }
 
-                // ファイル名を生成（Fluxのデフォルト出力に合わせて .jpeg に変更）
                 const fileName = `avatar-${Date.now()}-${Math.random().toString(36).substring(7)}.jpeg`;
 
-                // R2バケットへ画像を保存（変換した img を保存し、Content-Type を image/jpeg にする）
-                await env.R2_BUCKET.put(fileName, img, {
+                await env.R2_BUCKET.put(fileName, imgData, {
                     httpMetadata: { contentType: 'image/jpeg' },
                 });
 
-                // フロントエンドからアクセスするためのURLを構築
                 const avatarUrl = `${url.origin}/api/avatars/${fileName}`;
-
                 return new Response(JSON.stringify({ avatarUrl }), { headers: corsHeaders });
             }
 
-            // ==========================================
-            // 2. R2画像の配信（フロントエンドでの表示用）
-            // ==========================================
+            // 2. R2画像の配信
             if (path.startsWith('/api/avatars/') && request.method === 'GET') {
+                if (!env.R2_BUCKET) throw new Error("R2 バケットのバインディングが設定されていません。");
                 const fileName = path.replace('/api/avatars/', '');
-
-                // R2からオブジェクトを取得
                 const object = await env.R2_BUCKET.get(fileName);
 
-                if (!object) {
-                    return new Response('Image Not Found', { status: 404, headers: corsHeaders });
-                }
+                if (!object) return new Response('Image Not Found', { status: 404, headers: corsHeaders });
 
-                // 画像データとしてブラウザに返すためのヘッダー設定
                 const headers = new Headers(corsHeaders);
                 object.writeHttpMetadata(headers);
                 headers.set('etag', object.httpEtag);
-
                 return new Response(object.body, { headers });
             }
 
-            // ==========================================
-            // 3. セーブデータの保存 (KV)
-            // ==========================================
+            // 3. セーブデータの保存
             if (path === '/api/save' && request.method === 'POST') {
+                if (!env.KV_BINDING) throw new Error("KV のバインディングが設定されていません。");
                 const body = await request.json();
                 const saveKey = body.userId || 'save_data_default';
-
                 await env.KV_BINDING.put(saveKey, JSON.stringify(body.data));
                 return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
             }
 
-            // ==========================================
-            // 4. セーブデータの読み込み (KV)
-            // ==========================================
+            // 4. セーブデータの読み込み
             if (path === '/api/load' && request.method === 'GET') {
+                if (!env.KV_BINDING) throw new Error("KV のバインディングが設定されていません。");
                 const userId = url.searchParams.get('userId') || 'save_data_default';
                 const data = await env.KV_BINDING.get(userId);
 
-                if (!data) {
-                    return new Response(JSON.stringify({ error: 'No save data found' }), { status: 404, headers: corsHeaders });
-                }
+                if (!data) return new Response(JSON.stringify({ error: 'No save data found' }), { status: 404, headers: corsHeaders });
                 return new Response(data, { headers: corsHeaders });
             }
 
-            // ==========================================
-            // 5. 静的ファイルのフォールバック（超重要）
-            // ==========================================
-            // APIのパスに一致しないもの（index.htmlやrpg.htmlへのアクセスなど）は、
-            // 通常のCloudflare Pagesのファイル配信処理に回します。
+            // 5. 静的ファイルのフォールバック
             return env.ASSETS.fetch(request);
 
         } catch (error) {
             console.error("Worker Error:", error);
-            return new Response(JSON.stringify({ error: error.message }), {
+            return new Response(JSON.stringify({ error: error.message || error.toString() }), {
                 status: 500,
                 headers: corsHeaders
             });
