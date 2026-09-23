@@ -83,7 +83,17 @@ export default {
 
         } catch (error) {
             console.error("Worker Error:", error);
-            return new Response(JSON.stringify({ error: error.message || error.toString() }), {
+            const errMsg = error.message || error.toString();
+
+            if (errMsg.includes('8007') || errMsg.includes('NSFW')) {
+                return new Response(JSON.stringify({ error: "NSFW_ERROR" }), {
+                    status: 400, // 不正なリクエストとして返す
+                    headers: corsHeaders
+                });
+            }
+
+            // それ以外の通常のエラー
+            return new Response(JSON.stringify({ error: errMsg }), {
                 status: 500,
                 headers: corsHeaders
             });

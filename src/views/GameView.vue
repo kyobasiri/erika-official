@@ -116,13 +116,26 @@ const generateRewardImage = async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt: finalPrompt })
     })
-    if (!res.ok) throw new Error("画像生成に失敗しました")
-    const data = await res.json()
+    
+    // HTTPステータスがエラーでもJSONを解析して原因を見る
+    const data = await res.json().catch(() => ({}))
+
+    if (!res.ok) {
+      if (data.error === "NSFW_ERROR" || (data.error && data.error.includes('8007'))) {
+        throw new Error("NSFW")
+      }
+      throw new Error(data.error || "画像生成に失敗しました")
+    }
+
     rewardImageUrl.value = data.avatarUrl
     hasGeneratedReward.value = true
-  } catch (e) {
+  } catch (e: any) {
     console.error(e)
-    alert("画像の生成に失敗しました。時間をおいて再試行してください。")
+    if (e.message === "NSFW") {
+      alert("AIのセーフティフィルターにブロックされてしまいました。\n（健全な単語でも組み合わせによって誤判定されることがあります）\nお手数ですが、別の要素を選んで再試行してください！")
+    } else {
+      alert("画像の生成に失敗しました。\n詳細: " + e.message)
+    }
   } finally {
     isGeneratingReward.value = false
   }

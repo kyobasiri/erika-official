@@ -10,6 +10,8 @@ import GalleryView from '../views/GalleryView.vue' // ★追加
 import BlogView from '../views/BlogView.vue' // ★追加
 import ArticleView from '../views/ArticleView.vue' // ★追加
 import GameView from '../views/GameView.vue'
+import TodoView from '../views/TodoView.vue'
+import TodoDetailView from '../views/TodoDetailView.vue'
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -27,6 +29,8 @@ const routes: Array<RouteRecordRaw> = [
   { path: '/game', name: 'game', component: GameView },
   { path: '/spec', name: 'spec', component: SpecView },
   { path: '/blog', name: 'blog', component: BlogView },
+  { path: '/todo', name: 'todo', component: TodoView },
+  { path: '/todo-detail', name: 'todo-detail', component: TodoDetailView },
   { path: '/article', name: 'article', component: ArticleView },
   { path: '/gallery', name: 'gallery', component: GalleryView }, // ★追加
   { path: '/privacy', name: 'privacy', component: PrivacyView }, // ★追加
