@@ -7,6 +7,8 @@ import ContactView from '../views/ContactView.vue'
 import GearView from '../views/GearView.vue'
 import SpecView from '../views/SpecView.vue'
 import GalleryView from '../views/GalleryView.vue' // ★追加
+import BlogView from '../views/BlogView.vue' // ★追加
+import ArticleView from '../views/ArticleView.vue' // ★追加
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -22,6 +24,8 @@ const routes: Array<RouteRecordRaw> = [
   { path: '/concept', name: 'concept', component: ConceptView },
   { path: '/gear', name: 'gear', component: GearView },
   { path: '/spec', name: 'spec', component: SpecView },
+  { path: '/blog', name: 'blog', component: BlogView },
+  { path: '/article', name: 'article', component: ArticleView },
   { path: '/gallery', name: 'gallery', component: GalleryView }, // ★追加
   { path: '/privacy', name: 'privacy', component: PrivacyView }, // ★追加
   { path: '/contact', name: 'contact', component: ContactView }
