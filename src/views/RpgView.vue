@@ -24,6 +24,7 @@ interface Skill {
   cost_mp?: number; cost_hp_percent?: number; multiplier?: number;
   isPercent?: number; isSureHit?: boolean; ignoreDef?: boolean; hitRate?: number;
   effect_percent?: Record<string, number>; condition?: string; min_floor?: number;
+  target?: string; // TS2339 エラー解消用に追加
 }
 
 interface Song { embed_url?: string; share_url?: string; youtube_id?: string; }
@@ -79,6 +80,7 @@ const isGeneratingReward = ref(false)
 const rewardImages = ref<string[]>([])
 const selectedTags = ref<Tag[]>([])
 const rewardBasePrompt = "masterpiece, best quality, ultra_detailed, absurdres, very aesthetic, delicate lines,"
+const activeCutin = ref<{ img: string, text: string, color: string } | null>(null)
 
 const statList = [
   { key: 'maxHp', label: '最大HP (+10)' }, { key: 'maxMp', label: '最大MP (+5)' },
@@ -126,19 +128,29 @@ const triggerAnim = (target: any, type: string, text: string) => {
   setTimeout(() => { target.popups.shift() }, 800)
 }
 
-// --- タグ選択（キャラメイク＆クリア報酬） ---
-const isCharMakeTagSelected = (label: string) => charMakeTags.value.some(t => t.label === label)
-const toggleCharMakeTag = (label: string, prompt: string) => {
-  const index = charMakeTags.value.findIndex(t => t.label === label)
-  if (index > -1) charMakeTags.value.splice(index, 1)
-  else charMakeTags.value.push({ label, prompt })
-}
-
+// --- タグ選択（クリア報酬） ---
 const isTagSelected = (label: string) => selectedTags.value.some(t => t.label === label)
 const toggleRewardTag = (label: string, prompt: string) => {
   const index = selectedTags.value.findIndex(t => t.label === label)
   if (index > -1) selectedTags.value.splice(index, 1)
   else selectedTags.value.push({ label, prompt })
+}
+
+// --- 演出関連 ---
+const showCutin = (img: string, text: string, isEnemy = false) => {
+  activeCutin.value = { 
+    img, 
+    text, 
+    color: isEnemy ? 'from-red-600/80' : 'from-blue-600/80' 
+  }
+  // 1.5秒後に消す
+  setTimeout(() => { activeCutin.value = null }, 1500)
+}
+
+const isScreenFlashing = ref(false)
+const flashScreen = () => {
+  isScreenFlashing.value = true
+  setTimeout(() => { isScreenFlashing.value = false }, 300)
 }
 
 // --- BGM制御 ---
@@ -217,15 +229,6 @@ const loadGame = async () => {
 }
 
 // --- キャラメイク ---
-const charMakeCategories = computed(() => {
-  const allowedKeys = ['顔・容姿', '髪型', '髪色', '瞳・眼鏡']
-  let filtered: any = {}
-  for (const key of allowedKeys) {
-    if (rewardCategories.value[key]) filtered[key] = rewardCategories.value[key]
-  }
-  return filtered
-})
-
 const selectOption = (option: any) => {
   const qType = charmakeQuestions.value[currentQuestionIndex.value].type
   if (qType === 'class') {
@@ -380,6 +383,11 @@ const performAction = (attacker: any, defender: any, action: string | Skill, isA
       if (skill.cost_hp_percent) attacker.hp -= Math.floor(attacker.maxHp * (skill.cost_hp_percent / 100))
     }
 
+    // ★魔法や必殺技ならカットイン演出
+    if (skill.type === 'attack_magic' || skill.type === 'ultimate' || skill.name.includes('！')) {
+      showCutin(attacker.avatarUrl || attacker.imageUrl, skill.name, attacker !== player.value)
+    }
+
     playSE(skill.type === 'attack_magic' || skill.type === 'ultimate' || skill.type === 'heal' || skill.type === 'buff' ? 'skill_magic' : 'skill_phys')
 
     if (skill.type === 'heal') {
@@ -427,6 +435,9 @@ const performAction = (attacker: any, defender: any, action: string | Skill, isA
     defender.hp = Math.max(0, defender.hp - finalDamage)
     triggerAnim(defender, 'damage', finalDamage.toString())
     playSE('damage')
+
+    // ★プレイヤー被弾時に画面フラッシュ
+    if (defender === player.value) flashScreen()
     return
   }
 
@@ -451,6 +462,9 @@ const performAction = (attacker: any, defender: any, action: string | Skill, isA
   defender.hp = Math.max(0, defender.hp - finalDamage)
   triggerAnim(defender, 'damage', finalDamage.toString())
   playSE('damage')
+
+  // ★プレイヤー被弾時に画面フラッシュ
+  if (defender === player.value) flashScreen()
 }
 
 const executeAction = (playerAction: string | Skill) => {
@@ -717,7 +731,9 @@ onUnmounted(() => { stopBGM(); if (bgmPlayer && bgmPlayer.destroy) bgmPlayer.des
     <!-- 隠しオーディオ -->
     <div id="battle-bgm-player" class="absolute -top-[9999px] -left-[9999px] w-[1px] h-[1px]"></div>
 
-    <div class="container mx-auto px-4 max-w-xl">
+    <!-- バトル等のメインエリア -->
+    <div class="container mx-auto px-4 max-w-xl transition-all duration-300 rounded-2xl"
+         :class="{'shadow-[inset_0_0_100px_rgba(239,68,68,0.6)] border border-red-500': isScreenFlashing}">
       
       <!-- 1. キャラメイク画面 -->
       <div v-if="gameState === 'charMake'" class="bg-black/60 backdrop-blur-md border border-white/10 rounded-2xl p-6 text-center">
@@ -775,9 +791,18 @@ onUnmounted(() => { stopBGM(); if (bgmPlayer && bgmPlayer.destroy) bgmPlayer.des
                  class="relative p-2 rounded-xl transition-all cursor-pointer"
                  :class="targetIndex === index ? 'ring-2 ring-erika shadow-[0_0_15px_rgba(243,156,18,0.5)]' : ''">
               
-              <div v-for="popup in enemy.popups" :key="popup.id" class="popup-text" :class="{'text-emerald-400': popup.type === 'heal', 'text-red-500': popup.type === 'damage'}">
-                {{ popup.text }}
-              </div>
+              <div v-for="popup in enemy.popups" :key="popup.id" 
+                class="absolute top-0 left-1/2 -translate-x-1/2 font-black text-2xl drop-shadow-[0_0_5px_rgba(0,0,0,1)] z-10 pointer-events-none"
+                :class="{'text-emerald-400': popup.type === 'heal', 'text-red-500 text-3xl': popup.type === 'damage'}"
+                v-motion
+                :initial="{ y: 10, opacity: 0, scale: 0.5 }"
+                :enter="{ 
+                y: -40, opacity: 1, scale: 1.2,
+                transition: { type: 'spring', stiffness: 250, damping: 10, mass: 1 } 
+                }"
+                :leave="{ opacity: 0, y: -60, transition: { duration: 200 } }">
+            {{ popup.text }}
+            </div>
               
               <p class="text-red-500 font-bold text-[10px] mb-1">【特性】{{ enemy.traitName }}</p>
               <img :src="enemy.imageUrl" :class="enemy.animClass" class="w-32 h-32 object-cover rounded-lg border-2 border-zinc-700 mx-auto mb-2">
@@ -797,7 +822,18 @@ onUnmounted(() => { stopBGM(); if (bgmPlayer && bgmPlayer.destroy) bgmPlayer.des
 
         <div class="bg-black/60 backdrop-blur-md border border-white/10 rounded-2xl p-4 mb-4 flex items-center gap-4">
           <div class="relative shrink-0 w-20 h-20">
-            <div v-for="popup in player.popups" :key="popup.id" class="popup-text" :class="{'text-emerald-400': popup.type === 'heal', 'text-red-500': popup.type === 'damage'}">{{ popup.text }}</div>
+            <div v-for="popup in player.popups" :key="popup.id" 
+                class="absolute top-0 left-1/2 -translate-x-1/2 font-black text-2xl drop-shadow-[0_0_5px_rgba(0,0,0,1)] z-10 pointer-events-none"
+                :class="{'text-emerald-400': popup.type === 'heal', 'text-red-500 text-3xl': popup.type === 'damage'}"
+                v-motion
+                :initial="{ y: 10, opacity: 0, scale: 0.5 }"
+                :enter="{ 
+                y: -40, opacity: 1, scale: 1.2,
+                transition: { type: 'spring', stiffness: 250, damping: 10, mass: 1 } 
+                }"
+                :leave="{ opacity: 0, y: -60, transition: { duration: 200 } }">
+            {{ popup.text }}
+            </div>
             <img :src="player.avatarUrl" :class="player.animClass" class="w-full h-full object-cover rounded-full border-2 border-erika shadow-[0_0_10px_rgba(243,156,18,0.4)]">
           </div>
           <div class="flex-grow">
@@ -944,6 +980,27 @@ onUnmounted(() => { stopBGM(); if (bgmPlayer && bgmPlayer.destroy) bgmPlayer.des
 
     </div>
   </div>
+
+    <!-- スキルカットイン -->
+    <div v-if="activeCutin" 
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-none"
+        v-motion
+        :initial="{ opacity: 0 }"
+        :enter="{ opacity: 1 }"
+        :leave="{ opacity: 0 }">
+        <!-- 横帯グラデーション -->
+        <div class="flex items-center gap-6 w-full py-4 px-10 bg-gradient-to-r to-transparent via-black/50"
+            :class="activeCutin.color"
+            v-motion
+            :initial="{ x: -800, skewX: -15 }"
+            :enter="{ x: 0, skewX: -15, transition: { type: 'spring', stiffness: 150, damping: 15 } }"
+            :leave="{ x: 800, opacity: 0 }">
+            <img :src="activeCutin.img" class="w-32 h-32 object-cover rounded-full border-4 border-white shadow-[0_0_20px_rgba(255,255,255,0.8)]">
+            <h2 class="text-4xl md:text-5xl font-black text-white italic drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)] tracking-wider">
+            {{ activeCutin.text }}
+            </h2>
+        </div>
+    </div>
 </template>
 
 <style scoped>
@@ -958,15 +1015,5 @@ onUnmounted(() => { stopBGM(); if (bgmPlayer && bgmPlayer.destroy) bgmPlayer.des
   20%, 80% { transform: translate3d(3px, 0, 0); }
   30%, 50%, 70% { transform: translate3d(-5px, 0, 0); }
   40%, 60% { transform: translate3d(5px, 0, 0); }
-}
-
-.popup-text {
-  position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
-  font-weight: 900; font-size: 1.5rem; text-shadow: 0 0 5px #000;
-  animation: floatUp 0.8s ease-out forwards; z-index: 10; pointer-events: none;
-}
-@keyframes floatUp {
-  0% { opacity: 1; transform: translate(-50%, 0) scale(1); }
-  100% { opacity: 0; transform: translate(-50%, -30px) scale(1.2); }
 }
 </style>
