@@ -5,18 +5,58 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Concept | Erika Official Project</title>
-    <link rel="stylesheet" href="css/lib/bulma.min.css">
+    <link rel="stylesheet" href="css/tailwind.css">
     <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="assets/images/icon.png" type="image/png">
+    <link rel="apple-touch-icon" href="assets/images/icon.png">
+
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Erika Official | AI Art & Music">
+    <meta property="og:description" content="AI Artist & Album Reviewer ERIKA. エリカが好き勝手に語るチャンネルの公式サイト">
+    <meta property="og:url" content="https://erika.erikakataru.com/">
+    <meta property="og:image" content="https://erika.erikakataru.com/assets/images/ogp.jpg">
+    <meta property="og:site_name" content="Erika Project">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@erikakataru">
+    <meta name="twitter:title" content="Erika Official | AI Art & Music">
+    <meta name="twitter:description" content="AI Artist & Album Reviewer ERIKA. エリカが好き勝手に語るチャンネルの公式サイト">
+    <meta name="twitter:image" content="https://erika.erikakataru.com/assets/images/ogp.jpg">
+
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9959522790700122"
         crossorigin="anonymous"></script>
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 
 <body class="has-background-black">
 
-    <nav class="navbar is-transparent py-4">
-        <div class="container">
-            <div class="navbar-brand">
-                <a class="navbar-item title is-4 has-text-white" href="index.html">ERIKA</a>
+    <!-- 共通ヘッダー（ナビゲーションバー） -->
+    <nav class="sticky top-0 z-50 bg-zinc-950/80 backdrop-blur-md border-b border-white/10">
+        <div class="container mx-auto px-4 max-w-6xl">
+            <div class="flex items-center justify-between h-16 md:h-20">
+                <!-- ロゴ -->
+                <a href="index.html"
+                    class="text-xl md:text-2xl font-black text-white tracking-widest hover:text-orange-500 transition-colors">
+                    ERIKA<span class="text-orange-500">.</span>
+                </a>
+
+                <!-- PC用メニュー -->
+                <div class="hidden md:flex items-center space-x-8 text-sm font-bold">
+                    <a href="concept.html"
+                        class="text-zinc-400 hover:text-white hover:shadow-[0_0_10px_rgba(255,255,255,0.5)] transition-all">Concept</a>
+                    <a href="gallery.html" class="text-zinc-400 hover:text-orange-400 transition-colors">Gallery</a>
+                    <a href="blog.html" class="text-zinc-400 hover:text-orange-400 transition-colors">Blog</a>
+                    <a href="gear.html" class="text-zinc-400 hover:text-orange-400 transition-colors">Gear</a>
+                    <a href="about.html" class="text-zinc-400 hover:text-white transition-colors">About</a>
+                </div>
+
+                <!-- スマホ用メニュー案内（※ここではシンプルにBlogへの導線のみ配置するか、後でハンバーガーメニュー化も可能です） -->
+                <div class="md:hidden flex items-center">
+                    <a href="blog.html"
+                        class="text-xs font-bold text-orange-400 border border-orange-500/50 px-3 py-1.5 rounded-full">
+                        Menu
+                    </a>
+                </div>
             </div>
         </div>
     </nav>
