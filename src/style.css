@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+@theme {
+  /* エリカのテーマカラー */
+  --color-erika: #f39c12;
+  --color-erika-light: #f5b041;
+  --color-erika-dark: #e67e22;
+  --color-bg-base: #1e1e2e;
+}
+
+/* 全体の基本設定（元の style.css からベース部分を移植） */
+@layer base {
+  body {
+    @apply bg-zinc-950 text-zinc-300 font-sans antialiased selection:bg-erika/30 selection:text-orange-200;
+  }
+}

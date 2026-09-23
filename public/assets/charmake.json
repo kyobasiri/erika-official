@@ -1,0 +1,323 @@
+{
+    "questions": [
+        {
+            "id": "q1",
+            "text": "エリカに立ち向かうための「パート（プレイスタイル）」を選んでください。",
+            "type": "class",
+            "options": [
+                {
+                    "label": "ボーカル＆ギター",
+                    "class_id": "Sawa",
+                    "description": "全てをそつなくこなすオールラウンダー",
+                    "stats": {
+                        "hp": 100,
+                        "mp": 20,
+                        "str": 12,
+                        "mag": 12,
+                        "def": 10,
+                        "spd": 10,
+                        "luk": 10
+                    },
+                    "initial_skills": [
+                        "skill_runners_high",
+                        "skill_smile"
+                    ]
+                },
+                {
+                    "label": "ギタリスト",
+                    "class_id": "Pee",
+                    "description": "トリッキーな魔法（エフェクト）特化",
+                    "stats": {
+                        "hp": 80,
+                        "mp": 30,
+                        "str": 5,
+                        "mag": 20,
+                        "def": 8,
+                        "spd": 10,
+                        "luk": 10
+                    },
+                    "initial_skills": [
+                        "skill_lemon_drops",
+                        "skill_perfect_idea"
+                    ]
+                },
+                {
+                    "label": "ドラマー",
+                    "class_id": "Shin",
+                    "description": "屋台骨を支えるパワフルな力特化",
+                    "stats": {
+                        "hp": 110,
+                        "mp": 10,
+                        "str": 20,
+                        "mag": 5,
+                        "def": 10,
+                        "spd": 12,
+                        "luk": 8
+                    },
+                    "initial_skills": [
+                        "skill_primer_beat",
+                        "skill_fun_fun_fun_ok"
+                    ]
+                },
+                {
+                    "label": "ベーシスト",
+                    "class_id": "Jun",
+                    "description": "重低音で味方を守るHP・防御特化",
+                    "stats": {
+                        "hp": 140,
+                        "mp": 15,
+                        "str": 10,
+                        "mag": 5,
+                        "def": 15,
+                        "spd": 8,
+                        "luk": 8
+                    },
+                    "initial_skills": [
+                        "skill_primer_beat",
+                        "skill_boys_be_locksmith"
+                    ]
+                },
+                {
+                    "label": "ファン",
+                    "class_id": "busters",
+                    "description": "モッシュを躱す素早さ・回避・運特化",
+                    "stats": {
+                        "hp": 90,
+                        "mp": 20,
+                        "str": 8,
+                        "mag": 8,
+                        "def": 8,
+                        "spd": 18,
+                        "luk": 18
+                    },
+                    "initial_skills": [
+                        "skill_little_busters",
+                        "skill_good_morning_good_news"
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "q2",
+            "text": "待ちに待ったライブ！あなたはフロアのどこで見る？",
+            "type": "bonus",
+            "options": [
+                {
+                    "label": "ステージ近め・正面",
+                    "stats_bonus": {
+                        "hp": 5,
+                        "mp": 2,
+                        "str": 1,
+                        "mag": 1,
+                        "def": 1,
+                        "spd": 1,
+                        "luk": 1
+                    }
+                },
+                {
+                    "label": "ステージ近め・右側",
+                    "stats_bonus": {
+                        "hp": 0,
+                        "mp": 5,
+                        "str": 0,
+                        "mag": 3,
+                        "def": 0,
+                        "spd": 0,
+                        "luk": 0
+                    }
+                },
+                {
+                    "label": "ステージ近め・左側",
+                    "stats_bonus": {
+                        "hp": 15,
+                        "mp": 0,
+                        "str": 0,
+                        "mag": 0,
+                        "def": 3,
+                        "spd": 0,
+                        "luk": 0
+                    }
+                },
+                {
+                    "label": "遠くからゆっくり見る",
+                    "stats_bonus": {
+                        "hp": 0,
+                        "mp": 0,
+                        "str": 0,
+                        "mag": 0,
+                        "def": 0,
+                        "spd": 3,
+                        "luk": 3
+                    }
+                }
+            ]
+        },
+        {
+            "id": "q3",
+            "text": "ライブ中、周囲が手を挙げてない所で自分だけ手を挙げてしまった！どうする？",
+            "type": "bonus",
+            "options": [
+                {
+                    "label": "構わず一人で上げ続ける",
+                    "stats_bonus": {
+                        "hp": 5,
+                        "mp": 2,
+                        "str": 1,
+                        "mag": 1,
+                        "def": 1,
+                        "spd": 1,
+                        "luk": 1
+                    }
+                },
+                {
+                    "label": "恥ずかしくてすぐに手を下げる",
+                    "stats_bonus": {
+                        "hp": 10,
+                        "mp": 0,
+                        "str": 0,
+                        "mag": 0,
+                        "def": 2,
+                        "spd": 0,
+                        "luk": 0
+                    }
+                },
+                {
+                    "label": "平気そうな顔をして自然に下げていく",
+                    "stats_bonus": {
+                        "hp": 0,
+                        "mp": 5,
+                        "str": 0,
+                        "mag": 3,
+                        "def": 0,
+                        "spd": 0,
+                        "luk": 0
+                    }
+                },
+                {
+                    "label": "周りになぜ手を上げないのか怒る",
+                    "stats_bonus": {
+                        "hp": 0,
+                        "mp": 0,
+                        "str": 0,
+                        "mag": 0,
+                        "def": 0,
+                        "spd": 3,
+                        "luk": 2
+                    }
+                }
+            ]
+        },
+        {
+            "id": "q4",
+            "text": "PC操作中、ウイルスに感染したようなエラーが画面いっぱいに現れた！どうする？",
+            "type": "bonus",
+            "options": [
+                {
+                    "label": "とりあえず再起動する",
+                    "stats_bonus": {
+                        "hp": 5,
+                        "mp": 0,
+                        "str": 0,
+                        "mag": 0,
+                        "def": 1,
+                        "spd": 1,
+                        "luk": 0
+                    }
+                },
+                {
+                    "label": "社内のシステム部門に連絡する",
+                    "stats_bonus": {
+                        "hp": 0,
+                        "mp": 0,
+                        "str": 0,
+                        "mag": 0,
+                        "def": 3,
+                        "spd": 0,
+                        "luk": 3
+                    }
+                },
+                {
+                    "label": "すかさずLANケーブルを抜く",
+                    "stats_bonus": {
+                        "hp": 0,
+                        "mp": 0,
+                        "str": 0,
+                        "mag": 3,
+                        "def": 0,
+                        "spd": 3,
+                        "luk": 0
+                    }
+                },
+                {
+                    "label": "叩いて壊す",
+                    "stats_bonus": {
+                        "hp": 0,
+                        "mp": 0,
+                        "str": 5,
+                        "mag": -2,
+                        "def": 0,
+                        "spd": 0,
+                        "luk": 0
+                    }
+                }
+            ]
+        },
+        {
+            "id": "q5",
+            "text": "アバターの性別を教えてください。",
+            "type": "visual",
+            "options": [
+                {
+                    "label": "男性",
+                    "prompt_fragment": "1boy, male"
+                },
+                {
+                    "label": "女性",
+                    "prompt_fragment": "1girl, female"
+                },
+                {
+                    "label": "未回答（中性的）",
+                    "prompt_fragment": "androgynous, genderless"
+                }
+            ]
+        },
+        {
+            "id": "q6",
+            "text": "アバターの画風（スタイル）を選んでください。",
+            "type": "visual",
+            "options": [
+                {
+                    "label": "リアル寄り",
+                    "prompt_fragment": "photorealistic, hyper detailed, highly textured, cinematic lighting"
+                },
+                {
+                    "label": "アニメ寄り",
+                    "prompt_fragment": "anime style, cel shading, flat color, illustration"
+                }
+            ]
+        },
+        {
+            "id": "q7",
+            "text": "アバターのビジュアルテーマを選んでください。",
+            "type": "visual",
+            "options": [
+                {
+                    "label": "サイバーパンク",
+                    "prompt_fragment": "cyberpunk style, neon lights, futuristic city, glowing tech wear"
+                },
+                {
+                    "label": "スチームパンク",
+                    "prompt_fragment": "steampunk style, gears, brass, retro-futuristic, goggles"
+                },
+                {
+                    "label": "ゴシック＆ダーク",
+                    "prompt_fragment": "gothic style, dark fantasy, black clothes, mysterious atmosphere"
+                },
+                {
+                    "label": "ストリート＆カジュアル",
+                    "prompt_fragment": "street casual style, hoodie, headphones, modern urban"
+                }
+            ]
+        }
+    ]
+}
