@@ -275,7 +275,7 @@ onUnmounted(() => {
         </div>
 
         <!-- ゲームボード -->
-        <div v-show="gameState !== 'clear'" class="memory-game max-w-3xl mx-auto">
+        <div v-show="gameState !== 'clear'" class="memory-game max-w-xl mx-auto">
           <div v-for="card in cards" :key="card.id" 
                class="memory-card" 
                :class="{ 'is-flipped': card.isFlipped, 'opacity-0': card.isMatched }"
