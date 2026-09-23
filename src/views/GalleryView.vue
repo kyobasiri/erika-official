@@ -49,10 +49,6 @@ const nextCatPage = () => {
   if (catCurrentPage.value < catTotalPages.value) catCurrentPage.value++
 }
 
-const goToCatPage = (page: number) => {
-  catCurrentPage.value = page
-}
-
 const changeCategory = (cat: string) => {
   currentCat.value = cat
   window.scrollTo({ top: 0, behavior: 'smooth' })
