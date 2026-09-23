@@ -187,6 +187,18 @@ const stopBGM = () => {
   if (bgmPlayer && typeof bgmPlayer.stopVideo === 'function') bgmPlayer.stopVideo()
 }
 
+const systemNotification = ref<{ title: string, details: string[], type: 'success' | 'error' | 'bonus' } | null>(null)
+
+const showNotification = (title: string, details: string[], type: 'success' | 'error' | 'bonus' = 'success') => {
+  systemNotification.value = { title, details, type }
+  if (type === 'bonus' || type === 'success') {
+    playSE('heal') // 成功時はヒール音などを鳴らす
+  } else if (type === 'error') {
+    playSE('damage') // エラー時はダメージ音
+  }
+  setTimeout(() => { systemNotification.value = null }, 4000) // 4秒で消える
+}
+
 // --- API連携 (セーブ/ロード) ---
 const saveGame = async () => {
   isSaving.value = true
@@ -201,7 +213,7 @@ const saveGame = async () => {
     if (!res.ok) throw new Error("APIエラー")
     addLog("セーブが完了しました。", "system")
   } catch (e) {
-    alert("セーブに失敗しました。")
+    showNotification('セーブ失敗', ["データの保存に失敗しました。"], 'error')
   } finally {
     isSaving.value = false
   }
@@ -222,7 +234,7 @@ const loadGame = async () => {
     addLog(`第 ${battleState.value.floor} 階層 (WAVE ${battleState.value.enemyCount}) から探索を再開した！`, 'system')
     initAndPlayBGM()
   } catch (e: any) {
-    alert(e.message)
+    showNotification('ロード失敗', [e.message], 'error')
   } finally {
     isLoading.value = false
   }
@@ -283,9 +295,9 @@ const submitCharMake = async () => {
 
   } catch (e: any) {
     if (e.message === "NSFW") {
-      alert("AIのセーフティフィルターにブロックされました。\n別の要素を選んで再試行してください！")
+      showNotification('生成ブロック', ["AIのセーフティフィルターにブロックされました。", "別の要素を選んで再試行してください！"], 'error')
     } else {
-      alert("アバター生成エラーが発生しました。\n" + e.message)
+      showNotification('アバター生成エラー', ["エラーが発生しました。", e.message], 'error')
     }
   } finally {
     isGenerating.value = false
@@ -622,11 +634,11 @@ const initYouTubePlayer = () => {
 const checkBonuses = () => {
   if (watchTime.value >= 30 && !hasGot30sBonus.value) {
     hasGot30sBonus.value = true; skillPoints.value += 1; statPoints.value += 8
-    alert(`30秒視聴達成！\nスキル習得権 ＋1\nステータスポイント ＋8pt`)
+    showBonusPopup('30秒視聴達成！', ['スキル習得権 ＋1', 'ステータスポイント ＋8pt'])
   }
   if (watchTime.value >= 60 && !hasGot60sBonus.value) {
     hasGot60sBonus.value = true; skillPoints.value += 1; statPoints.value += 15
-    alert(`60秒視聴達成（特大ボーナス）！\nスキル習得権 ＋1\nステータスポイント ＋15pt`)
+    showBonusPopup('60秒視聴達成！', ['★ 特大ボーナス ★', 'スキル習得権 ＋1', 'ステータスポイント ＋15pt'])
   }
 }
 
@@ -644,7 +656,7 @@ const learnSelectedSkill = (skill: Skill) => {
   if (skillPoints.value > 0) {
     player.value.skills.push(skill.id); skillPoints.value--
     availableSkills.value = allSkills.value.filter(s => player.value.skills.includes(s.id))
-    alert(`特技「${skill.name}」を習得しました！`)
+    showNotification('スキル習得！', [`特技「${skill.name}」を習得しました！`], 'success')
   }
 }
 
@@ -694,13 +706,39 @@ const generateRewardImage = async () => {
     rewardGenCount.value++
   } catch (e: any) {
     if (e.message === "NSFW") {
-      alert("AIのセーフティフィルターにブロックされてしまいました。\n（健全な単語でも組み合わせによって誤判定されることがあります）\nお手数ですが、別の要素を選んで再試行してください！")
+      showNotification('生成ブロック', ["AIのセーフティフィルターにブロックされました。", "（健全な単語でも組み合わせで誤判定されることがあります）", "別の要素を選んで再試行してください！"], 'error')
     } else {
-      alert("画像の生成に失敗しました。\n詳細: " + e.message)
+      showNotification('画像生成エラー', ["生成に失敗しました。", "詳細: " + e.message], 'error')
     }
   } finally {
     isGeneratingReward.value = false
   }
+}
+
+const charMakeCategories = computed(() => {
+  const allowedKeys = ['顔・容姿', '髪型', '髪色', '瞳・眼鏡']
+  let filtered: Record<string, Record<string, string>> = {}
+  for (const key of allowedKeys) {
+    if (rewardCategories.value[key]) {
+      filtered[key] = rewardCategories.value[key]
+    }
+  }
+  return filtered
+})
+
+const isCharMakeTagSelected = (label: string) => charMakeTags.value.some(t => t.label === label)
+const toggleCharMakeTag = (label: string, prompt: string) => {
+  const index = charMakeTags.value.findIndex(t => t.label === label)
+  if (index > -1) charMakeTags.value.splice(index, 1)
+  else charMakeTags.value.push({ label, prompt })
+}
+
+const activeBonusPopup = ref<{ title: string, details: string[] } | null>(null)
+
+const showBonusPopup = (title: string, details: string[]) => {
+  activeBonusPopup.value = { title, details }
+  playSE('heal') // 獲得時のSE
+  setTimeout(() => { activeBonusPopup.value = null }, 4000)
 }
 
 onMounted(async () => {
@@ -718,6 +756,32 @@ onUnmounted(() => { stopBGM(); if (bgmPlayer && bgmPlayer.destroy) bgmPlayer.des
 
 <template>
   <div class="bg-zinc-950 min-h-screen pt-20 pb-12">
+    <div v-if="systemNotification" 
+         class="fixed top-1/4 left-1/2 -translate-x-1/2 z-[100] flex flex-col items-center justify-center pointer-events-none w-[90%] max-w-sm"
+         v-motion
+         :initial="{ opacity: 0, y: -40, scale: 0.9 }"
+         :enter="{ opacity: 1, y: 0, scale: 1, transition: { type: 'spring', stiffness: 250, damping: 15 } }"
+         :leave="{ opacity: 0, y: -20, scale: 0.9 }">
+      <div class="bg-black/90 backdrop-blur-xl border-2 rounded-2xl p-6 text-center w-full relative overflow-hidden"
+           :class="{
+             'border-erika shadow-[0_0_40px_rgba(243,156,18,0.5)]': systemNotification.type === 'bonus' || systemNotification.type === 'success',
+             'border-red-500 shadow-[0_0_40px_rgba(239,68,68,0.5)]': systemNotification.type === 'error'
+           }">
+        <div class="absolute inset-0 bg-gradient-to-t opacity-50"
+             :class="systemNotification.type === 'error' ? 'from-red-500/20 to-transparent' : 'from-erika/20 to-transparent'"></div>
+        
+        <h3 class="relative text-2xl font-black mb-4 tracking-wider"
+            :class="systemNotification.type === 'error' ? 'text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,1)]' : 'text-erika drop-shadow-[0_0_10px_rgba(243,156,18,1)]'">
+          {{ systemNotification.title }}
+        </h3>
+        <div class="relative space-y-2">
+          <p v-for="(text, idx) in systemNotification.details" :key="idx" 
+             class="text-white text-sm font-bold bg-white/10 py-1 px-3 rounded-full inline-block border border-white/5">
+            {{ text }}
+          </p>
+        </div>
+      </div>
+    </div>
     <!-- ナビゲーション -->
     <nav class="max-w-2xl mx-auto px-4 flex justify-between items-center mb-6">
       <router-link to="/" class="text-erika font-bold text-sm hover:underline">← Back to Top</router-link>
@@ -763,6 +827,50 @@ onUnmounted(() => { stopBGM(); if (bgmPlayer && bgmPlayer.destroy) bgmPlayer.des
               <label class="block text-sm font-bold text-white mb-2">あなたの名前を教えてください。</label>
               <input type="text" v-model="player.name" placeholder="名前を入力（未入力なら「あなた」）"
                      class="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-erika">
+            </div>
+            <!-- アバター特徴選択と自由入力 -->
+            <div class="mb-6 text-left">
+              <label class="block text-sm font-bold text-white mb-2">アバターの特徴を選択してください（任意）</label>
+              
+              <!-- 選択済みタグ表示エリア -->
+              <div class="bg-black/50 border border-dashed border-blue-500 rounded-xl p-4 min-h-[80px] mb-4 overflow-hidden">
+                <p class="text-xs text-zinc-500 font-bold mb-3">【組み込まれるプロンプト（クリックで解除）】</p>
+                <transition-group tag="div" class="flex flex-wrap gap-2"
+                  enter-active-class="transition duration-300 ease-out"
+                  enter-from-class="transform scale-95 opacity-0"
+                  enter-to-class="transform scale-100 opacity-100"
+                  leave-active-class="transition duration-200 ease-in"
+                  leave-from-class="transform scale-100 opacity-100"
+                  leave-to-class="transform scale-95 opacity-0 absolute">
+                  <span v-for="tag in charMakeTags" :key="tag.label" 
+                        @click="toggleCharMakeTag(tag.label, tag.prompt)"
+                        class="px-3 py-1 bg-blue-600 text-white font-bold text-sm rounded-full cursor-pointer hover:bg-blue-500 transition-colors flex items-center gap-1 shadow-md">
+                    {{ tag.label }}
+                    <span class="text-zinc-900 hover:text-black font-black leading-none ml-1">&times;</span>
+                  </span>
+                </transition-group>
+                <p v-if="charMakeTags.length === 0" class="text-sm text-zinc-600 mt-2">下のリストから要素を選んでください。</p>
+              </div>
+
+              <!-- カテゴリ別タグリスト -->
+              <div class="max-h-64 overflow-y-auto pr-2 border-t border-white/10 pt-4 mb-6 custom-scrollbar">
+                <div v-for="(prompts, category) in charMakeCategories" :key="category" class="mb-4">
+                  <p class="font-bold text-blue-400 mb-2">{{ category }}</p>
+                  <div class="flex flex-wrap gap-2">
+                    <button v-for="(prompt, label) in prompts" :key="label"
+                            @click="toggleCharMakeTag(label, prompt)"
+                            class="px-3 py-1.5 border rounded-full text-sm transition-colors"
+                            :class="isCharMakeTagSelected(label) ? 'hidden' : 'border-zinc-700 text-zinc-400 hover:bg-white/10 hover:text-white'">
+                      {{ label }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 自由入力エリア -->
+              <label class="block text-sm font-bold text-white mb-2">最後に、追加したい要素を自由に入力してください。</label>
+              <textarea v-model="freeTextInput" placeholder="自由入力（任意）"
+                        class="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-erika min-h-[100px] mb-4"></textarea>
             </div>
             <button @click="submitCharMake" class="w-full py-4 bg-erika text-black font-black text-lg rounded-full shadow-[0_0_20px_rgba(243,156,18,0.3)] hover:bg-erika-light hover:-translate-y-1 transition-all">
               アバターを生成してダイブする
