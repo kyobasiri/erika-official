@@ -1,1 +1,15 @@
 @import "tailwindcss";
+
+@theme {
+    /* エリカのテーマカラーを定義 */
+    --color-erika: #f39c12;
+    /* メインのオレンジ */
+    --color-erika-light: #f5b041;
+    /* 少し明るいオレンジ（ホバー用など） */
+    --color-erika-dark: #e67e22;
+    /* 少し暗いオレンジ */
+
+    /* よく使う背景色などがあれば追加 */
+    --color-bg-base: #1e1e2e;
+    /* 例：ギャラリーや機材ページで使っている暗い背景色 */
+}
