@@ -58,8 +58,13 @@ onMounted(async () => {
     const response = await fetch(`/articles/${id}.md`)
     if (!response.ok) throw new Error('記事が見つかりません')
     let text = await response.text()
-    text = text.replace(/\r/g, '')
 
+    // 安全対策：返ってきたテキストがHTML（index.html）だった場合はエラーにする
+    if (text.trim().toLowerCase().startsWith('<!doctype html>') || text.trim().toLowerCase().startsWith('<html')) {
+      throw new Error('Markdownファイルが見つからず、index.htmlが返却されました。publicフォルダ内の配置を確認してください。')
+    }
+
+    text = text.replace(/\r/g, '')
     compiledMarkdown.value = await parseMarkdown(text)
 
     // Xのウィジェット読み込みトリガー
