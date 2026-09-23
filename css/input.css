@@ -13,10 +13,3 @@
     --color-bg-base: #1e1e2e;
     /* 例：ギャラリーや機材ページで使っている暗い背景色 */
 }
-
-/* 独自のコンポーネントクラスを定義 */
-@layer components {
-    .erika-menu-card {
-        @apply block p-8 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 transition-all duration-300 hover:-translate-y-1 hover:border-erika/50 hover:shadow-[0_0_30px] hover:shadow-erika/15 relative overflow-hidden;
-    }
-}
