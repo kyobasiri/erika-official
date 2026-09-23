@@ -20,7 +20,7 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 MODEL = "@cf/black-forest-labs/flux-2-klein-9b"
 
 # 共通のディレクトリ設定
-ASSETS_DIR = "assets"
+ASSETS_DIR = "public/assets"
 
 def generate_eyecatch(date_str, news_text):
     """今日のニュースからプロンプトを作り、Cloudflare Workers AIで画像を生成する"""

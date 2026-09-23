@@ -34,8 +34,8 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 GEMINI_MODEL_NAME = "gemini-3-flash-preview"
 #GEMINI_MODEL_NAME = "gemini-2.5-flash"
 tavily_client = TavilyClient(api_key=os.environ.get("TAVILY_API_KEY"))
-REPORTS_DIR = "reports"
-ASSETS_DIR = "assets"
+REPORTS_DIR = "public/reports"
+ASSETS_DIR = "public/assets"
 REPORTS_JSON = os.path.join(ASSETS_DIR, "reports.json")
 AUDIO_DIR = os.path.join(ASSETS_DIR, "audio")
 

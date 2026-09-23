@@ -61,7 +61,7 @@ class WebPConverterApp:
 
     def run_conversion(self):
         project_dir = Path(self.base_dir.get())
-        gallery_dir = project_dir / "assets" / "images" / "gallery"
+        gallery_dir = project_dir / "public" / "assets" / "images" / "gallery"
         
         if not gallery_dir.exists():
             self.log(f"[エラー] ギャラリーフォルダが見つかりません。\n{gallery_dir}\n正しいプロジェクトルートを選択してください。")
@@ -107,8 +107,8 @@ class WebPConverterApp:
         
     def update_jsons(self, project_dir):
         self.log("JSONファイルの拡張子を更新中...")
-        self.update_json_file(project_dir / "assets" / "gallery.json")
-        self.update_json_file(project_dir / "alt_cache.json")
+        self.update_json_file(project_dir / "public" / "assets" / "gallery.json")
+        self.update_json_file(project_dir / "public" / "alt_cache.json")
         
     def update_json_file(self, json_path):
         if not json_path.exists():

@@ -11,11 +11,11 @@ SAKURA_API_KEY = os.environ.get("SAKURA_API_KEY")
 SAKURA_API_BASE = "https://api.ai.sakura.ad.jp/v1"
 SAKURA_MODEL = "preview/gemma-4-31B-it"
 
-GALLERY_DIR = 'assets/images/gallery'
-GALLERY_OUTPUT = 'assets/gallery.json'
-ALT_CACHE_FILE = 'alt_cache.json'
-ARTICLES_DIR = 'articles'
-ARTICLES_OUTPUT = 'assets/articles.json'
+GALLERY_DIR = 'public/assets/images/gallery'
+GALLERY_OUTPUT = 'public/assets/gallery.json'
+ALT_CACHE_FILE = 'alt_cache.json' # これはそのままでもOK
+ARTICLES_DIR = 'public/articles'
+ARTICLES_OUTPUT = 'public/assets/articles.json'
 
 # ==========================================
 # クライアント初期化

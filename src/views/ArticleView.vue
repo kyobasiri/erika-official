@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { marked } from 'marked'
 
@@ -17,26 +17,46 @@ const nextArticle = ref<ArticleRef | null>(null)
 
 // Markdown描画後に独自のスタイルを適用するためのラッパー関数
 const parseMarkdown = async (text: string) => {
-  // X (Twitter) の埋め込み変換
   const xLinkRegex = /^[ \t]*https?:\/\/(?:x\.com|twitter\.com)\/([a-zA-Z0-9_]+\/status\/\d+)[^\s<]*[ \t]*$/gm
   text = text.replace(xLinkRegex, '\n\n<div class="flex justify-center my-6"><blockquote class="twitter-tweet" data-align="center"><a href="https://twitter.com/$1"></a></blockquote></div>\n\n')
 
-  // YouTube Shorts の埋め込み変換
   const ytShortsRegex = /^[ \t]*https?:\/\/(?:www\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]+)[^\s<]*[ \t]*$/gm
   text = text.replace(ytShortsRegex, '\n\n<div class="max-w-[320px] mx-auto my-6 rounded-xl overflow-hidden shadow-lg"><div class="relative pb-[177.77%] h-0"><iframe src="https://www.youtube.com/embed/$1" class="absolute top-0 left-0 w-full h-full border-none" allowfullscreen></iframe></div></div>\n\n')
 
-  // YouTube 通常動画 の埋め込み変換
   const ytNormalRegex = /^[ \t]*https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)[^\s<]*[ \t]*$/gm
   text = text.replace(ytNormalRegex, '\n\n<div class="relative pb-[56.25%] h-0 overflow-hidden w-full my-6 rounded-xl shadow-lg"><iframe src="https://www.youtube.com/embed/$1" class="absolute top-0 left-0 w-full h-full border-none" allowfullscreen></iframe></div>\n\n')
 
-  // markedでHTML化 (Promiseを返す場合と文字列を返す場合があるため await をつけて安全に処理)
-  const html = await marked.parse(text)
-  return html
+  return await marked.parse(text)
 }
 
-onMounted(async () => {
+// X(Twitter)のウィジェットを動的に読み込み・再レンダリングする関数
+const loadTwitterWidget = () => {
+  if (!document.getElementById('twitter-wjs')) {
+    const script = document.createElement('script')
+    script.id = 'twitter-wjs'
+    script.src = 'https://platform.twitter.com/widgets.js'
+    script.async = true
+    script.charset = 'utf-8'
+    document.head.appendChild(script)
+  }
+  
+  // 既にスクリプトがある、または追加された直後にDOMをスキャンさせる
+  setTimeout(() => {
+    // @ts-ignore
+    if (window.twttr && window.twttr.widgets) {
+      // @ts-ignore
+      window.twttr.widgets.load()
+    }
+  }, 500)
+}
+
+// 記事データを取得する関数（使い回せるように分離）
+const fetchArticleData = async () => {
   const id = (route.query.id as string) || '001-test'
   articleId.value = id
+  compiledMarkdown.value = '<p class="text-zinc-400 animate-pulse">読み込み中...</p>'
+  prevArticle.value = null
+  nextArticle.value = null
 
   // 1. 前後の記事情報を取得
   try {
@@ -59,7 +79,6 @@ onMounted(async () => {
     if (!response.ok) throw new Error('記事が見つかりません')
     let text = await response.text()
 
-    // 安全対策：返ってきたテキストがHTML（index.html）だった場合はエラーにする
     if (text.trim().toLowerCase().startsWith('<!doctype html>') || text.trim().toLowerCase().startsWith('<html')) {
       throw new Error('Markdownファイルが見つからず、index.htmlが返却されました。publicフォルダ内の配置を確認してください。')
     }
@@ -67,21 +86,31 @@ onMounted(async () => {
     text = text.replace(/\r/g, '')
     compiledMarkdown.value = await parseMarkdown(text)
 
-    // Xのウィジェット読み込みトリガー
+    // DOM更新後にTwitterウィジェットを実行
     nextTick(() => {
-      setTimeout(() => {
-        // @ts-ignore
-        if (window.twttr && window.twttr.widgets) {
-          // @ts-ignore
-          window.twttr.widgets.load()
-        }
-      }, 500)
+      loadTwitterWidget()
     })
   } catch (error) {
     console.error(error)
     compiledMarkdown.value = `<p class="text-red-400 font-bold">記事の読み込みに失敗しました。</p>`
   }
+}
+
+// 初回マウント時に実行
+onMounted(() => {
+  fetchArticleData()
 })
+
+// URLのクエリパラメータ (?id=xxx) が変更されたら、再度フェッチ処理を走らせる
+watch(
+  () => route.query.id,
+  (newId) => {
+    if (newId) {
+      fetchArticleData()
+      window.scrollTo({ top: 0, behavior: 'smooth' }) // ページトップへスクロール
+    }
+  }
+)
 </script>
 
 <template>
