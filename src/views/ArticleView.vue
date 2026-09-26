@@ -26,6 +26,9 @@ const parseMarkdown = async (text: string) => {
   const ytNormalRegex = /^[ \t]*https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)[^\s<]*[ \t]*$/gm
   text = text.replace(ytNormalRegex, '\n\n<div class="relative pb-[56.25%] h-0 overflow-hidden w-full my-6 rounded-xl shadow-lg"><iframe src="https://www.youtube.com/embed/$1" class="absolute top-0 left-0 w-full h-full border-none" allowfullscreen></iframe></div>\n\n')
 
+  const imageTagRegex = /\[\[([a-zA-Z0-9_.-]+\.(?:jpg|jpeg|png|webp|gif))\]\]/gm
+  text = text.replace(imageTagRegex, `\n\n<div class="my-6 flex justify-center"><img src="/assets/images/gallery/${articleId.value}/$1" alt="ギャラリー画像" class="rounded-xl shadow-lg max-w-full h-auto"></div>\n\n`)
+
   return await marked.parse(text)
 }
 
