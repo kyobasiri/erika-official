@@ -16,48 +16,108 @@
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="p-6 rounded-2xl bg-black/60 backdrop-blur-md border border-emerald-500/30 h-full">
-          <span class="inline-block px-3 py-1 text-xs font-bold text-emerald-900 bg-emerald-400 rounded-full mb-3">GPU (Graphics Card)</span>
-          <h3 class="text-lg font-bold text-white mb-2">Palit GeForce RTX 5090 GameRock 32GB</h3>
-          <p class="text-sm text-zinc-400 mb-4">驚異のVRAM 32GBを搭載。エリカの高解像度画像や動画生成を極限まで高速化する、本プロジェクト最大にして最強のコア・エンジン。</p>
+        <!-- GPU -->
+        <div class="p-6 rounded-2xl bg-black/60 backdrop-blur-md border border-emerald-500/30 h-full flex flex-col">
+          <div>
+            <span class="inline-block px-3 py-1 text-xs font-bold text-emerald-900 bg-emerald-400 rounded-full mb-3">GPU (Graphics Card)</span>
+            <h3 class="text-lg font-bold text-white mb-2">Palit GeForce RTX 5090 GameRock 32GB</h3>
+            <p class="text-sm text-zinc-400 mb-4">驚異のVRAM 32GBを搭載。エリカの高解像度画像や動画生成を極限まで高速化する、本プロジェクト最大にして最強のコア・エンジン。</p>
+          </div>
+          <div class="text-right mt-auto">
+            <a href="https://link.amazon/B032igmH2" target="_blank" rel="noopener noreferrer" class="text-xs text-zinc-400 border border-zinc-600 rounded px-3 py-1 hover:bg-white/10 transition-colors">↗ Amazonで詳細を見る</a>
+          </div>
         </div>
-        <div class="p-6 rounded-2xl bg-black/60 backdrop-blur-md border border-rose-500/30 h-full">
-          <span class="inline-block px-3 py-1 text-xs font-bold text-rose-900 bg-rose-400 rounded-full mb-3">CPU</span>
-          <h3 class="text-lg font-bold text-white mb-2">AMD Ryzen 9 9950X</h3>
-          <p class="text-sm text-zinc-400 mb-4">圧倒的なマルチスレッド性能で、AI画像生成の裏側から楽曲制作、動画エンコードまで、あらゆるクリエイティブタスクを支えるメインブレイン。</p>
+
+        <!-- CPU -->
+        <div class="p-6 rounded-2xl bg-black/60 backdrop-blur-md border border-rose-500/30 h-full flex flex-col">
+          <div>
+            <span class="inline-block px-3 py-1 text-xs font-bold text-rose-900 bg-rose-400 rounded-full mb-3">CPU</span>
+            <h3 class="text-lg font-bold text-white mb-2">AMD Ryzen 9 9950X</h3>
+            <p class="text-sm text-zinc-400 mb-4">圧倒的なマルチスレッド性能で、AI画像生成の裏側から楽曲制作、動画エンコードまで、あらゆるクリエイティブタスクを支えるメインブレイン。</p>
+          </div>
+          <div class="text-right mt-auto">
+            <a href="https://link.amazon/B0jcPiSpU" target="_blank" rel="noopener noreferrer" class="text-xs text-zinc-400 border border-zinc-600 rounded px-3 py-1 hover:bg-white/10 transition-colors">↗ Amazonで詳細を見る</a>
+          </div>
         </div>
-        <div class="p-6 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 h-full">
-          <span class="inline-block px-3 py-1 text-xs font-bold text-zinc-300 bg-zinc-800 rounded-full mb-3">Motherboard</span>
-          <h3 class="text-lg font-bold text-white mb-2">MSI PRO X870-P WIFI</h3>
-          <p class="text-sm text-zinc-400 mb-4">最新世代のRyzenとRTX 5090のポテンシャルを最大限に引き出し、長時間の過酷な負荷にも耐えうる堅牢なマザーボード。</p>
+
+        <!-- Motherboard -->
+        <div class="p-6 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 h-full flex flex-col">
+          <div>
+            <span class="inline-block px-3 py-1 text-xs font-bold text-zinc-300 bg-zinc-800 rounded-full mb-3">Motherboard</span>
+            <h3 class="text-lg font-bold text-white mb-2">MSI PRO X870-P WIFI</h3>
+            <p class="text-sm text-zinc-400 mb-4">最新世代のRyzenとRTX 5090のポテンシャルを最大限に引き出し、長時間の過酷な負荷にも耐えうる堅牢なマザーボード。</p>
+          </div>
+          <div class="text-right mt-auto">
+            <a href="https://link.amazon/B0gghjti8" target="_blank" rel="noopener noreferrer" class="text-xs text-zinc-400 border border-zinc-600 rounded px-3 py-1 hover:bg-white/10 transition-colors">↗ Amazonで詳細を見る</a>
+          </div>
         </div>
-        <div class="p-6 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 h-full">
-          <span class="inline-block px-3 py-1 text-xs font-bold text-zinc-300 bg-zinc-800 rounded-full mb-3">Memory (RAM)</span>
-          <h3 class="text-lg font-bold text-white mb-2">Crucial DDR5-6000 64GB (CP2K32G60C40U5W)</h3>
-          <p class="text-sm text-zinc-400 mb-4">高速なDDR5メモリを大容量64GB（32GB×2）搭載。巨大な音源ライブラリやAIモデルの読み込みをボトルネックなく処理する。</p>
+
+        <!-- Memory -->
+        <div class="p-6 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 h-full flex flex-col">
+          <div>
+            <span class="inline-block px-3 py-1 text-xs font-bold text-zinc-300 bg-zinc-800 rounded-full mb-3">Memory (RAM)</span>
+            <h3 class="text-lg font-bold text-white mb-2">Crucial DDR5-6000 64GB (CP2K32G60C40U5W)</h3>
+            <p class="text-sm text-zinc-400 mb-4">高速なDDR5メモリを大容量128GB（64GB×2）搭載。巨大な音源ライブラリやAIモデルの読み込みをボトルネックなく処理する。</p>
+          </div>
+          <div class="text-right mt-auto">
+            <a href="https://link.amazon/B075lyaex" target="_blank" rel="noopener noreferrer" class="text-xs text-zinc-400 border border-zinc-600 rounded px-3 py-1 hover:bg-white/10 transition-colors">↗ Amazonで詳細を見る</a>
+          </div>
         </div>
-        <div class="p-6 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 h-full">
-          <span class="inline-block px-3 py-1 text-xs font-bold text-zinc-300 bg-zinc-800 rounded-full mb-3">CPU Cooler</span>
-          <h3 class="text-lg font-bold text-white mb-2">Noctua NH-D15-CH-BK</h3>
-          <p class="text-sm text-zinc-400 mb-4">空冷最強の呼び声高いNoctua製ハイエンドクーラーの漆黒モデル。長時間のAI生成でもCPUを確実に冷却し、静音性も両立。</p>
+
+        <!-- CPU Cooler -->
+        <div class="p-6 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 h-full flex flex-col">
+          <div>
+            <span class="inline-block px-3 py-1 text-xs font-bold text-zinc-300 bg-zinc-800 rounded-full mb-3">CPU Cooler</span>
+            <h3 class="text-lg font-bold text-white mb-2">Noctua NH-D15-CH-BK</h3>
+            <p class="text-sm text-zinc-400 mb-4">空冷最強の呼び声高いNoctua製ハイエンドクーラーの漆黒モデル。長時間のAI生成でもCPUを確実に冷却し、静音性も両立。</p>
+          </div>
+          <div class="text-right mt-auto">
+            <a href="https://link.amazon/B0fkzM83p" target="_blank" rel="noopener noreferrer" class="text-xs text-zinc-400 border border-zinc-600 rounded px-3 py-1 hover:bg-white/10 transition-colors">↗ Amazonで詳細を見る</a>
+          </div>
         </div>
-        <div class="p-6 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 h-full">
-          <span class="inline-block px-3 py-1 text-xs font-bold text-zinc-300 bg-zinc-800 rounded-full mb-3">Storage (SSD)</span>
-          <h3 class="text-lg font-bold text-white mb-2">ADATA LEGEND 860 2TB</h3>
-          <p class="text-sm text-zinc-400 mb-4">高速なデータアクセスを可能にするGen4 M.2 SSD。膨大な画像データやプロジェクトファイルの保存先として活躍。</p>
+
+        <!-- Storage -->
+        <div class="p-6 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 h-full flex flex-col">
+          <div>
+            <span class="inline-block px-3 py-1 text-xs font-bold text-zinc-300 bg-zinc-800 rounded-full mb-3">Storage (SSD)</span>
+            <h3 class="text-lg font-bold text-white mb-2">ADATA LEGEND 860 2TB</h3>
+            <p class="text-sm text-zinc-400 mb-4">高速なデータアクセスを可能にするGen4 M.2 SSD。膨大な画像データやプロジェクトファイルの保存先として活躍。</p>
+          </div>
+          <div class="text-right mt-auto">
+            <a href="https://link.amazon/B02OrdDNW" target="_blank" rel="noopener noreferrer" class="text-xs text-zinc-400 border border-zinc-600 rounded px-3 py-1 hover:bg-white/10 transition-colors">↗ Amazonで詳細を見る</a>
+          </div>
         </div>
-        <div class="p-6 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 h-full">
-          <span class="inline-block px-3 py-1 text-xs font-bold text-zinc-300 bg-zinc-800 rounded-full mb-3">Power Supply</span>
-          <h3 class="text-lg font-bold text-white mb-2">MSI MPG A1250GS (1250W)</h3>
-          <p class="text-sm text-zinc-400 mb-4">RTX 5090というモンスターGPUに安定した電力を供給する、1250Wの大容量・高耐久なATX3.1対応電源ユニット。</p>
+
+        <!-- Power Supply -->
+        <div class="p-6 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 h-full flex flex-col">
+          <div>
+            <span class="inline-block px-3 py-1 text-xs font-bold text-zinc-300 bg-zinc-800 rounded-full mb-3">Power Supply</span>
+            <h3 class="text-lg font-bold text-white mb-2">MSI MPG A1250GS (1250W)</h3>
+            <p class="text-sm text-zinc-400 mb-4">RTX 5090というモンスターGPUに安定した電力を供給する、1250Wの大容量・高耐久なATX3.1対応電源ユニット。</p>
+          </div>
+          <div class="text-right mt-auto">
+            <a href="https://link.amazon/B09JoSewO" target="_blank" rel="noopener noreferrer" class="text-xs text-zinc-400 border border-zinc-600 rounded px-3 py-1 hover:bg-white/10 transition-colors">↗ Amazonで詳細を見る</a>
+          </div>
         </div>
-        <div class="p-6 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 h-full">
-          <span class="inline-block px-3 py-1 text-xs font-bold text-zinc-800 bg-zinc-300 rounded-full mb-3">PC Case</span>
-          <h3 class="text-lg font-bold text-white mb-2">NZXT H7Flow (White)</h3>
-          <p class="text-sm text-zinc-400 mb-4">優れたエアフローでハイエンドパーツの熱を効率よく逃がす、美しくミニマルなデザインのPCケース。</p>
+
+        <!-- PC Case -->
+        <div class="p-6 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 h-full flex flex-col">
+          <div>
+            <span class="inline-block px-3 py-1 text-xs font-bold text-zinc-800 bg-zinc-300 rounded-full mb-3">PC Case</span>
+            <h3 class="text-lg font-bold text-white mb-2">NZXT H7Flow (White)</h3>
+            <p class="text-sm text-zinc-400 mb-4">優れたエアフローでハイエンドパーツの熱を効率よく逃がす、美しくミニマルなデザインのPCケース。</p>
+          </div>
+          <div class="text-right mt-auto">
+            <a href="https://link.amazon/B0i0G3Eak" target="_blank" rel="noopener noreferrer" class="text-xs text-zinc-400 border border-zinc-600 rounded px-3 py-1 hover:bg-white/10 transition-colors">↗ Amazonで詳細を見る</a>
+          </div>
         </div>
       </div>
 
+      <!-- アソシエイト・プログラム免責事項 -->
+      <div class="mt-12 text-center text-[10px] sm:text-xs text-zinc-500 max-w-3xl mx-auto px-4">
+        <p>OS: Windows 11 Pro | Built for Erika Project</p>
+        <p class="mt-2">※Erika Projectは、Amazon.co.jpを宣伝しリンクすることによってサイトが紹介料を獲得できる手段を提供することを目的に設定されたアフィリエイトプログラムである、Amazonアソシエイト・プログラムの参加者です。</p>
+      </div>
 
     </div>
   </div>
