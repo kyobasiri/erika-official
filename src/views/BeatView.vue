@@ -189,6 +189,7 @@ const updateGameLoop = () => {
     
     note.y = positionPercent
 
+    // 見逃し判定（通り過ぎた）
     if (timeDiff < -200) {
       note.miss = true
       combo.value = 0
@@ -203,12 +204,6 @@ const updateGameLoop = () => {
         showCutin('/assets/images/miss30.webp', '指先、疲れていませんか？ クリアだけが音楽ではありませんよ。')
       }
 
-    // 見逃し判定（通り過ぎた）
-    if (timeDiff < -200) {
-      note.miss = true
-      combo.value = 0
-      score.value.miss++
-      showPopup('MISS', 'text-red-500') // MISSポップアップを追加
     }
   })
 
