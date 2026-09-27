@@ -60,19 +60,29 @@ const startGame = async (song: Song, diff: 'easy' | 'normal' | 'hard') => {
   maxCombo.value = 0
   score.value = { perfect: 0, great: 0, good: 0, miss: 0 }
 
-  const ytId = song.share_url?.split('/').pop()
+  let ytId = song.share_url?.split('/').pop()
+  if (ytId && ytId.includes('?')) {
+    ytId = ytId.split('?')[0]
+  }
   if (!ytId) return
 
   // 譜面のフェッチ
   try {
-    const res = await fetch(`/assets/beatmaps/beatmap_${ytId}.json`)
-    if (!res.ok) throw new Error('譜面がありません')
+    // URLの末尾に時間を付与して、ブラウザのキャッシュを強制的に無効化する
+    const fetchUrl = `/assets/beatmaps/beatmap_${ytId}.json?t=${new Date().getTime()}`
+    console.log("フェッチするURL:", fetchUrl) // F12開発者ツールのConsole確認用
+
+    const res = await fetch(fetchUrl)
+    if (!res.ok) {
+      throw new Error(`HTTPステータス: ${res.status} (${res.statusText})`)
+    }
     const data = await res.json()
     
-    // 参照を切って新しい配列としてセット
     currentNotes.value = JSON.parse(JSON.stringify(data.difficulties[diff]))
-  } catch (e) {
-    alert("この曲の譜面データが見つかりません。バッチ処理を実行しましたか？")
+  } catch (e: any) {
+    console.error("エラー詳細:", e)
+    // エラーの理由をダイアログに詳細に表示する
+    alert(`譜面データの読み込みに失敗しました。\n対象ID: beatmap_${ytId}.json\n詳細: ${e.message}`)
     gameState.value = 'select'
     return
   }
