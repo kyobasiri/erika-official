@@ -33,6 +33,9 @@ const laneFlashes = ref([false, false])
 interface Popup { id: number, text: string, color: string }
 const popups = ref<Popup[]>([])
 
+const activeCutin = ref<{ img: string, text: string } | null>(null)
+const resultRank = ref({ rank: '', text: '', img: '' })
+
 let ytPlayer: any = null
 let animationFrameId: number = 0
 let isGameRunning = false
@@ -94,6 +97,14 @@ const startGame = async (song: Song, diff: 'easy' | 'normal' | 'hard') => {
   initYouTubePlayer(ytId)
 }
 
+// カットイン表示関数
+const showCutin = (img: string, text: string) => {
+  activeCutin.value = { img, text }
+  // 2.5秒後にスッと消す
+  setTimeout(() => {
+    activeCutin.value = null
+  }, 2500)
+}
 
 const playSE = (seName: string) => {
   try {
@@ -178,6 +189,20 @@ const updateGameLoop = () => {
     
     note.y = positionPercent
 
+    if (timeDiff < -200) {
+      note.miss = true
+      combo.value = 0
+      score.value.miss++
+      showPopup('MISS', 'text-red-500')
+      
+      if (score.value.miss === 10) {
+        showCutin('/assets/images/miss10.webp', '焦らなくて大丈夫ですよ。まずは曲をよく聴いてみましょう。')
+      } else if (score.value.miss === 20) {
+        showCutin('/assets/images/miss20.webp', '難しい譜面ですね。私がついていますから、ご自身のペースで。')
+      } else if (score.value.miss === 30) {
+        showCutin('/assets/images/miss30.webp', '指先、疲れていませんか？ クリアだけが音楽ではありませんよ。')
+      }
+
     // 見逃し判定（通り過ぎた）
     if (timeDiff < -200) {
       note.miss = true
@@ -198,6 +223,26 @@ const stopGame = () => {
 
 const endGame = () => {
   stopGame()
+  
+  // ランク計算
+  const total = score.value.perfect + score.value.great + score.value.good + score.value.miss
+  if (total === 0) {
+    resultRank.value = { rank: 'C', text: 'お疲れ様です。次はノーツを叩いてみましょう。', img: '/assets/images/icon.png' }
+  } else {
+    // スコアの精度（Accuracy）を計算
+    const accuracy = (score.value.perfect * 100 + score.value.great * 50 + score.value.good * 10) / (total * 100)
+    
+    if (accuracy >= 0.95 && score.value.miss === 0) {
+      resultRank.value = { rank: 'S', text: 'パーフェクト！素晴らしいビートでした。', img: '/assets/images/s.webp' }
+    } else if (accuracy >= 0.8) {
+      resultRank.value = { rank: 'A', text: '安定していますね。流石です。', img: '/assets/images/a.webp' }
+    } else if (accuracy >= 0.5) {
+      resultRank.value = { rank: 'B', text: '悪くないセッションでした。次も期待しています。', img: '/assets/images/b.webp' }
+    } else {
+      resultRank.value = { rank: 'C', text: '少し指が疲れているのかもしれませんね。', img: '/assets/images/c.webp' }
+    }
+  }
+  
   gameState.value = 'result'
 }
 
@@ -224,6 +269,17 @@ const hitLane = (lane: number) => {
     
     combo.value++
     if (combo.value > maxCombo.value) maxCombo.value = combo.value
+
+    if (combo.value === 50) {
+      showCutin('/assets/images/50.webp', 'いいグルーヴです、管理人さん。')
+    } else if (combo.value === 100) {
+      showCutin('/assets/images/100.webp', '指先、走っていませんか？ ビートを感じて。')
+    } else if (combo.value === 200) {
+      showCutin('/assets/images/200.webp', '最高のセッションですね！')
+    } else if (combo.value >= 300 && combo.value % 100 === 0) {
+      // 300以降は100コンボごとに現在のコンボ数をセリフに入れて労う
+      showCutin('/assets/images/300.webp', `${combo.value}コンボ…！完全にゾーンに入っていますね、圧巻です。`)
+    }
 
     // 精度に応じたポップアップとスコア加算
     if (diff < 50) {
@@ -292,6 +348,18 @@ const hitLane = (lane: number) => {
           <p class="text-4xl font-black text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]">{{ combo > 0 ? combo : '' }}</p>
         </div>
 
+        <div v-if="activeCutin" 
+             class="absolute top-1/4 -right-2 md:right-0 z-40 flex items-center gap-4 bg-gradient-to-l from-black/90 via-black/70 to-transparent p-4 pr-6 rounded-l-full pointer-events-none"
+             v-motion
+             :initial="{ x: 300, opacity: 0 }"
+             :enter="{ x: 0, opacity: 1, transition: { type: 'spring', stiffness: 200, damping: 20 } }"
+             :leave="{ x: 300, opacity: 0, transition: { duration: 300 } }">
+          <div class="text-right">
+            <p class="text-white text-sm md:text-base font-black italic drop-shadow-[0_2px_5px_rgba(0,0,0,1)] whitespace-nowrap">{{ activeCutin.text }}</p>
+          </div>
+          <img :src="activeCutin.img" class="w-20 h-20 md:w-24 md:h-24 object-cover rounded-full border-4 border-erika shadow-[0_0_15px_rgba(243,156,18,0.8)]">
+        </div>
+
         <!-- 判定ライン -->
         <div class="absolute w-full h-1 bg-erika shadow-[0_0_10px_rgba(243,156,18,1)] z-10" :style="`top: ${JUDGE_LINE_Y}%;`"></div>
 
@@ -315,18 +383,34 @@ const hitLane = (lane: number) => {
       </div>
 
       <!-- 4. リザルト画面 -->
-      <div v-if="gameState === 'result'" class="bg-black/60 backdrop-blur-md border border-white/10 rounded-2xl p-8 text-center max-w-md mx-auto">
-        <h2 class="text-3xl font-black text-erika mb-6">RESULT</h2>
-        <div class="space-y-2 mb-8 text-left max-w-xs mx-auto text-lg font-bold text-white">
-          <div class="flex justify-between"><span class="text-yellow-400">Perfect</span><span>{{ score.perfect }}</span></div>
-          <div class="flex justify-between"><span class="text-emerald-400">Great</span><span>{{ score.great }}</span></div>
-          <div class="flex justify-between"><span class="text-blue-400">Good</span><span>{{ score.good }}</span></div>
-          <div class="flex justify-between"><span class="text-red-500">Miss</span><span>{{ score.miss }}</span></div>
-          <div class="border-t border-zinc-700 my-2 pt-2 flex justify-between"><span class="text-erika">Max Combo</span><span>{{ maxCombo }}</span></div>
+      <div v-if="gameState === 'result'" class="bg-black/80 backdrop-blur-md border border-white/10 rounded-2xl p-8 text-center max-w-md mx-auto relative overflow-hidden">
+        
+        <!-- 背景にうっすらエリカの画像を透かせる -->
+        <img src="/assets/images/beatresult.webp" class="absolute inset-0 w-full h-full object-cover opacity-30 pointer-events-none mix-blend-luminosity">
+        <div class="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent"></div>
+
+        <div class="relative z-10">
+          <h2 class="text-2xl font-black text-erika mb-2 tracking-widest">SESSION RESULT</h2>
+          
+          <p class="text-6xl font-black mb-4 drop-shadow-[0_0_20px_rgba(255,255,255,0.3)] italic"
+             :class="{'text-yellow-400': resultRank.rank === 'S', 'text-emerald-400': resultRank.rank === 'A', 'text-blue-400': resultRank.rank === 'B', 'text-zinc-400': resultRank.rank === 'C'}">
+            RANK {{ resultRank.rank }}
+          </p>
+          
+          <p class="text-white font-bold mb-8 drop-shadow-md">「{{ resultRank.text }}」</p>
+          
+          <div class="space-y-2 mb-8 text-left max-w-[200px] mx-auto text-lg font-bold text-white bg-black/40 p-4 rounded-xl border border-white/10 backdrop-blur-md">
+            <div class="flex justify-between"><span class="text-yellow-400">Perfect</span><span>{{ score.perfect }}</span></div>
+            <div class="flex justify-between"><span class="text-emerald-400">Great</span><span>{{ score.great }}</span></div>
+            <div class="flex justify-between"><span class="text-blue-400">Good</span><span>{{ score.good }}</span></div>
+            <div class="flex justify-between"><span class="text-red-500">Miss</span><span>{{ score.miss }}</span></div>
+            <div class="border-t border-zinc-700 my-2 pt-2 flex justify-between"><span class="text-erika">Max Combo</span><span>{{ maxCombo }}</span></div>
+          </div>
+          
+          <button @click="gameState = 'select'" class="px-8 py-3 bg-zinc-800 border border-zinc-600 text-white font-bold rounded-full hover:bg-zinc-700 transition-colors shadow-lg hover:-translate-y-1">
+            選曲へ戻る
+          </button>
         </div>
-        <button @click="gameState = 'select'" class="px-8 py-3 bg-zinc-800 text-white font-bold rounded-full hover:bg-zinc-700 transition-colors">
-          選曲へ戻る
-        </button>
       </div>
 
     </div>
