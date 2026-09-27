@@ -91,6 +91,7 @@ const startGame = async (song: Song, diff: 'easy' | 'normal' | 'hard') => {
 }
 
 // --- YouTube制御とゲームループ ---
+// --- YouTube制御とゲームループ ---
 const initYouTubePlayer = (ytId: string) => {
   if (ytPlayer && typeof ytPlayer.destroy === 'function') {
     ytPlayer.destroy()
@@ -102,6 +103,12 @@ const initYouTubePlayer = (ytId: string) => {
       videoId: ytId,
       playerVars: { playsinline: 1, origin: window.location.origin, controls: 0 },
       events: {
+        // ▼▼▼ ここを追加：プレーヤーの準備ができたら再生を開始する ▼▼▼
+        onReady: (e: any) => {
+          e.target.setVolume(50) // 音量はお好みで調整してください
+          e.target.playVideo()
+        },
+        // ▲▲▲ ここまで追加 ▲▲▲
         onStateChange: (e: any) => {
           if (e.data === 1) { // PLAYING
             if (!isGameRunning) {
