@@ -15,6 +15,7 @@ import TodoDetailView from '../views/TodoDetailView.vue'
 import ReportsView from '../views/ReportsView.vue'
 import ReportDetailView from '../views/ReportDetailView.vue'
 import RpgView from '../views/RpgView.vue'
+import BeatView from '../views/BeatView.vue'
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -34,6 +35,7 @@ const routes: Array<RouteRecordRaw> = [
   { path: '/blog', name: 'blog', component: BlogView },
   { path: '/todo', name: 'todo', component: TodoView },
   { path: '/rpg', name: 'rpg', component: RpgView },
+  { path: '/beat', name: 'beat', component: BeatView },
   { path: '/reports', name: 'reports', component: ReportsView },
   { path: '/report-detail', name: 'report-detail', component: ReportDetailView },
   { path: '/todo-detail', name: 'todo-detail', component: TodoDetailView },
