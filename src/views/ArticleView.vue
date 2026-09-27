@@ -15,6 +15,8 @@ const compiledMarkdown = ref('<p class="text-zinc-400 animate-pulse">読み込�
 const prevArticle = ref<ArticleRef | null>(null)
 const nextArticle = ref<ArticleRef | null>(null)
 
+const dailyImages = ref<any[]>([])
+
 // Markdown描画後に独自のスタイルを適用するためのラッパー関数
 const parseMarkdown = async (text: string) => {
   const xLinkRegex = /^[ \t]*https?:\/\/(?:x\.com|twitter\.com)\/([a-zA-Z0-9_]+\/status\/\d+)[^\s<]*[ \t]*$/gm
@@ -61,6 +63,8 @@ const fetchArticleData = async () => {
   prevArticle.value = null
   nextArticle.value = null
 
+  dailyImages.value = []
+
   // 1. 前後の記事情報を取得
   try {
     const articlesRes = await fetch(`/assets/articles.json?t=${new Date().getTime()}`)
@@ -97,6 +101,29 @@ const fetchArticleData = async () => {
     console.error(error)
     compiledMarkdown.value = `<p class="text-red-400 font-bold">記事の読み込みに失敗しました。</p>`
   }
+
+  try {
+    const galRes = await fetch(`/assets/gallery.json?t=${new Date().getTime()}`)
+    if (galRes.ok) {
+      const galleries = await galRes.json()
+      
+      // 記事ID（例: 20260925 または 20260925-news）から日付部分を抽出
+      const dateFolder = id.split('-')[0] 
+      
+      // フォルダ名と一致するカテゴリを検索
+      const currentGallery = galleries.find((g: any) => g.name === dateFolder)
+      
+      if (currentGallery && currentGallery.images) {
+        dailyImages.value = currentGallery.images.map((img: any) => ({
+          ...img,
+          url: `/assets/images/gallery/${currentGallery.name}/${img.file}`,
+          folder: currentGallery.name // ギャラリー遷移用のパラメータとして保持
+        }))
+      }
+    }
+  } catch (e) {
+    console.error("Gallery fetch failed", e)
+  }
 }
 
 // 初回マウント時に実行
@@ -128,6 +155,35 @@ watch(
           親要素から子要素へ直接スタイルを指定するカスタムクラス `markdown-body` を設定しています。
         -->
         <div class="markdown-body" v-html="compiledMarkdown"></div>
+      </div>
+
+      <div v-if="dailyImages.length > 0" class="mb-12">
+        <h3 class="text-xl font-bold text-white mb-4 border-l-4 border-erika pl-3 drop-shadow-md">
+          Today's Archives
+        </h3>
+        
+        <!-- 横スクロールコンテナ -->
+        <div class="flex gap-4 overflow-x-auto hide-scrollbar pb-4 snap-x snap-mandatory">
+          
+          <!-- 画像アイテム -->
+          <div v-for="(img, index) in dailyImages" :key="index" 
+               class="shrink-0 w-40 md:w-56 aspect-[4/5] rounded-xl overflow-hidden bg-black/40 border border-white/10 snap-center group relative shadow-lg">
+            <img :src="img.url" :alt="img.alt || 'エリカの画像'" loading="lazy"
+                 class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
+          </div>
+          
+          <!-- ギャラリーへの導線（スクロールの最後） -->
+          <div class="shrink-0 w-40 md:w-56 aspect-[4/5] flex items-center justify-center snap-center bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 hover:border-erika/50 transition-all group">
+            <router-link :to="`/gallery?folder=${dailyImages[0].folder}`" 
+                         class="flex flex-col items-center justify-center p-4 text-zinc-400 group-hover:text-erika transition-colors w-full h-full">
+              <span class="text-4xl mb-4 group-hover:scale-110 group-hover:-translate-y-1 transition-transform">🖼️</span>
+              <span class="text-sm font-bold text-center leading-relaxed">
+                じっくり高画質で<br>見たい方はこちら
+              </span>
+            </router-link>
+          </div>
+
+        </div>
       </div>
 
       <!-- ページネーション（前後の記事） -->
