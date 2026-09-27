@@ -85,6 +85,7 @@
         <MenuCard to="/gallery" title="Gallery" desc="AI Art Archive." />
         <MenuCard to="/game" title="Memory Game" desc="AI Art Match." />
         <MenuCard to="/rpg" title="RPG Battle" desc="エリカ討伐戦" />
+        <MenuCard to="/beat" title="ERIKA BEAT" desc="Rhythm Game(YouTube) ver." />
       </div>
     </div>
   </section>
