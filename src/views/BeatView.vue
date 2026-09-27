@@ -29,6 +29,10 @@ const score = ref({ perfect: 0, great: 0, good: 0, miss: 0 })
 const FALL_TIME_MS = 1500 // ノーツが画面上部から判定ラインに到達するまでの時間（ミリ秒）
 const JUDGE_LINE_Y = 80   // 判定ラインの位置（画面上部から80%の位置）
 
+const laneFlashes = ref([false, false])
+interface Popup { id: number, text: string, color: string }
+const popups = ref<Popup[]>([])
+
 let ytPlayer: any = null
 let animationFrameId: number = 0
 let isGameRunning = false
@@ -90,7 +94,29 @@ const startGame = async (song: Song, diff: 'easy' | 'normal' | 'hard') => {
   initYouTubePlayer(ytId)
 }
 
-// --- YouTube制御とゲームループ ---
+
+const playSE = (seName: string) => {
+  try {
+    const audio = new Audio(`/assets/se/${seName}.mp3`)
+    audio.currentTime = 0 // 連続で叩いた時にも音が鳴るようにリセット
+    audio.volume = 0.5
+    audio.play().catch(() => {})
+  } catch (e) {}
+}
+
+const triggerLaneFlash = (lane: number) => {
+  laneFlashes.value[lane] = true
+  setTimeout(() => { laneFlashes.value[lane] = false }, 100)
+}
+
+const showPopup = (text: string, color: string) => {
+  const id = Date.now() + Math.random()
+  popups.value.push({ id, text, color })
+  setTimeout(() => {
+    popups.value = popups.value.filter(p => p.id !== id)
+  }, 500)
+}
+
 // --- YouTube制御とゲームループ ---
 const initYouTubePlayer = (ytId: string) => {
   if (ytPlayer && typeof ytPlayer.destroy === 'function') {
@@ -139,17 +165,14 @@ const initYouTubePlayer = (ytId: string) => {
 const updateGameLoop = () => {
   if (!isGameRunning || !ytPlayer) return
 
-  // 現在の再生時間（ミリ秒）
   const currentTime = ytPlayer.getCurrentTime() * 1000
 
   currentNotes.value.forEach(note => {
     if (note.hit || note.miss) {
-      note.y = 1000 // 画面外へ
+      note.y = 1000
       return
     }
 
-    // ノーツのY座標（%）を計算
-    // 判定ライン(JUDGE_LINE_Y)を time と一致させる
     const timeDiff = note.time - currentTime
     const positionPercent = JUDGE_LINE_Y - (timeDiff / FALL_TIME_MS * JUDGE_LINE_Y)
     
@@ -160,6 +183,7 @@ const updateGameLoop = () => {
       note.miss = true
       combo.value = 0
       score.value.miss++
+      showPopup('MISS', 'text-red-500') // MISSポップアップを追加
     }
   })
 
@@ -188,7 +212,10 @@ const hitLane = (lane: number) => {
   if (!ytPlayer) return
   const currentTime = ytPlayer.getCurrentTime() * 1000
 
-  // まだ叩かれておらず、指定レーンにあり、判定ラインに近いノーツを探す
+  // 叩いた瞬間の演出（RPGのattack SEを仮置き）
+  triggerLaneFlash(lane)
+  playSE('attack')
+
   const targetNote = currentNotes.value.find(n => !n.hit && !n.miss && n.lane === lane && Math.abs(n.time - currentTime) < 200)
   
   if (targetNote) {
@@ -198,11 +225,17 @@ const hitLane = (lane: number) => {
     combo.value++
     if (combo.value > maxCombo.value) maxCombo.value = combo.value
 
-    if (diff < 50) score.value.perfect++
-    else if (diff < 100) score.value.great++
-    else score.value.good++
-    
-    // エフェクト用のSEを鳴らす処理をここに入れると◎
+    // 精度に応じたポップアップとスコア加算
+    if (diff < 50) {
+      score.value.perfect++
+      showPopup('PERFECT', 'text-yellow-400')
+    } else if (diff < 100) {
+      score.value.great++
+      showPopup('GREAT', 'text-emerald-400')
+    } else {
+      score.value.good++
+      showPopup('GOOD', 'text-blue-400')
+    }
   }
 }
 </script>
@@ -238,7 +271,22 @@ const hitLane = (lane: number) => {
 
       <!-- 3. ゲームプレイ画面 -->
       <div v-if="gameState === 'playing'" class="relative max-w-md mx-auto h-[65vh] bg-black/80 backdrop-blur-sm border-2 border-zinc-700 rounded-xl overflow-hidden shadow-2xl">
-        
+
+        <div class="absolute top-0 left-0 w-1/2 h-full bg-cyan-400/30 transition-opacity duration-75 pointer-events-none" :class="laneFlashes[0] ? 'opacity-100' : 'opacity-0'"></div>
+        <div class="absolute top-0 right-0 w-1/2 h-full bg-pink-400/30 transition-opacity duration-75 pointer-events-none" :class="laneFlashes[1] ? 'opacity-100' : 'opacity-0'"></div>
+
+        <div class="absolute top-1/3 left-1/2 -translate-x-1/2 z-30 pointer-events-none flex flex-col items-center justify-center w-full h-32">
+          <div v-for="popup in popups" :key="popup.id"
+               class="absolute font-black text-4xl md:text-5xl italic drop-shadow-[0_0_15px_rgba(0,0,0,0.8)]"
+               :class="popup.color"
+               v-motion
+               :initial="{ y: 10, opacity: 0, scale: 0.5 }"
+               :enter="{ y: -40, opacity: 1, scale: 1.2, transition: { type: 'spring', stiffness: 250, damping: 10, mass: 1 } }"
+               :leave="{ opacity: 0, y: -60, transition: { duration: 200 } }">
+            {{ popup.text }}
+          </div>
+        </div>
+
         <!-- コンボ表示 -->
         <div class="absolute top-10 left-0 w-full text-center z-10 opacity-50 pointer-events-none">
           <p class="text-4xl font-black text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]">{{ combo > 0 ? combo : '' }}</p>
