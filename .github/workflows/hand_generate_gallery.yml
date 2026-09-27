@@ -47,5 +47,5 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add assets/gallery.json assets/articles.json
+          git add public/assets/gallery.json public/assets/articles.json
           git diff --quiet && git diff --staged --quiet || (git commit -m "chore: auto-generate json data" && git push)
