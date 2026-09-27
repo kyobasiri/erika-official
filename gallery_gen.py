@@ -116,13 +116,20 @@ def generate_alt_and_enemy_name(image_path, filename):
 
 def generate_gallery_json():
     gallery_data = []
-    alt_cache = {}
+    existing_data = {}
     
-    # 既存のキャッシュファイルがあれば読み込む（今回は全再生成のため無視することも可能ですが、後々のために残します）
-    if os.path.exists(ALT_CACHE_FILE):
+    # すでに存在する gallery.json を読み込んでキャッシュ代わりにする
+    if os.path.exists(GALLERY_OUTPUT):
         try:
-            with open(ALT_CACHE_FILE, 'r', encoding='utf-8') as f:
-                alt_cache = json.load(f)
+            with open(GALLERY_OUTPUT, 'r', encoding='utf-8') as f:
+                old_gallery = json.load(f)
+                for cat in old_gallery:
+                    for img in cat.get("images", []):
+                        key = f"{cat['name']}/{img['file']}"
+                        existing_data[key] = {
+                            "alt": img.get("alt", ""),
+                            "enemy_name": img.get("enemy_name", "")
+                        }
         except json.JSONDecodeError:
             pass
 
@@ -139,16 +146,14 @@ def generate_gallery_json():
             file_path = os.path.join(cat_path, img_file)
             cache_key = f"{category}/{img_file}"
             
-            # キャッシュに存在し、有効なデータが入っていればスキップ
-            cached_data = alt_cache.get(cache_key)
-            if isinstance(cached_data, dict) and cached_data.get('alt') and cached_data.get('enemy_name') and cached_data.get('enemy_name') != "ネームレス エリカ":
-                alt_text = cached_data['alt']
-                enemy_name = cached_data['enemy_name']
+            # gallery.json に有効なデータが存在していればAPI呼び出しをスキップ
+            cached = existing_data.get(cache_key)
+            if isinstance(cached, dict) and cached.get('alt') and cached.get('enemy_name') and cached.get('enemy_name') != "ネームレス エリカ":
+                alt_text = cached['alt']
+                enemy_name = cached['enemy_name']
             else:
                 print(f"[{cache_key}] 画像を解析して alt と enemy_name を生成中...")
                 alt_text, enemy_name = generate_alt_and_enemy_name(file_path, img_file)
-                # キャッシュに保存
-                alt_cache[cache_key] = {"alt": alt_text, "enemy_name": enemy_name}
                 time.sleep(1) # API制限対策
             
             images_with_alt.append({
@@ -162,10 +167,6 @@ def generate_gallery_json():
                 "name": category,
                 "images": images_with_alt
             })
-
-    # キャッシュファイルの保存
-    with open(ALT_CACHE_FILE, 'w', encoding='utf-8') as f:
-        json.dump(alt_cache, f, indent=4, ensure_ascii=False)
 
     # gallery.jsonの保存
     os.makedirs(os.path.dirname(GALLERY_OUTPUT), exist_ok=True)
