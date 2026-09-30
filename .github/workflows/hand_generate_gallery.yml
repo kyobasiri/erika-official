@@ -1,22 +1,23 @@
-name: Generate Gallery JSON
+name: Generate JSON and Deploy
 
 on:
   push:
-    paths:
-      - 'assets/images/gallery/**'
-      - 'articles/**'
-  workflow_dispatch: # ← これを1行追加するだけ！
+    branches:
+      - main # mainブランチにPushされたら常に実行するように変更
+  workflow_dispatch:
 
 permissions:
   contents: write
+  deployments: write # デプロイ処理のために追加
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # --- 1. PythonでJSON生成（既存の処理） ---
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -43,9 +44,32 @@ jobs:
           GCP_VISION_CREDENTIALS_TOKEN: ${{ secrets.GCP_VISION_CREDENTIALS }}
         run: python gallery_gen.py
 
+      # --- 2. 生成されたJSONをGitHubに保存（既存の処理） ---
       - name: Commit and Push if changed
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add public/assets/gallery.json public/assets/articles.json
           git diff --quiet && git diff --staged --quiet || (git commit -m "chore: auto-generate json data" && git push)
+
+      # --- 3. Viteビルド（ここから追加） ---
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Node Dependencies
+        run: npm install
+
+      - name: Build Vite App
+        run: npm run build
+
+      # --- 4. Cloudflare Pagesへデプロイ ---
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: 'erika-official' # Cloudflare上のプロジェクト名に合わせる
+          directory: 'dist'
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
