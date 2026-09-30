@@ -64,12 +64,10 @@ jobs:
       - name: Build Vite App
         run: npm run build
 
-      # --- 4. Cloudflare Pagesへデプロイ ---
+# --- 4. Cloudflare Pagesへデプロイ ---
       - name: Deploy to Cloudflare Pages
-        uses: cloudflare/pages-action@v1
+        uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: 'erika-official' # Cloudflare上のプロジェクト名に合わせる
-          directory: 'dist'
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          command: pages deploy dist --project-name=erika-official
