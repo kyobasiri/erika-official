@@ -681,7 +681,7 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <button @click="submitScore" class="px-10 py-4 bg-red-600 text-white font-black rounded-full hover:bg-red-500 shadow-[0_0_20px_rgba(239,68,68,0.5)] transition-all hover:-translate-y-1">
+      <button @click="submitScore()" class="px-10 py-4 bg-red-600 text-white font-black rounded-full hover:bg-red-500 shadow-[0_0_20px_rgba(239,68,68,0.5)] transition-all hover:-translate-y-1">
         スコアを記録してタイトルへ
       </button>
     </div>
@@ -703,8 +703,8 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <button @click="submitScore(true)" class="px-8 py-4 bg-cyan-600 text-white font-black rounded-full hover:bg-cyan-500 shadow-[0_0_20px_rgba(8,145,178,0.5)] transition-all hover:-translate-y-1">
-        スコアを記録して帰還する
+      <button @click="submitScore()" class="px-10 py-4 bg-red-600 text-white font-black rounded-full hover:bg-red-500 shadow-[0_0_20px_rgba(239,68,68,0.5)] transition-all hover:-translate-y-1">
+        スコアを記録してタイトルへ
       </button>
     </div>
   </div>
