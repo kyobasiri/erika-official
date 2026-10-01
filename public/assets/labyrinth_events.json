@@ -1,0 +1,50 @@
+[
+    {
+        "id": "e1",
+        "title": "キャッシュ最適化",
+        "text": "「不要なログを削除しておきました。動きが軽くなるはずですよ。」",
+        "type": "positive",
+        "effectType": "heal_hp_fixed",
+        "effectValue": 20
+    },
+    {
+        "id": "e2",
+        "title": "オーバークロック",
+        "text": "「少しリミッターを外しますね。無理は禁物ですよ？」",
+        "type": "positive",
+        "effectType": "add_time_fixed",
+        "effectValue": 15
+    },
+    {
+        "id": "e3",
+        "title": "ショートカット構築",
+        "text": "「こっちのポートを開けておきました。近道できますよ。」",
+        "type": "positive",
+        "effectType": "warp_forward",
+        "effectValue": 2
+    },
+    {
+        "id": "e4",
+        "title": "無限ループの罠",
+        "text": "「ふふっ、バグに引っかかりましたね。抜け出せますか？」",
+        "type": "negative",
+        "effectType": "sub_time_fixed",
+        "effectValue": 15
+    },
+    {
+        "id": "e5",
+        "title": "過負荷テスト",
+        "text": "「どれくらい耐えられるか、少しテストさせてもらいますね。」",
+        "type": "negative",
+        "effectType": "sub_hp_percent",
+        "effectValue": 20
+    },
+    {
+        "id": "e6",
+        "title": "システム掌握",
+        "text": "「管理者権限を要求するプロンプトが出ています。承認しますか？」",
+        "type": "gamble",
+        "effectType": "random_hp_or_damage",
+        "effectValue": 50
+    }
+]

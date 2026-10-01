@@ -16,6 +16,7 @@ import ReportsView from '../views/ReportsView.vue'
 import ReportDetailView from '../views/ReportDetailView.vue'
 import RpgView from '../views/RpgView.vue'
 import BeatView from '../views/BeatView.vue'
+import LabyrinthView from '../views/LabyrinthView.vue'
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -24,7 +25,7 @@ const routes: Array<RouteRecordRaw> = [
     component: HomeView
   },
   {
-    path: '/about', // ★追加
+    path: '/about',
     name: 'about',
     component: AboutView
   },
@@ -40,10 +41,10 @@ const routes: Array<RouteRecordRaw> = [
   { path: '/report-detail', name: 'report-detail', component: ReportDetailView },
   { path: '/todo-detail', name: 'todo-detail', component: TodoDetailView },
   { path: '/article', name: 'article', component: ArticleView },
-  { path: '/gallery', name: 'gallery', component: GalleryView }, // ★追加
-  { path: '/privacy', name: 'privacy', component: PrivacyView }, // ★追加
-  { path: '/contact', name: 'contact', component: ContactView }
-  // 今後追加するページ
+  { path: '/gallery', name: 'gallery', component: GalleryView },
+  { path: '/privacy', name: 'privacy', component: PrivacyView },
+  { path: '/contact', name: 'contact', component: ContactView },
+  { path: '/labyrinth', name: 'labyrinth', component: LabyrinthView }
 ]
 
 const router = createRouter({
