@@ -638,7 +638,7 @@ function sideWallStyle(depth: number, side: 'left' | 'right') {
       'url("/assets/images/stone_wall.webp")',
     backgroundRepeat: 'no-repeat, repeat',
     backgroundSize: '100% 100%, 128px 128px',
-    zIndex: 20 - depth * 2
+    zIndex: depthLayer(depth, 1)
   }
 }
 
@@ -650,7 +650,7 @@ function frontWallStyle(depth: number) {
     right: `${inset}%`,
     bottom: `${inset}%`,
     left: `${inset}%`,
-    zIndex: 21 - depth * 2
+    zIndex: depthLayer(depth, 3)
   }
 }
 
@@ -1222,6 +1222,19 @@ function evaluateSlot() {
   }
 }
 
+function depthLayer(depth: number, offset = 0) {
+  return 100 - depth * 10 + offset
+}
+
+function sceneObjectStyle(depth: number, verticalOffset: number) {
+  return {
+    zIndex: depthLayer(depth, 2),
+    transform:
+      `scale(${1 - depth * 0.2}) ` +
+      `translateY(${depth * verticalOffset}px)`
+  }
+}
+
 function proceedToNextFloor() {
   if (gameState.value !== 'slot' || !isAllStopped.value) return
 
@@ -1268,6 +1281,41 @@ function triggerClear() {
   clearGameTimers()
   stopBGM()
   addLog('最終階層を突破！ システムの掌握に成功しました。')
+}
+
+function horizontalSurfaceStyle(
+  depth: number,
+  surface: 'floor' | 'ceiling'
+) {
+  const near = depth * 12.5
+  const far = (depth + 1) * 12.5
+
+  const points =
+    surface === 'floor'
+      ? [
+          `${near}% ${100 - near}%`,
+          `${far}% ${100 - far}%`,
+          `${100 - far}% ${100 - far}%`,
+          `${100 - near}% ${100 - near}%`
+        ]
+      : [
+          `${near}% ${near}%`,
+          `${100 - near}% ${near}%`,
+          `${100 - far}% ${far}%`,
+          `${far}% ${far}%`
+        ]
+
+  const darkness = Math.min(
+    0.85,
+    (surface === 'floor' ? 0.12 : 0.4) + depth * 0.16
+  )
+
+  return {
+    clipPath: `polygon(${points.join(', ')})`,
+    zIndex: depthLayer(depth),
+    '--surface-darkness': String(darkness),
+    '--tile-size': `${Math.max(16, 64 - depth * 14)}px`
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -1585,21 +1633,25 @@ onUnmounted(() => {
         class="flex-1 min-h-0 flex flex-col bg-black overflow-hidden"
       >
         <div class="relative flex-1 min-h-0 overflow-hidden flex items-center justify-center bg-zinc-950">
-          <div
-            class="absolute inset-0 bg-gradient-to-t from-zinc-800 to-black opacity-50"
-            style="transform: perspective(500px) rotateX(60deg); transform-origin: bottom;"
-          ></div>
 
           <div class="dungeon-scene relative w-full max-w-lg aspect-square flex items-center justify-center">
             <template v-for="depth in [3, 2, 1, 0]" :key="depth">
               <template v-if="depth <= sightLimit">
+                <template v-if="viewCell(depth) !== 1">
+                    <div
+                        class="dungeon-surface dungeon-floor"
+                        :style="horizontalSurfaceStyle(depth, 'floor')"
+                    ></div>
+
+                    <div
+                        class="dungeon-surface dungeon-ceiling"
+                        :style="horizontalSurfaceStyle(depth, 'ceiling')"
+                    ></div>
+                </template>
                 <div
                   v-if="viewCell(depth) === 3"
                   class="absolute flex items-end justify-center transition-all duration-300"
-                  :style="{
-                    zIndex: 11 - depth,
-                    transform: `scale(${1 - depth * 0.2}) translateY(${depth * 10}px)`
-                  }"
+                  :style="sceneObjectStyle(depth, 10)"
                 >
                   <img
                     src="/assets/images/door.webp"
@@ -1611,10 +1663,7 @@ onUnmounted(() => {
                 <div
                   v-if="viewCell(depth) === 2"
                   class="absolute flex items-center justify-center transition-all duration-300"
-                  :style="{
-                    zIndex: 11 - depth,
-                    transform: `scale(${1 - depth * 0.2}) translateY(${depth * 20}px)`
-                  }"
+                  :style="sceneObjectStyle(depth, 20)"
                 >
                   <img
                     src="/assets/images/treasure.webp"
@@ -2210,6 +2259,43 @@ button:disabled {
   height: 100%;
   object-fit: cover;
   object-position: center;
+}
+
+/* ダンジョン内の前後関係を、この要素の中に閉じ込める。
+   ミニマップや操作パネルより壁が前に出るのを防ぐ。 */
+.dungeon-scene {
+  isolation: isolate;
+}
+
+.dungeon-surface {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-color: #44403c;
+
+  background-image:
+    linear-gradient(
+      rgba(0, 0, 0, var(--surface-darkness)),
+      rgba(0, 0, 0, var(--surface-darkness))
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0,
+      transparent calc(var(--tile-size) - 2px),
+      #1c1917 calc(var(--tile-size) - 2px),
+      #1c1917 var(--tile-size)
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent calc(var(--tile-size) - 2px),
+      #1c1917 calc(var(--tile-size) - 2px),
+      #1c1917 var(--tile-size)
+    );
+}
+
+.dungeon-ceiling {
+  background-color: #292524;
 }
 
 @media (prefers-reduced-motion: reduce) {
