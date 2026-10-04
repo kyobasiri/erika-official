@@ -1,80 +1,294 @@
 <script setup lang="ts">
+import StaticPageLayout from '../components/StaticPageLayout.vue'
+
+const groups = [
+  {
+    id: 'composition',
+    label: 'COMPOSITION',
+    title: '作曲と音づくり',
+    description: 'アイデアを形にするソフトウェアと、演奏・入力のための道具。',
+    items: [
+      {
+        category: 'DAW / COMPOSITION',
+        name: 'Ableton Live Lite / Scaler 3',
+        description:
+          '楽曲構成とビートメイクを支える制作環境。操作と理論支援を組み合わせ、アイデアを形にします。',
+        url: '',
+        status: '',
+      },
+      {
+        category: 'VIRTUAL INSTRUMENTS',
+        name: 'NI Komplete 15 Select / Electric Storm Deluxe',
+        description:
+          '動画のサウンドや楽曲制作に使用する音源ライブラリ。表現に合わせて音色を選んでいます。',
+        url: 'https://link.amazon/B0iOlSdAK',
+        status: '',
+      },
+      {
+        category: 'MIDI CONTROLLER',
+        name: 'M-Audio Oxygen Pro Mini',
+        description:
+          'メロディの打ち込みやDAWの操作に使う、コンパクトなMIDIキーボード。',
+        url: 'https://link.amazon/B05u8ciEE',
+        status: '',
+      },
+    ],
+  },
+  {
+    id: 'recording',
+    label: 'RECORDING',
+    title: '録音を支える機材',
+    description: '声や楽器の音を、制作環境へ。',
+    items: [
+      {
+        category: 'AUDIO INTERFACE',
+        name: 'SSL2 MkⅡ',
+        description:
+          'Solid State Logicのオーディオインターフェース。マイクや楽器の録音に使用します。',
+        url: 'https://link.amazon/B01I2n5wZ',
+        status: '',
+      },
+      {
+        category: 'CONDENSER MICROPHONE',
+        name: 'Audio-Technica AT2035',
+        description:
+          'ボーカルや楽器の収音に使うコンデンサーマイク。音の質感や空気感を取り込むための一本。',
+        url: 'https://link.amazon/B0fkzM83p',
+        status: '',
+      },
+    ],
+  },
+  {
+    id: 'guitar',
+    label: 'GUITAR & AMP',
+    title: 'ギターで広げる表現',
+    description:
+      '制作環境への統合とサウンド調整を進めている機材。今後の作品での活用を目指しています。',
+    items: [
+      {
+        category: 'GUITAR',
+        name: 'Squier / Affinity Telecaster Thinline',
+        description:
+          'Fホールを持つセミホロウボディのギター。リズムギターへの活用を予定しています。',
+        url: 'https://link.amazon/B01pZ4MRW',
+        status: '導入・調整中',
+      },
+      {
+        category: 'GUITAR',
+        name: 'SCHECTER / AR-06-2H',
+        description:
+          '2ハムバッカーを搭載したギター。リードパートなど、表現の幅を広げるための一本。',
+        url: 'https://link.amazon/B0gWyDvH1',
+        status: '導入・調整中',
+      },
+      {
+        category: 'AMP & CAB',
+        name: 'BOSS / IR-2',
+        description:
+          'ギターのアンプサウンドをDAWへつなぐ機材。演奏とPCでの制作環境を結びます。',
+        url: 'https://link.amazon/B0dZFHDgr',
+        status: '導入・調整中',
+      },
+    ],
+  },
+]
+
+// 既存ページのAT2035リンクを維持
+groups[1].items[1].url = 'https://link.amazon/B0cxjbKcN'
 </script>
 
 <template>
-  <div class="bg-[url('/assets/images/gear.jpg')] bg-fixed bg-cover bg-center min-h-screen pt-24 pb-12">
-    <div class="container mx-auto px-4 max-w-6xl">
-      <h1 class="text-4xl md:text-5xl font-black text-white text-center mb-12 drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)]">SOUND GEAR</h1>
+  <StaticPageLayout
+    eyebrow="SOUND GEAR"
+    title="音をつくる道具"
+    description="作曲、録音、ギター。エリカの音楽制作を支える機材たち。"
+    image="/assets/images/gear.jpg"
+  >
+    <nav class="category-nav" aria-label="機材の分類">
+      <a v-for="group in groups" :key="group.id" :href="`#${group.id}`">
+        {{ group.title }} <span aria-hidden="true">↓</span>
+      </a>
+    </nav>
 
-      <div class="mb-12">
-        <h2 class="text-2xl font-bold text-white mb-6 border-l-4 border-erika pl-3 drop-shadow-md">Current Production Core</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div class="p-6 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 h-full">
-            <span class="inline-block px-3 py-1 text-xs font-bold text-zinc-300 bg-zinc-800 rounded-full mb-3">DAW & Composition</span>
-            <h3 class="text-lg font-bold text-white mb-2">Ableton Live Lite / Scaler 3</h3>
-            <p class="text-sm text-zinc-400">エリカの楽曲構成とビートメイクを支えるメインシステム。直感的な操作感と理論支援で、アイデアを迅速に形にする。</p>
-          </div>
-          <div class="p-6 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 h-full">
-            <span class="inline-block px-3 py-1 text-xs font-bold text-zinc-300 bg-zinc-800 rounded-full mb-3">Virtual Instruments</span>
-            <h3 class="text-lg font-bold text-white mb-2">NI Komplete 15 Select / Electric Storm Deluxe</h3>
-            <p class="text-sm text-zinc-400 mb-4">現在の動画におけるサウンドの要。高品質なライブラリが、多様なジャンルの表現を可能にする。</p>
-            <div class="text-right"><a href="https://link.amazon/B0iOlSdAK" target="_blank" class="text-xs text-zinc-400 border border-zinc-600 rounded px-3 py-1 hover:bg-white/10 transition-colors">↗ Amazonで詳細</a></div>
-          </div>
-          <div class="p-6 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 h-full">
-            <span class="inline-block px-3 py-1 text-xs font-bold text-zinc-300 bg-zinc-800 rounded-full mb-3">MIDI Controller</span>
-            <h3 class="text-lg font-bold text-white mb-2">M-Audio Oxygen Pro Mini</h3>
-            <p class="text-sm text-zinc-400 mb-4">コンパクトながら高機能なMIDIキーボード。メロディの打ち込みやDAWのトランスポート制御を直感的に行える、デスク上の司令塔。</p>
-            <div class="text-right"><a href="https://link.amazon/B05u8ciEE" target="_blank" class="text-xs text-zinc-400 border border-zinc-600 rounded px-3 py-1 hover:bg-white/10 transition-colors">↗ Amazonで詳細</a></div>
-          </div>
-        </div>
+    <section
+      v-for="group in groups"
+      :id="group.id"
+      :key="group.id"
+      class="gear-section"
+      :aria-labelledby="`${group.id}-title`"
+    >
+      <div class="group-heading">
+        <p class="eyebrow">{{ group.label }}</p>
+        <h2 :id="`${group.id}-title`" class="section-title">
+          {{ group.title }}
+        </h2>
+        <p class="body-text">{{ group.description }}</p>
       </div>
 
-      <div class="mb-12">
-        <h2 class="text-2xl font-bold text-white mb-6 border-l-4 border-erika pl-3 drop-shadow-md">Recording Hardware</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div class="p-6 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 h-full">
-            <span class="inline-block px-3 py-1 text-xs font-bold text-zinc-300 bg-zinc-800 rounded-full mb-3">Audio Interface</span>
-            <h3 class="text-lg font-bold text-white mb-2">SSL2 MkⅡ (Solid State Logic)</h3>
-            <p class="text-sm text-zinc-400 mb-4">プロスタジオの血統を受け継ぐSSL製インターフェース。圧倒的な解像度とクリアなマイクプリが、宅録環境をプロレベルへ引き上げる。</p>
-            <div class="text-right"><a href="https://link.amazon/B01I2n5wZ" target="_blank" class="text-xs text-zinc-400 border border-zinc-600 rounded px-3 py-1 hover:bg-white/10 transition-colors">↗ Amazonで詳細</a></div>
+      <div class="gear-list">
+        <article v-for="item in group.items" :key="item.name" class="gear-item">
+          <div class="gear-meta">
+            <span class="gear-category">{{ item.category }}</span>
+            <span v-if="item.status" class="status">{{ item.status }}</span>
           </div>
-          <div class="p-6 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 h-full">
-            <span class="inline-block px-3 py-1 text-xs font-bold text-zinc-300 bg-zinc-800 rounded-full mb-3">Condenser Mic</span>
-            <h3 class="text-lg font-bold text-white mb-2">Audio-Technica AT2035</h3>
-            <p class="text-sm text-zinc-400 mb-4">フラットで原音に忠実な特性を持つ、コンデンサーマイク。ボーカルから楽器まで、空気感そのままに収音する。</p>
-            <div class="text-right"><a href="https://link.amazon/B0cxjbKcN" target="_blank" class="text-xs text-zinc-400 border border-zinc-600 rounded px-3 py-1 hover:bg-white/10 transition-colors">↗ Amazonで詳細</a></div>
-          </div>
-        </div>
+
+          <h3>{{ item.name }}</h3>
+          <p>{{ item.description }}</p>
+
+          <a
+            v-if="item.url"
+            :href="item.url"
+            target="_blank"
+            rel="sponsored noopener noreferrer"
+            class="gear-link"
+          >
+            Amazonで詳細を見る ↗
+          </a>
+        </article>
       </div>
+    </section>
 
-      <div class="mt-12">
-        <div class="p-6 rounded-xl bg-erika/10 border-l-4 border-erika mb-6 backdrop-blur-sm">
-          <h2 class="text-xl font-bold text-erika mb-2">Next Stage: Authentic Electric Arsenal</h2>
-          <p class="text-zinc-300 text-sm">エリカの表現をより「生」に近づけるために導入された、物理的な機材群。現在はシステムへの統合・サウンド調整中であり、今後の動画作品にて順次解禁予定。</p>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div class="p-6 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 h-full">
-            <span class="inline-block px-3 py-1 text-xs font-bold text-orange-900 bg-erika rounded-full mb-3">Guitar (Upcoming)</span>
-            <h3 class="text-lg font-bold text-white mb-2">Squier / Affinity Telecaster Thinline</h3>
-            <p class="text-sm text-zinc-400 mb-4">Fホールの空いたセミホロウボディ。独特のエアー感と軽快な鳴りが特徴。リズムギターを担当する予定。</p>
-            <div class="text-right"><a href="https://link.amazon/B01pZ4MRW" target="_blank" class="text-xs text-zinc-400 border border-zinc-600 rounded px-3 py-1 hover:bg-white/10 transition-colors">↗ Amazonで詳細</a></div>
-          </div>
-          <div class="p-6 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 h-full">
-            <span class="inline-block px-3 py-1 text-xs font-bold text-orange-900 bg-erika rounded-full mb-3">Guitar (Upcoming)</span>
-            <h3 class="text-lg font-bold text-white mb-2">SCHECTER / AR-06-2H</h3>
-            <p class="text-sm text-zinc-400 mb-4">ジャガータイプのボディにパワフルな2ハムバッカーを搭載。いつかはリードギターを担当させたい。</p>
-            <div class="text-right"><a href="https://link.amazon/B0gWyDvH1" target="_blank" class="text-xs text-zinc-400 border border-zinc-600 rounded px-3 py-1 hover:bg-white/10 transition-colors">↗ Amazonで詳細</a></div>
-          </div>
-          <div class="p-6 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10 h-full">
-            <span class="inline-block px-3 py-1 text-xs font-bold text-green-900 bg-emerald-500 rounded-full mb-3">Amp & Cab Core</span>
-            <h3 class="text-lg font-bold text-white mb-2">BOSS / IR-2</h3>
-            <p class="text-sm text-zinc-400 mb-4">リアルなアンプサウンドをPC(DAW)へ直結する心臓部。制作環境と物理機材を繋ぐ、最も重要なブリッジ。</p>
-            <div class="text-right"><a href="https://link.amazon/B0dZFHDgr" target="_blank" class="text-xs text-zinc-400 border border-zinc-600 rounded px-3 py-1 hover:bg-white/10 transition-colors">↗ Amazonで詳細</a></div>
-          </div>
-        </div>
-      </div>
+    <p class="affiliate-note">
+      ※Erika Projectは、Amazon.co.jpを宣伝しリンクすることによって
+      サイトが紹介料を獲得できる手段を提供することを目的に設定された
+      アフィリエイトプログラムである、Amazonアソシエイト・プログラムの参加者です。
+    </p>
 
-
-    </div>
-  </div>
+    <nav class="related-links" aria-label="関連ページ">
+      <router-link to="/spec">制作PCを見る →</router-link>
+      <router-link to="/concept">プロジェクトの想い →</router-link>
+    </nav>
+  </StaticPageLayout>
 </template>
+
+<style scoped>
+.category-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 44px;
+}
+
+.category-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 20px;
+  min-height: 44px;
+  padding: 9px 18px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.category-nav a:hover {
+  border-color: var(--accent);
+}
+
+.category-nav span {
+  color: var(--accent);
+}
+
+.gear-section {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.6fr);
+  gap: 48px;
+  padding-block: 36px;
+  border-top: 1px solid var(--line);
+  scroll-margin-top: 90px;
+}
+
+.group-heading .body-text {
+  font-size: 13px;
+}
+
+.gear-list {
+  display: grid;
+  gap: 16px;
+}
+
+.gear-item {
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.gear-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.gear-category {
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.status {
+  padding: 3px 9px;
+  border: 1px solid rgba(243, 164, 59, 0.25);
+  border-radius: 4px;
+  color: #e8bc7e;
+  font-size: 10px;
+}
+
+.gear-item h3 {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+.gear-item p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.9;
+}
+
+.gear-link {
+  display: inline-block;
+  margin-top: 18px;
+  color: var(--accent);
+  font-size: 12px;
+}
+
+.gear-link:hover {
+  text-decoration: underline;
+}
+
+.affiliate-note {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.9;
+}
+
+@media (max-width: 767px) {
+  .category-nav {
+    gap: 8px;
+    margin-bottom: 28px;
+  }
+
+  .category-nav a {
+    gap: 10px;
+    padding-inline: 12px;
+    font-size: 12px;
+  }
+
+  .gear-section {
+    grid-template-columns: 1fr;
+    gap: 22px;
+    padding-block: 28px;
+  }
+
+  .gear-item {
+    padding: 20px;
+  }
+}
+</style>
