@@ -78,6 +78,124 @@ export default {
                 return new Response(data, { headers: corsHeaders });
             }
 
+            // 5. ランキングAPI
+            if (path === '/api/ranking') {
+                const jsonHeaders = {
+                    ...corsHeaders,
+                    'Content-Type': 'application/json; charset=utf-8',
+                    'Cache-Control': 'no-store',
+                };
+
+                const jsonResponse = (data, status = 200) =>
+                    new Response(JSON.stringify(data), {
+                        status,
+                        headers: jsonHeaders,
+                    });
+
+                if (!['GET', 'POST'].includes(request.method)) {
+                    return new Response(
+                        JSON.stringify({ error: 'Method Not Allowed' }),
+                        {
+                            status: 405,
+                            headers: {
+                                ...jsonHeaders,
+                                Allow: 'GET, POST, OPTIONS',
+                            },
+                        }
+                    );
+                }
+
+                if (!env.KV_BINDING) {
+                    return jsonResponse({
+                        error: 'KV_BINDING が設定されていません。',
+                    }, 500);
+                }
+
+                const rankingKey = 'labyrinth_ranking';
+
+                try {
+                    // POSTの入力は、保存データを変更する前に確認する。
+                    let newEntry = null;
+
+                    if (request.method === 'POST') {
+                        let body;
+
+                        try {
+                            body = await request.json();
+                        } catch {
+                            return jsonResponse({
+                                error: 'JSON形式で送信してください。',
+                            }, 400);
+                        }
+
+                        if (!body || typeof body !== 'object' || Array.isArray(body)) {
+                            return jsonResponse({
+                                error: '送信データが不正です。',
+                            }, 400);
+                        }
+
+                        if (
+                            !Number.isSafeInteger(body.score) ||
+                            body.score < 0 ||
+                            !Number.isSafeInteger(body.floor) ||
+                            body.floor < 1
+                        ) {
+                            return jsonResponse({
+                                error: 'スコアまたは階層が不正です。',
+                            }, 400);
+                        }
+
+                        newEntry = {
+                            name:
+                                typeof body.name === 'string'
+                                    ? body.name.trim().slice(0, 40) || '名無しの冒険者'
+                                    : '名無しの冒険者',
+                            score: body.score,
+                            floor: body.floor,
+                            avatarUrl:
+                                typeof body.avatarUrl === 'string' && body.avatarUrl
+                                    ? body.avatarUrl
+                                    : '/assets/images/icon.png',
+                            date: new Date().toISOString(),
+                        };
+                    }
+
+                    const stored = await env.KV_BINDING.get(rankingKey);
+                    const rankings = stored ? JSON.parse(stored) : [];
+
+                    if (!Array.isArray(rankings)) {
+                        throw new Error('保存済みランキングが配列ではありません。');
+                    }
+
+                    if (newEntry) {
+                        rankings.push(newEntry);
+                    }
+
+                    rankings.sort((a, b) => b.score - a.score);
+                    const topRankings = rankings.slice(0, 50);
+
+                    if (request.method === 'GET') {
+                        return jsonResponse(topRankings);
+                    }
+
+                    await env.KV_BINDING.put(
+                        rankingKey,
+                        JSON.stringify(topRankings)
+                    );
+
+                    return jsonResponse({ success: true });
+                } catch (error) {
+                    console.error('Ranking API Error:', error);
+
+                    return jsonResponse({
+                        error:
+                            request.method === 'GET'
+                                ? 'ランキングの取得に失敗しました。'
+                                : 'スコアの保存に失敗しました。',
+                    }, 500);
+                }
+            }
+
             // 5. 静的ファイルのフォールバック
             return env.ASSETS.fetch(request);
 
