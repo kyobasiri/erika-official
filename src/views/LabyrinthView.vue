@@ -2271,31 +2271,26 @@ button:disabled {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background-color: #44403c;
 
+  background-color: #101b29;
   background-image:
     linear-gradient(
-      rgba(0, 0, 0, var(--surface-darkness)),
-      rgba(0, 0, 0, var(--surface-darkness))
+      rgba(0, 0, 0, var(--surface-darkness, 0.2)),
+      rgba(0, 0, 0, var(--surface-darkness, 0.2))
     ),
-    repeating-linear-gradient(
-      0deg,
-      transparent 0,
-      transparent calc(var(--tile-size) - 2px),
-      #1c1917 calc(var(--tile-size) - 2px),
-      #1c1917 var(--tile-size)
-    ),
-    repeating-linear-gradient(
-      90deg,
-      transparent 0,
-      transparent calc(var(--tile-size) - 2px),
-      #1c1917 calc(var(--tile-size) - 2px),
-      #1c1917 var(--tile-size)
-    );
+    var(--surface-texture);
+
+  background-size: 100% 100%, cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 .dungeon-ceiling {
-  background-color: #292524;
+  --surface-texture: url("/assets/images/cave_ceiling.webp");
+}
+
+.dungeon-floor {
+  --surface-texture: url("/assets/images/cave_floor.webp");
 }
 
 @media (prefers-reduced-motion: reduce) {
