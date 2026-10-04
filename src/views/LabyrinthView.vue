@@ -607,6 +607,39 @@ async function startDive() {
 }
 
 // -----------------------------------------------------------------------------
+// 3D演出：サイドウォール
+// -----------------------------------------------------------------------------
+function sideWallStyle(depth: number, side: 'left' | 'right') {
+  const near = depth * 12.5
+  const far = (depth + 1) * 12.5
+
+  const polygon =
+    side === 'left'
+      ? [
+          `${near}% ${near}%`,
+          `${far}% ${far}%`,
+          `${far}% ${100 - far}%`,
+          `${near}% ${100 - near}%`
+        ]
+      : [
+          `${100 - near}% ${near}%`,
+          `${100 - far}% ${far}%`,
+          `${100 - far}% ${100 - far}%`,
+          `${100 - near}% ${100 - near}%`
+        ]
+
+  return {
+    clipPath: `polygon(${polygon.join(', ')})`,
+    backgroundColor: '#292524',
+    backgroundImage:
+      'linear-gradient(rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.15)), url("/assets/images/stone_wall.webp")',
+    backgroundRepeat: 'repeat',
+    backgroundSize: 'auto, 128px 128px',
+    zIndex: 10 - depth
+  }
+}
+
+// -----------------------------------------------------------------------------
 // 迷路生成・移動・ミニマップ
 // -----------------------------------------------------------------------------
 
@@ -677,7 +710,10 @@ function generateMaze(floor: number): number[][] {
     passages[j] = a
   }
 
-  const eventCount = Math.min(floor + 2, passages.length)
+  const eventCount = Math.min(
+    passages.length,
+    Math.max(8, Math.round(passages.length * 0.10))
+  )
   for (const cell of passages.slice(0, eventCount)) {
     write(cell.x, cell.y, 2)
   }
@@ -772,21 +808,37 @@ function checkCurrentCell() {
   const cell = getCell(player.value.x, player.value.y)
 
   if (cell === 2) {
-    // イベント処理前に消費済みにする。
     const row = mapGrid.value[player.value.y]
-    if (row) row[player.value.x] = 0
-    triggerEvent()
-  } else if (cell === 3) {
-    if (
-      gameMode.value === 'oneshot' &&
-      currentFloor.value >= targetFloor.value
-    ) {
-      triggerClear()
-    } else {
-      addLog(`第${currentFloor.value}層を突破！ エリカ・スロットへ移行します。`)
-      gameState.value = 'slot'
+
+    if (row) {
+      row[player.value.x] = 0
     }
+
+    triggerEvent()
+    return
   }
+
+  if (cell !== 3) return
+
+  if (
+    gameMode.value === 'oneshot' &&
+    currentFloor.value >= targetFloor.value
+  ) {
+    // 最終階層では実際の残り時間でクリアスコアを計算する。
+    triggerClear()
+    return
+  }
+
+  addLog(`第${currentFloor.value}層を突破！`)
+
+  // 次の階層に向けて時間を回復する。
+  // スロット前に回復するので、その後の時間ボーナスも残る。
+  restoreFloorTime()
+
+  slotMessage.value =
+    '階層突破！コインを使って次の探索に備えられます。'
+
+  gameState.value = 'slot'
 }
 
 // -----------------------------------------------------------------------------
@@ -819,6 +871,33 @@ function useFocusMode() {
     isFocusing.value = false
     setBGMVolume(20)
   }, 1500)
+}
+
+const floorTimeLimit = computed(() => {
+  if (gameMode.value === 'endless') return 120
+
+  return {
+    easy: 180,
+    normal: 120,
+    hard: 90
+  }[difficulty.value]
+})
+
+function restoreFloorTime() {
+  const before = player.value.timeLeft
+
+  player.value.timeLeft = Math.max(
+    before,
+    floorTimeLimit.value
+  )
+
+  const recovered = player.value.timeLeft - before
+
+  if (recovered > 0) {
+    addLog(
+      `階層突破ボーナス！時間が${recovered}秒回復しました。`
+    )
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -943,7 +1022,11 @@ function closeEvent() {
   if (gameState.value !== 'event' || !activeEvent.value) return
 
   const def = activeEvent.value.def
+
+  // 先に消すことで、同じイベントの二重適用を防ぐ。
   activeEvent.value = null
+
+  // イベントの効果は必ず適用する。
   applyEventEffect(def)
 
   if (player.value.hp <= 0 || player.value.timeLeft <= 0) {
@@ -952,7 +1035,11 @@ function closeEvent() {
   }
 
   gameState.value = 'explore'
-  if (def.effectType === 'warp_forward') checkCurrentCell()
+
+  // ワープ先が出口やイベントなら、その処理へ進む。
+  if (def.effectType === 'warp_forward') {
+    checkCurrentCell()
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -1518,30 +1605,18 @@ onUnmounted(() => {
                   }"
                 ></div>
 
+                <!-- 左側の壁 -->
                 <div
-                  v-if="viewCell(depth, -1) === 1"
-                  class="absolute left-0 bg-stone-700 bg-cover bg-center border-y-2 border-r-2 border-stone-950 shadow-[inset_0_0_50px_rgba(0,0,0,0.7)] transition-all duration-300"
-                  :style="{
-                    backgroundImage: 'url(/assets/images/stone_wall.webp)',
-                    width: '15%',
-                    height: `${100 - depth * 25}%`,
-                    transform: `perspective(500px) rotateY(60deg) translateZ(-${depth * 100}px)`,
-                    transformOrigin: 'left',
-                    zIndex: 10 - depth
-                  }"
+                    v-if="viewCell(depth, -1) === 1"
+                    class="absolute inset-0 pointer-events-none"
+                    :style="sideWallStyle(depth, 'left')"
                 ></div>
 
+                <!-- 右側の壁 -->
                 <div
-                  v-if="viewCell(depth, 1) === 1"
-                  class="absolute right-0 bg-stone-700 bg-cover bg-center border-y-2 border-l-2 border-stone-950 shadow-[inset_0_0_50px_rgba(0,0,0,0.7)] transition-all duration-300"
-                  :style="{
-                    backgroundImage: 'url(/assets/images/stone_wall.webp)',
-                    width: '15%',
-                    height: `${100 - depth * 25}%`,
-                    transform: `perspective(500px) rotateY(-60deg) translateZ(-${depth * 100}px)`,
-                    transformOrigin: 'right',
-                    zIndex: 10 - depth
-                  }"
+                    v-if="viewCell(depth, 1) === 1"
+                    class="absolute inset-0 pointer-events-none"
+                    :style="sideWallStyle(depth, 'right')"
                 ></div>
               </template>
             </template>
@@ -1692,7 +1767,7 @@ onUnmounted(() => {
             @click="closeEvent"
             class="w-full py-3 bg-erika text-black font-bold rounded-lg hover:bg-amber-400"
           >
-            受け入れる
+            確認して進む
           </button>
         </div>
       </div>
