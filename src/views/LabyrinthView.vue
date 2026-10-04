@@ -613,7 +613,7 @@ function sideWallStyle(depth: number, side: 'left' | 'right') {
   const near = depth * 12.5
   const far = (depth + 1) * 12.5
 
-  const polygon =
+  const points =
     side === 'left'
       ? [
           `${near}% ${near}%`,
@@ -628,14 +628,29 @@ function sideWallStyle(depth: number, side: 'left' | 'right') {
           `${100 - near}% ${100 - near}%`
         ]
 
+  const darkness = Math.min(0.65, 0.12 + depth * 0.15)
+
   return {
-    clipPath: `polygon(${polygon.join(', ')})`,
+    clipPath: `polygon(${points.join(', ')})`,
     backgroundColor: '#292524',
     backgroundImage:
-      'linear-gradient(rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.15)), url("/assets/images/stone_wall.webp")',
-    backgroundRepeat: 'repeat',
-    backgroundSize: 'auto, 128px 128px',
-    zIndex: 10 - depth
+      `linear-gradient(rgba(0, 0, 0, ${darkness}), rgba(0, 0, 0, ${darkness})), ` +
+      'url("/assets/images/stone_wall.webp")',
+    backgroundRepeat: 'no-repeat, repeat',
+    backgroundSize: '100% 100%, 128px 128px',
+    zIndex: 20 - depth * 2
+  }
+}
+
+function frontWallStyle(depth: number) {
+  const inset = depth * 12.5
+
+  return {
+    top: `${inset}%`,
+    right: `${inset}%`,
+    bottom: `${inset}%`,
+    left: `${inset}%`,
+    zIndex: 21 - depth * 2
   }
 }
 
@@ -840,6 +855,20 @@ function checkCurrentCell() {
 
   gameState.value = 'slot'
 }
+
+const hpWarningClass = computed(() => {
+  if (!isPlaying.value) return ''
+
+  if (hpPercentage.value <= 25) {
+    return 'hp-warning--critical'
+  }
+
+  if (hpPercentage.value <= 50) {
+    return 'hp-warning--low'
+  }
+
+  return ''
+})
 
 // -----------------------------------------------------------------------------
 // 集中モード
@@ -1595,15 +1624,17 @@ onUnmounted(() => {
                 </div>
 
                 <div
-                  v-if="viewCell(depth) === 1"
-                  class="absolute bg-stone-800 bg-cover bg-center border-2 border-stone-950 shadow-[inset_0_0_50px_rgba(0,0,0,0.9)] transition-all duration-300"
-                  :style="{
-                    backgroundImage: 'url(/assets/images/deadend.webp)',
-                    width: `${100 - depth * 25}%`,
-                    height: `${100 - depth * 25}%`,
-                    zIndex: 10 - depth
-                  }"
-                ></div>
+                    v-if="viewCell(depth) === 1"
+                    class="dungeon-front-wall"
+                    :style="frontWallStyle(depth)"
+                    >
+                    <img
+                        src="/assets/images/deadend.webp"
+                        alt="行き止まり"
+                        class="dungeon-front-wall__image"
+                        draggable="false"
+                    >
+                </div>
 
                 <!-- 左側の壁 -->
                 <div
@@ -1612,7 +1643,6 @@ onUnmounted(() => {
                     :style="sideWallStyle(depth, 'left')"
                 ></div>
 
-                <!-- 右側の壁 -->
                 <div
                     v-if="viewCell(depth, 1) === 1"
                     class="absolute inset-0 pointer-events-none"
@@ -1900,17 +1930,26 @@ onUnmounted(() => {
     </main>
 
     <!-- ログ -->
-    <footer
-      v-if="isPlaying"
-      class="shrink-0 bg-black border-t border-zinc-800 p-2 h-20 md:h-24 overflow-y-auto text-xs text-zinc-500 font-mono"
-    >
-      <div
-        v-for="(log, i) in logMessages"
-        :key="`${i}-${log}`"
-        :class="i === 0 ? 'text-zinc-200' : 'opacity-60'"
-      >
-        &gt; {{ log }}
-      </div>
+    <footer v-if="isPlaying" class="game-log">
+        <div class="game-log__heading">
+            <span>探索ログ</span>
+            <span class="game-log__hint">最新の出来事が上に表示されます</span>
+        </div>
+
+        <div class="game-log__entries">
+            <div
+            v-for="(log, i) in logMessages"
+            :key="`${i}-${log}`"
+            class="game-log__entry"
+            :class="{ 'game-log__entry--latest': i === 0 }"
+            >
+            <span class="game-log__marker" aria-hidden="true">
+                {{ i === 0 ? '▶' : '・' }}
+            </span>
+
+            <span>{{ log }}</span>
+            </div>
+        </div>
     </footer>
 
     <!-- 集中モード -->
@@ -2032,6 +2071,12 @@ onUnmounted(() => {
       </div>
     </div>
   </div>
+  <div
+    v-if="hpWarningClass"
+    class="hp-warning"
+    :class="hpWarningClass"
+    aria-hidden="true"
+  ></div>
 </template>
 
 <style scoped>
@@ -2041,6 +2086,47 @@ onUnmounted(() => {
   height: 100dvh;
   min-height: 480px;
   overflow: hidden;
+}
+
+.hp-warning {
+  position: absolute;
+  inset: 0;
+  z-index: 45;
+  pointer-events: none;
+
+  background:
+    radial-gradient(
+      ellipse at top left,
+      var(--warning-corner) 0%,
+      transparent 65%
+    ) top left / 38% 38% no-repeat,
+    radial-gradient(
+      ellipse at top right,
+      var(--warning-corner) 0%,
+      transparent 65%
+    ) top right / 38% 38% no-repeat,
+    radial-gradient(
+      ellipse at bottom left,
+      var(--warning-corner) 0%,
+      transparent 65%
+    ) bottom left / 38% 38% no-repeat,
+    radial-gradient(
+      ellipse at bottom right,
+      var(--warning-corner) 0%,
+      transparent 65%
+    ) bottom right / 38% 38% no-repeat;
+
+  box-shadow: inset 0 0 28px var(--warning-edge);
+}
+
+.hp-warning--low {
+  --warning-corner: rgba(249, 115, 22, 0.48);
+  --warning-edge: rgba(249, 115, 22, 0.28);
+}
+
+.hp-warning--critical {
+  --warning-corner: rgba(239, 68, 68, 0.65);
+  --warning-edge: rgba(239, 68, 68, 0.42);
 }
 
 .dungeon-scene {
@@ -2053,6 +2139,77 @@ button {
 
 button:disabled {
   cursor: not-allowed;
+}
+
+.game-log {
+  flex-shrink: 0;
+  height: 132px;
+  padding: 8px 12px;
+  background: #09090b;
+  border-top: 1px solid #52525b;
+}
+
+.game-log__heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  color: #f4f4f5;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.game-log__hint {
+  color: #a1a1aa;
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.game-log__entries {
+  height: calc(100% - 24px);
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.game-log__entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 5px 8px;
+  color: #d4d4d8;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.game-log__entry--latest {
+  color: #fff7ed;
+  background: #292018;
+  border-left: 3px solid #f59e0b;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+.game-log__marker {
+  flex-shrink: 0;
+  color: #f59e0b;
+}
+
+.dungeon-front-wall {
+  position: absolute;
+  overflow: hidden;
+  background: #292524;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.5);
+}
+
+.dungeon-front-wall__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
 }
 
 @media (prefers-reduced-motion: reduce) {
