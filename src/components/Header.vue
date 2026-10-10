@@ -90,6 +90,11 @@ const isMobileGamesOpen = ref(false)
                 <span class="text-[10px] text-zinc-400 mt-0.5">AIアート神経衰弱</span>
               </router-link>
 
+              <!-- 迷宮脱出 -->
+              <router-link to="/labyrinth" class="px-5 py-3 hover:bg-white/10 transition-colors flex flex-col border-t border-zinc-700/50 group/item">
+                <span class="text-sm font-bold text-zinc-200 group-hover/item:text-white">Labyrinth Escape</span>
+                <span class="text-[10px] text-zinc-400 mt-0.5">迷宮からの脱出ゲーム</span>
+              </router-link>
             </div>
           </div>
         </div>
