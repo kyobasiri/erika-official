@@ -156,6 +156,22 @@ const timingDeviation = ref(0)
 const resultNewRecord = ref(false)
 const previousBest = ref<number | null>(null)
 
+// --- 既存の定数群の最後あたりに追加 ---
+const COUNTDOWN_MS = 3000
+const MAX_LIFE = 100
+const INITIAL_LIFE = 70
+
+// ライフ増減の調整値（お好みで調整してください）
+const HEAL_PERFECT = 1.5
+const HEAL_GREAT = 0.5
+const DAMAGE_GOOD = 1.0
+const DAMAGE_MISS = 5.0
+
+// --- 既存の ref 定義群（comboやmaxComboなど）の付近に追加 ---
+const life = ref(INITIAL_LIFE)
+const isFailed = ref(false)
+
+
 const laneFlashes = ref([false, false])
 const popup = ref<{
   id: number
@@ -183,6 +199,8 @@ const autoplayBlocked = ref(false)
 const loadingLabel = ref('準備中…')
 const playbackSeconds = ref(0)
 const durationSeconds = ref(0)
+
+
 
 let player: Player | null = null
 let playerReadyPromise: Promise<Player> | null = null
@@ -300,6 +318,13 @@ const filteredSongs = computed(() => {
 })
 
 const resultRank = computed(() => {
+  if (isFailed.value) {
+    return {
+      rank: 'F',
+      text: 'TRACK CRASH... ライフが尽きてしまいました。',
+      img: '/assets/images/c.webp' // Fランク専用の画像があれば差し替えてください
+    }
+  }
   if (allPerfect.value) {
     return {
       rank: 'S',
@@ -1008,6 +1033,8 @@ async function startGame(song: Song, diff: Difficulty) {
   combo.value = 0
   maxCombo.value = 0
   totalNotes.value = 0
+  life.value = INITIAL_LIFE
+  isFailed.value = false
   fastCount.value = 0
   slowCount.value = 0
   meanTiming.value = 0
@@ -1017,6 +1044,8 @@ async function startGame(song: Song, diff: Difficulty) {
   playbackSeconds.value = 0
   durationSeconds.value = 0
   visibleNotes.value = []
+
+
 
   notes = []
   laneNotes = [[], []]
@@ -1090,6 +1119,16 @@ async function startGame(song: Song, diff: Difficulty) {
         ? '譜面の読み込みがタイムアウトしました。'
         : error instanceof Error ? error.message : String(error)
     )
+  }
+}
+
+function checkGameOver() {
+  if (life.value <= 0 && sessionActive) {
+    life.value = 0
+    isFailed.value = true
+    stopSession()
+    visibleNotes.value = []
+    gameState.value = 'result'
   }
 }
 
@@ -1258,12 +1297,18 @@ function processMisses(time: number) {
       combo.value = 0
       consecutiveMisses++
       missed++
+
+      life.value = Math.max(0, life.value - DAMAGE_MISS)
+
       advanceLaneHead(lane)
     }
   }
 
   if (missed > 0) {
     showPopup('MISS', 'text-red-400', '')
+
+    checkGameOver()
+    if (!sessionActive) return
 
     if (
       consecutiveMisses >= 5 &&
@@ -1386,16 +1431,22 @@ function hitLane(lane: number) {
     timing = 'SLOW'
   }
 
-  if (nearest <= PERFECT_MS) {
+if (nearest <= PERFECT_MS) {
     score.value.perfect++
+    life.value = Math.min(MAX_LIFE, life.value + HEAL_PERFECT) // 回復
     showPopup('PERFECT', 'text-yellow-300', timing)
   } else if (nearest <= GREAT_MS) {
     score.value.great++
+    life.value = Math.min(MAX_LIFE, life.value + HEAL_GREAT) // 少し回復
     showPopup('GREAT', 'text-emerald-300', timing)
   } else {
     score.value.good++
+    life.value = Math.max(0, life.value - DAMAGE_GOOD) // ダメージ
     showPopup('GOOD', 'text-blue-300', timing)
   }
+
+  checkGameOver()
+  if (!sessionActive) return
 
   showHitEffect(lane, nearest <= PERFECT_MS)
   triggerComboCutin()
@@ -1532,7 +1583,10 @@ function endGame() {
     timingDeviation.value = Math.sqrt(variance)
   }
 
-  saveCompletedPlay()
+  if (!isFailed.value) {
+    saveCompletedPlay()
+  }
+
   stopSession()
   visibleNotes.value = []
   gameState.value = 'result'
@@ -1958,6 +2012,17 @@ onUnmounted(() => {
       <!-- プレイ領域 -->
       <div v-if="showBoard" class="play-stage">
         <div class="game-board">
+          <div class="absolute top-0 inset-x-0 h-1.5 bg-zinc-800 z-50">
+            <div
+              class="h-full transition-all duration-150 ease-out"
+              :class="{
+                'bg-cyan-400': life > 40,
+                'bg-yellow-400': life > 15 && life <= 40,
+                'bg-red-500 shadow-[0_0_10px_#ef4444]': life <= 15
+              }"
+              :style="{ width: `${life}%` }"
+            ></div>
+          </div>
           <div
             class="absolute inset-y-0 left-0 w-1/2 bg-cyan-400/25 pointer-events-none"
             :class="laneFlashes[0] ? 'opacity-100' : 'opacity-0'"
@@ -2153,8 +2218,14 @@ onUnmounted(() => {
             {{ resultRank.rank }}
           </p>
 
+<p
+            v-if="isFailed"
+            class="text-red-500 font-black tracking-widest mt-3 text-xl drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]"
+          >
+            TRACK CRASH
+          </p>
           <p
-            v-if="fullCombo"
+            v-else-if="fullCombo"
             class="clear-badge text-amber-300 font-black tracking-widest mt-3"
           >
             {{ allPerfect ? 'ALL PERFECT' : 'FULL COMBO' }}
