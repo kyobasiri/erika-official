@@ -566,9 +566,9 @@ async function startDive() {
     player.value.timeLeft = 120
   } else {
     const settings = {
-      easy: { hp: 75, time: 180 },
-      normal: { hp: 50, time: 120 },
-      hard: { hp: 40, time: 90 }
+      easy: { hp: 75, time: 300 },
+      normal: { hp: 50, time: 230 },
+      hard: { hp: 40, time: 180 }
     }[difficulty.value]
 
     player.value.maxHp = settings.hp
@@ -906,9 +906,9 @@ const floorTimeLimit = computed(() => {
   if (gameMode.value === 'endless') return 120
 
   return {
-    easy: 180,
-    normal: 120,
-    hard: 90
+    easy: 300,
+    normal: 230,
+    hard: 180
   }[difficulty.value]
 })
 

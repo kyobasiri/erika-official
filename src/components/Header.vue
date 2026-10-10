@@ -140,6 +140,9 @@ const isMobileGamesOpen = ref(false)
             <router-link to="/game" class="text-zinc-300 hover:text-white" @click="isMobileMenuOpen = false">
               <span class="font-bold block">Memory Game</span> <span class="text-[10px] text-zinc-500">神経衰弱</span>
             </router-link>
+            <router-link to="/labyrinth" class="text-zinc-300 hover:text-white" @click="isMobileMenuOpen = false">
+              <span class="font-bold block">Labyrinth</span> <span class="text-[10px] text-zinc-500">ダンジョン</span>
+            </router-link>
           </div>
         </div>
       </nav>
