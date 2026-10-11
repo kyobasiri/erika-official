@@ -20,6 +20,10 @@ GALLERY_OUTPUT = 'public/assets/gallery.json'
 ALT_CACHE_FILE = 'alt_cache.json' # これはそのままでもOK
 ARTICLES_DIR = 'public/articles'
 ARTICLES_OUTPUT = 'public/assets/articles.json'
+# トップページで流す「目玉の画像」の一覧。ファイル名が数字だけの画像（1.webp, 20.webp など）を集める。
+# 0 は歌詞付きの画像なので入れない。数字以外の名前（ComfyUI_... など）は作っただけの画像として入れない。
+FEATURED_OUTPUT = 'public/assets/featured.json'
+_FEATURED_FILE = re.compile(r'^(?!0+\.)\d+\.(?:webp|png|jpe?g)$', re.IGNORECASE)
 
 # ==========================================
 # クライアント初期化
@@ -233,6 +237,20 @@ def generate_gallery_json():
         json.dump(gallery_data, f, indent=4, ensure_ascii=False)
     
     print(f"Generated {GALLERY_OUTPUT} with {len(gallery_data)} categories.")
+
+    generate_featured_json(gallery_data)
+
+def generate_featured_json(gallery_data):
+    # { "20261009": ["1.webp", "2.webp", ...], ... } の形で、小さく保存する（トップページで読むため）
+    featured = {}
+    for category in gallery_data:
+        files = [img['file'] for img in category['images'] if _FEATURED_FILE.match(img['file'])]
+        if files:
+            featured[category['name']] = sorted(files, key=lambda f: int(f.split('.')[0]))
+    with open(FEATURED_OUTPUT, 'w', encoding='utf-8') as f:
+        json.dump(featured, f, ensure_ascii=False, separators=(',', ':'))
+    total = sum(len(v) for v in featured.values())
+    print(f"Generated {FEATURED_OUTPUT} with {total} images.")
 
 def generate_articles_json():
     # 記事一覧の生成（既存のまま）
