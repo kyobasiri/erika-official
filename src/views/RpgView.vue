@@ -710,12 +710,11 @@ const learnSelectedSkill = (skill: Skill) => {
 const goToNextFloor = () => {
   if (gameState.value !== 'reward' || !equippedSkillIds.value.length) return
   journeyTier.value = rewardTier.value
-  destroyMusic()
   battleState.value.floor++; battleState.value.enemyCount = 1
   gameState.value = 'battle'; startNextWave(); floorIntroOpen.value = true; saveLocal()
 }
 const restartFloor = () => {
-  cancelTurn(); destroyMusic()
+  cancelTurn();
   player.value.hp = player.value.maxHp; player.value.mp = player.value.maxMp
   battleState.value.enemyCount = 1; gameState.value = 'battle'
   startNextWave(); floorIntroOpen.value = true; saveLocal()
@@ -843,6 +842,16 @@ const skillTabs = [
   { value: 'debuff', label: '弱体' },
   { value: 'ultimate', label: '必殺' }
 ]
+
+const setlistFilter = ref('all')
+const setlistSearch = ref('')
+
+const visibleLearned = computed(() => 
+  learnedSkills.value.filter(s => 
+    (setlistFilter.value === 'all' || s.type === setlistFilter.value) && 
+    s.name.toLowerCase().includes(setlistSearch.value.toLowerCase())
+  )
+)
 
 // 共通のYouTubeプレーヤー。3曲の選択と、クリア後の楽曲図鑑に使用。
 const rewardChoices = ref<Song[]>([])
@@ -1332,7 +1341,33 @@ onUnmounted(() => {
         <div class="journal-heading"><h2 id="setlist-title">セットリスト {{ equippedSkillIds.length }}/4</h2><button class="small-button" @click="setlistOpen = false">閉じる</button></div>
         <p class="help-text">登録順にコマンドが並びます。入れ替えたい曲を外してから追加してください。</p>
         <div class="equipped-pills"><span v-for="(skill, i) in availableSkills" :key="skill.id">{{ i+1 }}. {{ skill.name }}</span></div>
-        <div class="setlist-options"><button v-for="skill in learnedSkills" :key="skill.id" :class="{ chosen: equippedSkillIds.includes(skill.id) }" :aria-pressed="equippedSkillIds.includes(skill.id)" :disabled="!equippedSkillIds.includes(skill.id) && equippedSkillIds.length >= 4" @click="toggleSetlist(skill.id)"><div><small>{{ skillRole(skill) }} · {{ skill.target === 'all' ? '全体' : '単体／自身' }}</small><strong>{{ skill.name }}</strong><p>{{ skill.description }}</p></div><b>{{ equippedSkillIds.includes(skill.id) ? '登録済' : '追加' }}</b></button></div>
+        
+        <!-- ★ここに編成画面用のタブを追加 -->
+        <div class="skill-tabs-container mt-4">
+          <div class="skill-tabs">
+            <button v-for="tab in skillTabs" :key="tab.value"
+                    @click="setlistFilter = tab.value"
+                    :class="{ active: setlistFilter === tab.value }">
+              {{ tab.label }}
+            </button>
+          </div>
+          <div class="skill-search">
+            <input v-model="setlistSearch" placeholder="覚えた曲を絞り込み..." aria-label="編成する曲を検索">
+          </div>
+        </div>
+
+        <!-- ★ v-for を learnedSkills から visibleLearned に変更 -->
+        <div class="setlist-options mt-4">
+          <button v-for="skill in visibleLearned" :key="skill.id" :class="{ chosen: equippedSkillIds.includes(skill.id) }" :aria-pressed="equippedSkillIds.includes(skill.id)" :disabled="!equippedSkillIds.includes(skill.id) && equippedSkillIds.length >= 4" @click="toggleSetlist(skill.id)">
+            <div>
+              <small>{{ skillRole(skill) }} · {{ skill.target === 'all' ? '全体' : '単体／自身' }}</small>
+              <strong>{{ skill.name }}</strong>
+              <p>{{ skill.description }}</p>
+            </div>
+            <b>{{ equippedSkillIds.includes(skill.id) ? '登録済' : '追加' }}</b>
+          </button>
+          <p v-if="!visibleLearned.length" class="help-text text-center py-4">該当する曲がありません。</p>
+        </div>
       </section>
     </div>
 

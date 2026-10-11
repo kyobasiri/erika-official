@@ -29,7 +29,7 @@ const isFormEnabled = ref(false)
 const captchaLoading = ref(true)
 const captchaError = ref('')
 
-let widgetId: number | null = null
+const widgetId = ref<number | null>(null)
 let timer: ReturnType<typeof setInterval> | null = null
 let disposed = false
 
@@ -46,7 +46,7 @@ function getCaptchaApi() {
 
 function renderCaptcha(): boolean {
   if (disposed) return true
-  if (widgetId !== null) return true
+  if (widgetId.value !== null) return true
 
   const api = getCaptchaApi()
 
@@ -55,7 +55,7 @@ function renderCaptcha(): boolean {
   }
 
   try {
-    widgetId = api.render(captchaContainer.value, {
+    widgetId.value = api.render(captchaContainer.value, {
       sitekey: SITE_KEY,
       theme: 'dark',
 
@@ -93,9 +93,9 @@ function startCaptcha() {
 
   const api = getCaptchaApi()
 
-  if (widgetId !== null && api) {
+  if (widgetId.value !== null && api) {
     try {
-      api.reset(widgetId)
+      api.reset(widgetId.value)
       captchaLoading.value = false
     } catch {
       captchaLoading.value = false
@@ -142,9 +142,9 @@ onBeforeUnmount(() => {
   disposed = true
   stopTimer()
 
-  if (widgetId !== null) {
+  if (widgetId.value !== null) {
     try {
-      getCaptchaApi()?.reset(widgetId)
+      getCaptchaApi()?.reset(widgetId.value)
     } catch {
       // 画面離脱時に読み込みが中断された場合
     }

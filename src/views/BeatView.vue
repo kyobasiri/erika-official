@@ -158,13 +158,13 @@ const previousBest = ref<number | null>(null)
 // --- 既存の定数群の最後あたりに追加 ---
 const COUNTDOWN_MS = 3000
 const MAX_LIFE = 100
-const INITIAL_LIFE = 70
+const INITIAL_LIFE = 100
 
 // ライフ増減の調整値（お好みで調整してください）
 const HEAL_PERFECT = 1.5
-const HEAL_GREAT = 0.5
-const DAMAGE_GOOD = 1.0
-const DAMAGE_MISS = 5.0
+const HEAL_GREAT = 1.0
+const DAMAGE_GOOD = 0
+const DAMAGE_MISS = 3.0
 
 // --- 既存の ref 定義群（comboやmaxComboなど）の付近に追加 ---
 const life = ref(INITIAL_LIFE)
@@ -1373,6 +1373,7 @@ function updateGameLoop() {
 
   const time = rawMs - settings.value.offset
   processMisses(time)
+  if (!sessionActive) return
   updateVisibleNotes(time)
   frameId = requestAnimationFrame(updateGameLoop)
 }
@@ -1391,6 +1392,7 @@ function hitLane(lane: number) {
 
   const time = rawMs - settings.value.offset
   processMisses(time)
+  if (!sessionActive) return
   triggerLaneFlash(lane)
   playSE()
 
@@ -1430,7 +1432,7 @@ function hitLane(lane: number) {
     timing = 'SLOW'
   }
 
-if (nearest <= PERFECT_MS) {
+  if (nearest <= PERFECT_MS) {
     score.value.perfect++
     life.value = Math.min(MAX_LIFE, life.value + HEAL_PERFECT) // 回復
     showPopup('PERFECT', 'text-yellow-300', timing)
@@ -1440,7 +1442,7 @@ if (nearest <= PERFECT_MS) {
     showPopup('GREAT', 'text-emerald-300', timing)
   } else {
     score.value.good++
-    life.value = Math.max(0, life.value - DAMAGE_GOOD) // ダメージ
+    life.value = Math.max(0, life.value - DAMAGE_GOOD) // GOODはライフ増減なし
     showPopup('GOOD', 'text-blue-300', timing)
   }
 
@@ -2010,18 +2012,31 @@ onUnmounted(() => {
 
       <!-- プレイ領域 -->
       <div v-if="showBoard" class="play-stage">
-        <div class="game-board">
-          <div class="absolute top-0 inset-x-0 h-1.5 bg-zinc-800 z-50">
-            <div
-              class="h-full transition-all duration-150 ease-out"
-              :class="{
-                'bg-cyan-400': life > 40,
-                'bg-yellow-400': life > 15 && life <= 40,
-                'bg-red-500 shadow-[0_0_10px_#ef4444]': life <= 15
-              }"
-              :style="{ width: `${life}%` }"
-            ></div>
+        <div
+          class="life-panel"
+          :class="{ 'life-warning': life > 25 && life <= 50, 'life-danger': life <= 25 }"
+        >
+          <div class="life-heading">
+            <span class="life-label"><span aria-hidden="true">♥</span> ライフ</span>
+            <span v-if="life <= 25" class="life-alert">ピンチ！</span>
+            <span class="life-number">{{ Math.ceil(life) }} / {{ MAX_LIFE }}</span>
           </div>
+          <div
+            class="life-track"
+            role="progressbar"
+            aria-label="残りライフ"
+            :aria-valuemin="0"
+            :aria-valuemax="MAX_LIFE"
+            :aria-valuenow="life"
+          >
+            <div class="life-fill" :style="{ width: `${life / MAX_LIFE * 100}%` }"></div>
+            <div class="life-ticks" aria-hidden="true">
+              <span v-for="tick in 10" :key="tick"></span>
+            </div>
+          </div>
+          <p class="life-help">MISSで減少・PERFECT / GREATで回復・0で終了</p>
+        </div>
+        <div class="game-board" :class="{ 'board-danger': life <= 25 }">
           <div
             class="absolute inset-y-0 left-0 w-1/2 bg-cyan-400/25 pointer-events-none"
             :class="laneFlashes[0] ? 'opacity-100' : 'opacity-0'"
@@ -2417,6 +2432,75 @@ onUnmounted(() => {
     linear-gradient(90deg, rgba(8, 145, 178, 0.07), rgba(219, 39, 119, 0.07)),
     rgba(0, 0, 0, 0.94);
   box-shadow: 0 20px 70px rgba(0, 0, 0, 0.45);
+}
+
+.life-panel {
+  --life-color: #34d399;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border: 1px solid #3f3f46;
+  border-radius: 12px;
+  background: rgba(9, 9, 14, 0.96);
+}
+
+.life-panel.life-warning { --life-color: #fb923c; }
+.life-panel.life-danger { --life-color: #f87171; }
+
+.life-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 7px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.life-label, .life-alert { color: var(--life-color); }
+.life-alert { font-size: 12px; }
+.life-number {
+  margin-left: auto;
+  color: #fafafa;
+  font-variant-numeric: tabular-nums;
+}
+
+.life-track {
+  position: relative;
+  height: 18px;
+  overflow: hidden;
+  border: 1px solid #52525b;
+  border-radius: 6px;
+  background: #27272a;
+}
+
+.life-fill {
+  height: 100%;
+  background: var(--life-color);
+  transition: width 150ms ease-out, background-color 150ms ease-out;
+}
+
+.life-ticks {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  pointer-events: none;
+}
+
+.life-ticks span + span { border-left: 2px solid rgba(9, 9, 14, 0.65); }
+.life-help {
+  margin: 6px 0 0;
+  color: #a1a1aa;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.game-board.board-danger {
+  border-color: #f87171;
+  box-shadow: inset 0 0 28px rgba(239, 68, 68, 0.2), 0 0 20px rgba(239, 68, 68, 0.2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .life-fill { transition: none; }
 }
 
 .note {
