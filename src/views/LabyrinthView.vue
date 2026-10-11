@@ -93,6 +93,7 @@ const dirOffsets: readonly (readonly [number, number])[] = [
 
 const directionArrows = ['↑', '→', '↓', '←']
 const directionNames = ['北', '東', '南', '西']
+const sideNames = ['left', 'right'] as const
 
 function getOffset(dir: number): readonly [number, number] {
   return dirOffsets[dir] ?? [0, -1]
@@ -432,6 +433,16 @@ function stopBGM() {
   if (bgmPlayer && bgmReady) bgmPlayer.pauseVideo()
 }
 
+// 一時停止した曲をそのまま再開する（プレイヤー未準備なら新しく流す）
+function resumeBGM() {
+  if (bgmPlayer && bgmReady) {
+    bgmPlayer.setVolume(20)
+    bgmPlayer.playVideo()
+    return
+  }
+  playRandomBGM()
+}
+
 // -----------------------------------------------------------------------------
 // ランキング・スコア
 // -----------------------------------------------------------------------------
@@ -663,6 +674,92 @@ function sideWallStyle(depth: number, side: 'left' | 'right') {
   }
 }
 
+// -----------------------------------------------------------------------------
+// 3D演出：横道（左右が通路のとき、その先の床・天井・突き当たりの壁を描く）
+// -----------------------------------------------------------------------------
+function sideSurfaceStyle(
+  depth: number,
+  side: 'left' | 'right',
+  surface: 'floor' | 'ceiling'
+) {
+  const near = depth * 12.5
+  const far = (depth + 1) * 12.5
+  const nearWidth = 100 - near * 2
+  const farWidth = 100 - far * 2
+
+  // 中央の通路と同じ台形を、1マス分だけ横にずらした形
+  const nearL = side === 'left' ? near - nearWidth : 100 - near
+  const nearR = side === 'left' ? near : 100 - near + nearWidth
+  const farL = side === 'left' ? far - farWidth : 100 - far
+  const farR = side === 'left' ? far : 100 - far + farWidth
+
+  const nearY = surface === 'floor' ? 100 - near : near
+  const farY = surface === 'floor' ? 100 - far : far
+
+  const points = [
+    `${nearL}% ${nearY}%`,
+    `${farL}% ${farY}%`,
+    `${farR}% ${farY}%`,
+    `${nearR}% ${nearY}%`
+  ]
+
+  // 床は中央の通路と同じ明るさで「道が続いている」ことを見せ、
+  // 天井は暗めにして奥の壁との区別をつける
+  const darkness = Math.min(
+    0.9,
+    (surface === 'floor' ? 0.1 : 0.55) + depth * 0.15
+  )
+
+  return {
+    clipPath: `polygon(${points.join(', ')})`,
+    zIndex: depthLayer(depth),
+    '--surface-darkness': String(darkness),
+    '--tile-size': `${Math.max(16, 64 - depth * 14)}px`
+  }
+}
+
+// 横道の突き当たり（1マス奥・1列横の壁の正面）
+function sidePassageWallStyle(depth: number, side: 'left' | 'right') {
+  const inset = depth * 12.5
+  const width = 100 - inset * 2
+
+  // 横道の奥は光が届かない「暗がり」として沈ませる。
+  // 手前の側壁と同じ明るさだと、ただの壁に見えて通れると分からないため。
+  // 通路の中央から離れるほど暗くして、奥へ曲がっていく感じを出す。
+  const base = Math.min(0.95, 0.86 + depth * 0.04)
+  const toOuter = side === 'left' ? 'to left' : 'to right'
+
+  return {
+    top: `${inset}%`,
+    bottom: `${inset}%`,
+    left: side === 'left' ? `${inset - width}%` : `${100 - inset}%`,
+    width: `${width}%`,
+    backgroundColor: '#0c0a09',
+    backgroundImage:
+      `linear-gradient(${toOuter}, rgba(0, 0, 0, ${base}), rgba(0, 0, 0, 0.97) 60%), ` +
+      'url("/assets/images/stone_wall.webp")',
+    backgroundRepeat: 'no-repeat, repeat',
+    backgroundSize: '100% 100%, 128px 128px',
+    boxShadow: 'inset 0 0 0 1px rgba(0, 0, 0, 0.5)',
+    zIndex: depthLayer(depth, 3)
+  }
+}
+
+// 横道の床に置く矢印（‹ ›）の位置。見えている床の中央あたりに置く。
+function sideArrowStyle(depth: number, side: 'left' | 'right') {
+  const near = depth * 12.5
+  const far = (depth + 1) * 12.5
+  const x = (near + far) / 2
+  const y = 100 - (near + far) / 2
+
+  return {
+    left: side === 'left' ? `${x}%` : `${100 - x}%`,
+    top: `${y}%`,
+    fontSize: `${Math.max(22, 80 - depth * 22)}px`,
+    zIndex: depthLayer(depth, 4)
+  }
+}
+
 function frontWallStyle(depth: number) {
   const inset = depth * 12.5
 
@@ -736,7 +833,37 @@ function generateMaze(floor: number): number[][] {
     }
   }
 
-  const exit = passages.pop()
+  // 出口はスタートから最も遠い（歩数が多い）マスに置く。
+  // 走査順の最後を使うと毎回右下付近になってしまうため。
+  const distance: number[][] = Array.from(
+    { length: size },
+    () => Array<number>(size).fill(-1)
+  )
+  const queue: [number, number][] = [[1, 1]]
+  distance[1]![1] = 0
+
+  for (let head = 0; head < queue.length; head++) {
+    const [cx, cy] = queue[head]!
+    for (const [dx, dy] of dirOffsets) {
+      const nx = cx + dx
+      const ny = cy + dy
+      if (read(nx, ny) !== 0 || distance[ny]?.[nx] !== -1) continue
+      distance[ny]![nx] = distance[cy]![cx]! + 1
+      queue.push([nx, ny])
+    }
+  }
+
+  let exitIndex = -1
+  let farthest = -1
+  passages.forEach((cell, index) => {
+    const d = distance[cell.y]?.[cell.x] ?? -1
+    if (d > farthest) {
+      farthest = d
+      exitIndex = index
+    }
+  })
+
+  const [exit] = exitIndex >= 0 ? passages.splice(exitIndex, 1) : []
   if (exit) write(exit.x, exit.y, 3)
 
   for (let i = passages.length - 1; i > 0; i--) {
@@ -801,6 +928,11 @@ function turnRight() {
   player.value.dir = ((player.value.dir + 1) % 4) as Direction
 }
 
+function turnAround() {
+  if (gameState.value !== 'explore' || isFocusing.value) return
+  player.value.dir = ((player.value.dir + 2) % 4) as Direction
+}
+
 function moveForward() {
   if (
     gameState.value !== 'explore' ||
@@ -832,6 +964,13 @@ function viewCell(depth: number, side = 0): number {
     player.value.y + dy * depth + sy * side
   )
 }
+
+// 今いるマスから進める方向（左・前・右）
+const passableWays = computed(() => [
+  { label: '左', arrow: '←', open: viewCell(0, -1) !== 1 },
+  { label: '前', arrow: '↑', open: viewCell(1) !== 1 },
+  { label: '右', arrow: '→', open: viewCell(0, 1) !== 1 }
+])
 
 const sightLimit = computed(() => {
   for (let depth = 0; depth <= 3; depth++) {
@@ -1281,8 +1420,17 @@ function proceedToNextFloor() {
 function triggerGameOver() {
   if (gameState.value === 'gameover' || gameState.value === 'clear') return
 
+  // 復活したときに戻る場面。ダイス戦で倒れた場合は同じ敵との勝負に戻す。
+  resumeStateAfterRevive =
+    gameState.value === 'dice_battle' ? 'dice_battle' : 'explore'
+
   player.value.hp = Math.max(0, player.value.hp)
   player.value.timeLeft = Math.max(0, player.value.timeLeft)
+
+  // 尽きた方に1枚ずつ割り当てた状態を初期値にする
+  reviveHpCoins.value = player.value.hp <= 0 ? 1 : 0
+  reviveTimeCoins.value = player.value.timeLeft <= 0 ? 1 : 0
+
   gameState.value = 'gameover'
   activeEvent.value = null
   scoreSubmitError.value = ''
@@ -1302,6 +1450,130 @@ function triggerClear() {
   clearGameTimers()
   stopBGM()
   addLog('最終階層を突破！ システムの掌握に成功しました。')
+}
+
+// -----------------------------------------------------------------------------
+// コインで復活
+// -----------------------------------------------------------------------------
+
+const REVIVE_HP_PER_COIN = 10
+const REVIVE_SECONDS_PER_COIN = 10
+
+const reviveHpCoins = ref(0)
+const reviveTimeCoins = ref(0)
+let resumeStateAfterRevive: 'explore' | 'dice_battle' = 'explore'
+
+const reviveNeedsHp = computed(() => player.value.hp <= 0)
+const reviveNeedsTime = computed(() => player.value.timeLeft <= 0)
+
+// 復活に最低限必要な枚数（HP切れ・時間切れのそれぞれに1枚以上）
+const reviveMinCoins = computed(
+  () => (reviveNeedsHp.value ? 1 : 0) + (reviveNeedsTime.value ? 1 : 0)
+)
+
+// HPは最大値を超えて回復しないので、無駄になる枚数は割り当てさせない
+const reviveMaxHpCoins = computed(() =>
+  Math.ceil(
+    Math.max(0, player.value.maxHp - player.value.hp) / REVIVE_HP_PER_COIN
+  )
+)
+
+const reviveCost = computed(() => reviveHpCoins.value + reviveTimeCoins.value)
+
+const reviveHpAfter = computed(() =>
+  Math.min(
+    player.value.maxHp,
+    player.value.hp + reviveHpCoins.value * REVIVE_HP_PER_COIN
+  )
+)
+
+const reviveTimeAfter = computed(
+  () => player.value.timeLeft + reviveTimeCoins.value * REVIVE_SECONDS_PER_COIN
+)
+
+const canOfferRevive = computed(
+  () =>
+    gameState.value === 'gameover' &&
+    reviveMinCoins.value > 0 &&
+    player.value.coins >= reviveMinCoins.value
+)
+
+const isReviveReady = computed(
+  () =>
+    canOfferRevive.value &&
+    reviveCost.value > 0 &&
+    reviveCost.value <= player.value.coins &&
+    reviveHpAfter.value > 0 &&
+    reviveTimeAfter.value > 0
+)
+
+function adjustRevive(kind: 'hp' | 'time', delta: number) {
+  if (gameState.value !== 'gameover') return
+
+  const coins = player.value.coins
+
+  if (kind === 'hp') {
+    const max = Math.min(reviveMaxHpCoins.value, coins - reviveTimeCoins.value)
+    reviveHpCoins.value = Math.max(0, Math.min(max, reviveHpCoins.value + delta))
+  } else {
+    const max = coins - reviveHpCoins.value
+    reviveTimeCoins.value = Math.max(0, Math.min(max, reviveTimeCoins.value + delta))
+  }
+}
+
+// 残りのコインをすべて片方に割り当てる
+function allocateAllRevive(kind: 'hp' | 'time') {
+  if (gameState.value !== 'gameover') return
+
+  const coins = player.value.coins
+
+  if (kind === 'hp') {
+    reviveTimeCoins.value = reviveNeedsTime.value ? 1 : 0
+    reviveHpCoins.value = Math.max(
+      0,
+      Math.min(reviveMaxHpCoins.value, coins - reviveTimeCoins.value)
+    )
+  } else {
+    reviveHpCoins.value = reviveNeedsHp.value ? 1 : 0
+    reviveTimeCoins.value = Math.max(0, coins - reviveHpCoins.value)
+  }
+}
+
+function reviveWithCoins() {
+  if (!isReviveReady.value) return
+
+  const p = player.value
+  const cost = reviveCost.value
+  const hpGain = reviveHpAfter.value - p.hp
+  const timeGain = reviveTimeAfter.value - p.timeLeft
+
+  p.coins -= cost
+  p.hp = reviveHpAfter.value
+  p.timeLeft = reviveTimeAfter.value
+
+  reviveHpCoins.value = 0
+  reviveTimeCoins.value = 0
+  scoreSubmitError.value = ''
+
+  if (resumeStateAfterRevive === 'dice_battle') {
+    diceState.value.rolling = false
+    diceState.value.playerDice = 0
+    diceState.value.enemyDice = 0
+    diceState.value.message =
+      '復活！ もう一度勝負するか、コインで突破できます。'
+    gameState.value = 'dice_battle'
+  } else {
+    gameState.value = 'explore'
+  }
+
+  const gains = [
+    hpGain > 0 ? `HP+${hpGain}` : '',
+    timeGain > 0 ? `時間+${timeGain}秒` : ''
+  ].filter(Boolean).join(' / ')
+  addLog(`コインを${cost}枚使って復活した！（${gains}）`)
+
+  resumeBGM()
+  startTimer()
 }
 
 function horizontalSurfaceStyle(
@@ -1340,10 +1612,88 @@ function horizontalSurfaceStyle(
 }
 
 // -----------------------------------------------------------------------------
+// キーボード操作（PC向け）
+// -----------------------------------------------------------------------------
+
+function handleKeyDown(event: KeyboardEvent) {
+  if (event.ctrlKey || event.metaKey || event.altKey) return
+
+  // 名前入力やセレクトボックスの操作を邪魔しない
+  const target = event.target as HTMLElement | null
+  if (
+    target &&
+    (target.isContentEditable ||
+      ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+  ) return
+
+  const key = event.key.length === 1 ? event.key.toLowerCase() : event.key
+  let handled = true
+
+  switch (gameState.value) {
+    case 'explore':
+      // 押しっぱなしで一気に進んでHPを失わないよう、キーリピートは無視する
+      if (event.repeat) {
+        handled = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(key)
+        break
+      }
+      if (key === 'ArrowUp' || key === 'w') moveForward()
+      else if (key === 'ArrowLeft' || key === 'a') turnLeft()
+      else if (key === 'ArrowRight' || key === 'd') turnRight()
+      else if (key === 'ArrowDown' || key === 's') turnAround()
+      else if (key === ' ' || key === 'f') useFocusMode()
+      else handled = false
+      break
+
+    case 'event':
+      if (!event.repeat && (key === 'Enter' || key === ' ')) closeEvent()
+      else handled = false
+      break
+
+    case 'dice_battle':
+      if (event.repeat) {
+        handled = key === ' ' || key === 'Enter'
+        break
+      }
+      if (key === ' ' || key === 'Enter') rollDice()
+      else if (key === 'e') escapeDiceBattle()
+      else handled = false
+      break
+
+    case 'slot':
+      if (event.repeat) {
+        handled = key === ' ' || key === 'Enter'
+        break
+      }
+      if (key === ' ') {
+        if (isAllStopped.value) startSlot()
+        else stopNextReel()
+      } else if (key === 'Enter') {
+        proceedToNextFloor()
+      } else {
+        handled = false
+      }
+      break
+
+    default:
+      handled = false
+  }
+
+  if (handled) {
+    event.preventDefault()
+    // 直前にクリックしたボタンにフォーカスが残っていると、Space/Enter で
+    // そのボタンも押されて二重に動くため、フォーカスを外す
+    if (document.activeElement instanceof HTMLButtonElement) {
+      document.activeElement.blur()
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
 // ライフサイクル
 // -----------------------------------------------------------------------------
 
 onMounted(() => {
+  window.addEventListener('keydown', handleKeyDown)
   void fetchRankings()
   void loadSongsAndInitBGM()
   void fetchEvents()
@@ -1351,6 +1701,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeyDown)
   disposed = true
   avatarController?.abort()
   avatarController = null
@@ -1451,6 +1802,7 @@ onUnmounted(() => {
           <p class="text-xs text-zinc-400 leading-relaxed">
             移動でHPを消費します。集中で時間10秒をHPに変換できます。
             イベント・戦闘・スロット中は時間が止まります。
+            力尽きても、コイン1枚につきHP10または時間10秒でその場から復活できます。
           </p>
         </div>
 
@@ -1706,6 +2058,32 @@ onUnmounted(() => {
                     >
                 </div>
 
+                <!-- 横道（左右が通路のとき） -->
+                <template v-if="viewCell(depth) !== 1">
+                  <template v-for="side in sideNames" :key="side">
+                    <template v-if="viewCell(depth, side === 'left' ? -1 : 1) !== 1">
+                      <div
+                        class="dungeon-surface dungeon-floor"
+                        :style="sideSurfaceStyle(depth, side, 'floor')"
+                      ></div>
+                      <div
+                        class="dungeon-surface dungeon-ceiling"
+                        :style="sideSurfaceStyle(depth, side, 'ceiling')"
+                      ></div>
+                      <div
+                        v-if="depth < 3 && viewCell(depth + 1, side === 'left' ? -1 : 1) === 1"
+                        class="absolute pointer-events-none"
+                        :style="sidePassageWallStyle(depth + 1, side)"
+                      ></div>
+                      <span
+                        class="side-arrow"
+                        :style="sideArrowStyle(depth, side)"
+                        aria-hidden="true"
+                      >{{ side === 'left' ? '‹' : '›' }}</span>
+                    </template>
+                  </template>
+                </template>
+
                 <!-- 左側の壁 -->
                 <div
                     v-if="viewCell(depth, -1) === 1"
@@ -1750,8 +2128,8 @@ onUnmounted(() => {
                           : cell === 2
                             ? 'bg-yellow-400'
                             : cell === 1
-                              ? 'bg-stone-500'
-                              : 'bg-stone-800'
+                              ? 'bg-stone-700'
+                              : 'bg-stone-200'
                   "
                 >
                   <span
@@ -1762,6 +2140,16 @@ onUnmounted(() => {
                   </span>
                 </div>
               </div>
+            </div>
+            <div class="mt-1 flex items-center justify-end gap-1 text-[11px]" aria-label="進める方向">
+              <span class="text-zinc-400 mr-1">進路</span>
+              <span
+                v-for="way in passableWays"
+                :key="way.label"
+                class="w-5 h-5 flex items-center justify-center rounded font-black"
+                :class="way.open ? 'bg-amber-500 text-black' : 'bg-zinc-800 text-zinc-600'"
+                :title="`${way.label}${way.open ? '：進める' : '：壁'}`"
+              >{{ way.arrow }}</span>
             </div>
           </div>
         </div>
@@ -1826,6 +2214,9 @@ onUnmounted(() => {
               </button>
             </div>
           </div>
+          <p class="hidden md:block text-center text-[11px] text-zinc-500 mt-1">
+            キーボード: ↑/W 前進 ・ ←→/A D 向きを変える ・ ↓/S 振り返る ・ Space/F 集中
+          </p>
         </div>
       </div>
 
@@ -1867,7 +2258,7 @@ onUnmounted(() => {
             @click="closeEvent"
             class="w-full py-3 bg-erika text-black font-bold rounded-lg hover:bg-amber-400"
           >
-            確認して進む
+            確認して進む<span class="hidden md:inline text-xs font-normal"> (Enter)</span>
           </button>
         </div>
       </div>
@@ -1912,6 +2303,9 @@ onUnmounted(() => {
         <div class="shrink-0 mt-4 w-full max-w-sm mx-auto space-y-3">
           <p class="text-center text-xs text-zinc-400">
             勝利：無傷＋コイン1枚 ／ 引き分け：ダメージなし
+          </p>
+          <p class="hidden md:block text-center text-[11px] text-zinc-500">
+            キーボード: Space/Enter サイコロ ・ E コインで突破
           </p>
           <button
             @click="rollDice"
@@ -2000,6 +2394,9 @@ onUnmounted(() => {
             >
               次の階層へ進む ▶
             </button>
+            <p class="hidden md:block text-center text-[11px] text-zinc-500">
+              キーボード: Space 回す／止める ・ Enter 次の階層へ
+            </p>
           </div>
         </div>
       </div>
@@ -2049,6 +2446,115 @@ onUnmounted(() => {
         </h2>
         <p class="text-zinc-300 text-lg mb-8 text-center">
           コネクションが切断されました...
+          <span class="block text-sm text-red-300 mt-1">
+            {{
+              reviveNeedsHp && reviveNeedsTime
+                ? 'HPと時間が尽きました'
+                : reviveNeedsHp
+                  ? 'HPが尽きました'
+                  : '時間切れです'
+            }}
+          </span>
+        </p>
+
+        <!-- コインで復活 -->
+        <div
+          v-if="canOfferRevive"
+          class="bg-black/80 border border-amber-600/60 p-5 rounded-2xl w-full mb-6 shadow-[0_0_25px_rgba(245,158,11,0.25)]"
+        >
+          <h3 class="text-xl font-black text-amber-400 text-center mb-1">
+            REBOOT
+          </h3>
+          <p class="text-xs text-zinc-300 text-center mb-4">
+            コイン1枚 = HP{{ REVIVE_HP_PER_COIN }} または 時間{{ REVIVE_SECONDS_PER_COIN }}秒。
+            割り振ってその場で復活できます。
+          </p>
+
+          <div class="space-y-3">
+            <div class="flex items-center gap-2">
+              <span class="w-12 text-sm font-bold text-emerald-400">HP</span>
+              <button
+                @click="adjustRevive('hp', -1)"
+                :disabled="reviveHpCoins <= 0"
+                aria-label="HPに割り当てるコインを減らす"
+                class="w-9 h-9 bg-zinc-800 border border-zinc-600 rounded font-black disabled:opacity-30"
+              >−</button>
+              <span class="w-10 text-center font-black text-amber-300">{{ reviveHpCoins }}枚</span>
+              <button
+                @click="adjustRevive('hp', 1)"
+                :disabled="reviveHpCoins >= reviveMaxHpCoins || reviveCost >= player.coins"
+                aria-label="HPに割り当てるコインを増やす"
+                class="w-9 h-9 bg-zinc-800 border border-zinc-600 rounded font-black disabled:opacity-30"
+              >＋</button>
+              <span class="flex-1 text-right text-sm text-zinc-300">
+                {{ player.hp }} → <span class="font-black text-emerald-400">{{ reviveHpAfter }}</span> / {{ player.maxHp }}
+              </span>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <span class="w-12 text-sm font-bold text-cyan-400">TIME</span>
+              <button
+                @click="adjustRevive('time', -1)"
+                :disabled="reviveTimeCoins <= 0"
+                aria-label="時間に割り当てるコインを減らす"
+                class="w-9 h-9 bg-zinc-800 border border-zinc-600 rounded font-black disabled:opacity-30"
+              >−</button>
+              <span class="w-10 text-center font-black text-amber-300">{{ reviveTimeCoins }}枚</span>
+              <button
+                @click="adjustRevive('time', 1)"
+                :disabled="reviveCost >= player.coins"
+                aria-label="時間に割り当てるコインを増やす"
+                class="w-9 h-9 bg-zinc-800 border border-zinc-600 rounded font-black disabled:opacity-30"
+              >＋</button>
+              <span class="flex-1 text-right text-sm text-zinc-300">
+                {{ player.timeLeft }}s → <span class="font-black text-cyan-400">{{ reviveTimeAfter }}s</span>
+              </span>
+            </div>
+          </div>
+
+          <div class="flex gap-2 mt-4">
+            <button
+              @click="allocateAllRevive('hp')"
+              class="flex-1 py-1.5 text-xs bg-zinc-900 border border-emerald-800 text-emerald-300 rounded-full hover:bg-zinc-800"
+            >
+              HP優先で割り振る
+            </button>
+            <button
+              @click="allocateAllRevive('time')"
+              class="flex-1 py-1.5 text-xs bg-zinc-900 border border-cyan-800 text-cyan-300 rounded-full hover:bg-zinc-800"
+            >
+              時間優先で割り振る
+            </button>
+          </div>
+
+          <p class="text-center text-sm text-zinc-400 mt-4">
+            使用 <span class="font-black text-amber-400">{{ reviveCost }}</span> 枚 /
+            所持 {{ player.coins }} 枚
+            <span class="block text-[11px] text-zinc-500">
+              ※ 使ったコインはスコア（1枚200pts）から差し引かれます
+            </span>
+          </p>
+
+          <button
+            @click="reviveWithCoins"
+            :disabled="!isReviveReady"
+            class="w-full mt-3 py-3 bg-amber-500 text-black font-black text-lg rounded-full shadow-[0_0_20px_rgba(245,158,11,0.5)] hover:bg-amber-400 disabled:opacity-40 disabled:shadow-none transition-all"
+          >
+            {{
+              isReviveReady
+                ? `コイン${reviveCost}枚で復活する`
+                : reviveNeedsHp && reviveHpAfter <= 0
+                  ? 'HPに1枚以上割り振ってください'
+                  : '時間に1枚以上割り振ってください'
+            }}
+          </button>
+        </div>
+
+        <p
+          v-else-if="reviveMinCoins > 0 && player.coins > 0"
+          class="text-sm text-amber-200 mb-6 text-center"
+        >
+          HPと時間の両方を戻すにはコインが{{ reviveMinCoins }}枚必要です（所持 {{ player.coins }} 枚）。
         </p>
 
         <div class="bg-black/80 border border-red-900/50 p-6 rounded-2xl w-full mb-6 text-center shadow-2xl">
@@ -2080,7 +2586,13 @@ onUnmounted(() => {
           :disabled="isSubmittingScore"
           class="w-full px-6 py-4 bg-red-600 text-white font-black rounded-full hover:bg-red-500 shadow-[0_0_20px_rgba(239,68,68,0.5)] transition-all hover:-translate-y-1 disabled:opacity-50"
         >
-          {{ isSubmittingScore ? '記録中...' : 'スコアを記録してタイトルへ' }}
+          {{
+            isSubmittingScore
+              ? '記録中...'
+              : canOfferRevive
+                ? 'あきらめてスコアを記録'
+                : 'スコアを記録してタイトルへ'
+          }}
         </button>
       </div>
     </div>
@@ -2292,6 +2804,8 @@ button:disabled {
    ミニマップや操作パネルより壁が前に出るのを防ぐ。 */
 .dungeon-scene {
   isolation: isolate;
+  /* 横道の床や突き当たりの壁が、シーンの外まではみ出さないようにする */
+  overflow: hidden;
 }
 
 .dungeon-surface {
@@ -2310,6 +2824,35 @@ button:disabled {
   background-size: 100% 100%, cover;
   background-position: center;
   background-repeat: no-repeat;
+}
+
+/* 横道の床に出す矢印。光って見えるようにして「ここから曲がれる」と示す */
+.side-arrow {
+  position: absolute;
+  /* 床に描かれているように見せるため、縦方向をつぶす */
+  transform: translate(-50%, -50%) scaleY(0.55);
+  padding: 0.1em 0.45em;
+  color: #fde68a;
+  font-weight: 900;
+  line-height: 1;
+  pointer-events: none;
+  /* 足元に光だまりを作り、暗い床の上でも目に入るようにする */
+  background: radial-gradient(
+    ellipse at center,
+    rgba(251, 191, 36, 0.45) 0%,
+    rgba(245, 158, 11, 0.18) 45%,
+    transparent 72%
+  );
+  text-shadow:
+    0 0 4px rgba(255, 255, 255, 0.8),
+    0 0 10px rgba(251, 191, 36, 1),
+    0 0 22px rgba(245, 158, 11, 0.9);
+  animation: side-arrow-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes side-arrow-pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
 }
 
 .dungeon-ceiling {

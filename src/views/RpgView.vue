@@ -11,12 +11,22 @@ interface Player {
   [key: string]: any;
 }
 
+interface EnemyIntent {
+  id: string; label: string; detail: string; danger: 'low' | 'mid' | 'high';
+}
+
 interface Enemy {
   id: string; enemyName: string; imageUrl: string;
   hp: number; maxHp: number; str: number; def: number; spd: number;
-  traitName: string; buffs: Record<string, number>;
+  traitId: string; traitName: string; buffs: Record<string, number>;
   isDead: boolean; animClass: string; popups: any[];
   skillUses: number; isCharging: boolean; isDefending: boolean;
+  // 物理・魔法の被ダメージ倍率（1未満＝耐性、1超＝弱点）
+  resist: { phys: number; mag: number };
+  // 次のターンに取る行動（プレイヤーに予告する）
+  intent: EnemyIntent | null;
+  // シーフの「ミラージュ」：残り回数の間、物理攻撃を無効化
+  physImmune: number;
 }
 
 interface Skill {
@@ -48,7 +58,12 @@ const equippedSkillIds = ref<string[]>([])
 const availableSkills = computed(() => equippedSkillIds.value.map(id => allSkills.value.find(s => s.id === id)).filter((s): s is Skill => !!s))
 const learnedSkills = computed(() => allSkills.value.filter(s => player.value.skills.includes(s.id)))
 const thePillowsSongs = ref<Song[]>([])
-const enemyImagesPool = ref<{name: string, url: string}[]>([])
+// 敵画像の山札。ギャラリー全件（数千件）になるため、リアクティブにもセーブにも入れない。
+// セーブには「もう出た敵の画像URL」だけを残し、ロード時に山札を組み直す。
+type EnemyImage = { name: string, url: string }
+let galleryImages: EnemyImage[] = []
+let enemyImagesPool: EnemyImage[] = []
+const usedEnemyUrls = ref<string[]>([])
 const currentEnemies = ref<Enemy[]>([])
 const battleLogs = ref<{text: string, colorClass: string}[]>([])
 
@@ -83,7 +98,10 @@ const isGeneratingReward = ref(false)
 const rewardImages = ref<string[]>([])
 const selectedTags = ref<Tag[]>([])
 const rewardBasePrompt = "masterpiece, best quality, ultra_detailed, absurdres, very aesthetic, delicate lines,"
-const activeCutin = ref<{ img: string, text: string, color: string } | null>(null)
+// スキル使用時のカットイン
+interface Cutin { id: number; img: string; text: string; kind: string; side: 'player' | 'enemy'; big: boolean; duration: number }
+const activeCutin = ref<Cutin | null>(null)
+const cutinEnabled = ref(true)
 
 const statList = [
   { key: 'maxHp', label: '最大HP (+10)' }, { key: 'maxMp', label: '最大MP (+5)' },
@@ -165,10 +183,39 @@ const toggleRewardTag = (label: string, prompt: string) => {
 }
 
 // --- 演出関連 ---
-const showCutin = (img: string, text: string, isEnemy = false) => {
+// 表示時間（ms）。必殺技・大技は長め。テンポ設定に合わせて短くなる。
+const CUTIN_MS = 750
+const CUTIN_BIG_MS = 1150
+
+// 戻り値は表示している時間（ms）。演出を出さない場合は 0。
+const showCutin = (img: string, text: string, opts: { side?: 'player' | 'enemy'; kind?: string; big?: boolean } = {}) => {
+  if (!cutinEnabled.value) return 0
   const token = ++cutinToken
-  activeCutin.value = { img, text, color: isEnemy ? 'from-red-600/80' : 'from-blue-600/80' }
-  schedule(() => { if (token === cutinToken) activeCutin.value = null }, 600 / battleSpeed.value)
+  const duration = (opts.big ? CUTIN_BIG_MS : CUTIN_MS) / battleSpeed.value
+  activeCutin.value = {
+    id: token, img: img || DEFAULT_AVATAR, text: text.replace(/！+$/, ''),
+    kind: opts.kind || '', side: opts.side || 'player', big: !!opts.big, duration
+  }
+  schedule(() => { if (token === cutinToken) activeCutin.value = null }, duration)
+  return duration
+}
+
+// プレイヤーのスキル → カットイン（効果はカットインの終わり際に出す）
+const playSkillCutin = async (skill: Skill) => {
+  const ms = showCutin(player.value.avatarUrl, skill.name, {
+    side: 'player', kind: skillRole(skill), big: skill.type === 'ultimate'
+  })
+  if (ms) await pause(ms * 0.7 * battleSpeed.value)
+}
+
+// 敵の技（予告している行動） → カットイン。通常攻撃と防御では出さない。
+const playEnemyCutin = async (enemy: Enemy) => {
+  const intent = enemy.intent
+  if (!intent || intent.id === 'attack' || intent.id === 'defend') return
+  const ms = showCutin(enemy.imageUrl, intent.label, {
+    side: 'enemy', kind: enemy.traitName, big: intent.danger === 'high'
+  })
+  if (ms) await pause(ms * 0.7 * battleSpeed.value)
 }
 
 const isScreenFlashing = ref(false)
@@ -201,13 +248,13 @@ const fetchWithTimeout = async (url: string, options: RequestInit = {}) => {
 }
 const localSaveKey = 'erika_rpg_save_' + userId
 const makeSaveData = () => JSON.parse(JSON.stringify({
-  version: 2, savedAt: Date.now(), player: player.value, battleState: battleState.value,
-  gameState: gameState.value, currentEnemies: currentEnemies.value, enemyImagesPool: enemyImagesPool.value,
+  version: 3, savedAt: Date.now(), player: player.value, battleState: battleState.value,
+  gameState: gameState.value, currentEnemies: currentEnemies.value, usedEnemyUrls: usedEnemyUrls.value,
   equippedSkillIds: equippedSkillIds.value, statPoints: statPoints.value, skillPoints: skillPoints.value,
   watchTime: watchTime.value, hasGot30sBonus: hasGot30sBonus.value, hasGot60sBonus: hasGot60sBonus.value,
   rewardChoices: rewardChoices.value, selectedSongId: selectedSongId.value, heardSongs: heardSongs.value,
   rewardGenCount: rewardGenCount.value, rewardImages: rewardImages.value, selectedTags: selectedTags.value,
-  rewardGrantedFloors: rewardGrantedFloors.value, battleSpeed: battleSpeed.value,
+  rewardGrantedFloors: rewardGrantedFloors.value, battleSpeed: battleSpeed.value, statAlloc: statAlloc.value, cutinEnabled: cutinEnabled.value,
   journeyTier: journeyTier.value, floorIntroOpen: floorIntroOpen.value,
   battleLogs: battleLogs.value
 }))
@@ -253,20 +300,28 @@ const loadGame = async () => {
     rewardGenCount.value = data.rewardGenCount || 0; rewardImages.value = data.rewardImages || []
     selectedTags.value = data.selectedTags || []; journeyTier.value = data.journeyTier || 'Very Hard'
     battleSpeed.value = data.battleSpeed === 1.5 ? 1.5 : 1
+    cutinEnabled.value = data.cutinEnabled !== false
     floorIntroOpen.value = !!data.floorIntroOpen
     const states = ['battle', 'reward', 'gameover', 'gameclear']
     gameState.value = states.includes(data.gameState) ? data.gameState : 'battle'
-    if (Array.isArray(data.enemyImagesPool)) enemyImagesPool.value = data.enemyImagesPool
-    else await fetchGallery()
-    if (data.version === 2 && data.currentEnemies?.length) currentEnemies.value = data.currentEnemies.map(cleanActor)
-    else if (gameState.value === 'battle') startNextWave()
+    // 旧セーブ（v2）は山札そのものを持っていたが、v3 からは出現済みのURLだけを持つ
+    usedEnemyUrls.value = Array.isArray(data.usedEnemyUrls)
+      ? data.usedEnemyUrls.filter((u: unknown): u is string => typeof u === 'string')
+      : []
+    await fetchGallery()
+    if (data.version >= 2 && data.currentEnemies?.length) {
+      currentEnemies.value = data.currentEnemies.map(normalizeEnemy)
+      ensureIntents()
+    } else if (gameState.value === 'battle') startNextWave()
+    player.value.stunTurns = Math.max(0, Number(player.value.stunTurns) || 0)
+    statAlloc.value = sanitizeStatAlloc(data.statAlloc)
     battleLogs.value = data.battleLogs || []
     if (gameState.value === 'battle' && player.value.hp <= 0) gameState.value = 'gameover'
     if (gameState.value === 'reward') {
       if (!rewardChoices.value.length) chooseRewardSongs()
       await nextTick(); mountMusic('reward')
     }
-    showNotification('探索を再開', [data.version === 2 ? '保存した場面から再開しました。' : '旧セーブを移行しました。未保存だった報酬ポイントは復元できません。'])
+    showNotification('探索を再開', [data.version >= 2 ? '保存した場面から再開しました。' : '旧セーブを移行しました。未保存だった報酬ポイントは復元できません。'])
   } catch (e: any) { showNotification('ロード失敗', [e.message], 'error') }
   finally { isLoading.value = false }
 }
@@ -312,33 +367,55 @@ const submitCharMake = async () => {
     if (freeTextInput.value) finalPromptArray.push(freeTextInput.value)
     finalPromptArray.push("masterpiece, best quality")
 
-    const res = await fetch('/api/generate-avatar', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: finalPromptArray.join(', ') })
-    })
-    const data = await res.json().catch(() => ({}))
-
-    if (!res.ok) {
-      if (data.error === "NSFW_ERROR" || (data.error && data.error.includes('8007'))) throw new Error("NSFW")
-      throw new Error(data.error || "画像生成APIエラー")
+    let avatarUrl = ''
+    try {
+      const res = await fetch('/api/generate-avatar', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: finalPromptArray.join(', ') })
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        if (data.error === "NSFW_ERROR" || (data.error && data.error.includes('8007'))) throw new Error("NSFW")
+        throw new Error(data.error || "画像生成APIエラー")
+      }
+      avatarUrl = typeof data.avatarUrl === 'string' ? data.avatarUrl : ''
+    } catch (e: any) {
+      if (e.message === "NSFW") {
+        // 選び直したい人もいるので、その場に留まって「画像なしで始める」を選べるようにする
+        avatarFallbackOffered.value = true
+        showNotification('生成ブロック', ["AIのセーフティフィルターにブロックされました。", "要素を選び直すか、画像なしで冒険を始められます。"], 'error')
+        return
+      }
+      // 上限到達・通信エラーなどは、選び直しても解決しないのでデフォルト画像で始める
+      showNotification('デフォルトの姿でダイブします', ["アバター画像を生成できませんでした。", e.message], 'error')
     }
-    
-    player.value.avatarUrl = data.avatarUrl
-    await fetchGallery()
-    gameState.value = 'battle'
-    startNextWave()
-    addLog(`「${player.value.className}」の姿で異世界にダイブした！`, 'system')
-    floorIntroOpen.value = true
-    saveLocal()
 
-  } catch (e: any) {
-    if (e.message === "NSFW") {
-      showNotification('生成ブロック', ["AIのセーフティフィルターにブロックされました。", "別の要素を選んで再試行してください！"], 'error')
-    } else {
-      showNotification('アバター生成エラー', ["エラーが発生しました。", e.message], 'error')
-    }
+    await beginAdventure(avatarUrl)
   } finally {
     isGenerating.value = false
   }
+}
+
+const DEFAULT_AVATAR = '/assets/images/icon.png'
+const avatarFallbackOffered = ref(false)
+
+// 画像なし（デフォルトの姿）でも冒険を始められるようにする
+const beginAdventure = async (avatarUrl = '') => {
+  player.value.avatarUrl = avatarUrl || DEFAULT_AVATAR
+  avatarFallbackOffered.value = false
+  usedEnemyUrls.value = []
+  statAlloc.value = {}
+  await fetchGallery()
+  gameState.value = 'battle'
+  startNextWave()
+  addLog(`「${classLabel.value}」の姿で異世界にダイブした！`, 'system')
+  floorIntroOpen.value = true
+  saveLocal()
+}
+
+const startWithoutAvatar = async () => {
+  if (isGenerating.value || !avatarFallbackOffered.value) return
+  isGenerating.value = true
+  try { await beginAdventure('') } finally { isGenerating.value = false }
 }
 
 // --- バトルロジック ---
@@ -346,42 +423,120 @@ const fetchGallery = async () => {
   try {
     const res = await fetch(`/assets/gallery.json?t=${new Date().getTime()}`)
     const data = await res.json()
-    let images: any[] = []
+    const images: EnemyImage[] = []
     data.forEach((folder: any) => {
       folder.images.forEach((img: any) => {
         images.push({ name: img.enemy_name || '暴走したAI エリカ', url: `/assets/images/gallery/${folder.name}/${img.file}` })
       })
     })
-    enemyImagesPool.value = shuffled(images)
+    galleryImages = images
+    refillEnemyPool()
   } catch (e) {}
 }
 
+// 出現済みの画像を除いて山札を作る。全部出きったら、場にいる敵以外で作り直す。
+const refillEnemyPool = () => {
+  const used = new Set(usedEnemyUrls.value)
+  let rest = galleryImages.filter(img => !used.has(img.url))
+  if (!rest.length && galleryImages.length) {
+    const onStage = new Set(currentEnemies.value.map(e => e.imageUrl))
+    usedEnemyUrls.value = []
+    rest = galleryImages.filter(img => !onStage.has(img.url))
+  }
+  enemyImagesPool = shuffled(rest)
+}
+
 const generateEnemy = (floor: number, type = 'normal'): Enemy => {
-  const imgData = enemyImagesPool.value.pop() || { url: '/assets/images/gallery.jpg', name: '深淵のデッドロック エリカ' }
+  if (!enemyImagesPool.length) refillEnemyPool()
+  const imgData = enemyImagesPool.pop() || { url: '/assets/images/gallery.jpg', name: '深淵のデッドロック エリカ' }
+  if (galleryImages.length) usedEnemyUrls.value.push(imgData.url)
   // Normal: 1階あたり16ptを目安に成長。初階の連戦を短くし、後半は緩やかに増加。
   let baseHp = 42 + (floor - 1) * 24, baseStr = 8 + (floor - 1) * 2.8, baseDef = 4 + (floor - 1) * 1.5, baseSpd = 6 + (floor - 1) * 1.2
+
+  // 後半の階層ほどHPと攻撃力を上乗せする（プレイヤーの成長に追いつかせるため）
+  const late = lateEnemyGrowth(floor)
+  baseHp *= late; baseStr *= late
 
   if (type === 'boss') { baseHp *= 1.5; baseStr *= 1.2; baseDef *= 0.9 }
   else if (type === 'midboss') { baseHp *= 0.6; baseStr *= 0.75; baseDef *= 0.8 }
 
-  const traits = [
-    { id: 'all_rounder', name: 'エース', mult: { hp: 1.2, str: 1.2, def: 1.2, spd: 1.2 } },
-    { id: 'fighter', name: 'ファイター', mult: { hp: 1.4, str: 1.3, def: 0.5, spd: 1.0 } },
-    { id: 'iron_soldier', name: '鋼鉄兵', mult: { hp: 1.0, str: 1.0, def: 1.9, spd: 0.5 } },
-    { id: 'berserker', name: 'ベルセルク', mult: { hp: 0.5, str: 1.9, def: 0.7, spd: 1.0 } },
-    { id: 'thief', name: 'シーフ', mult: { hp: 1.0, str: 0.6, def: 1.0, spd: 2.1 } }
-  ]
-  const trait = traits[Math.floor(Math.random() * traits.length)]
+  const trait = ENEMY_TRAITS[Math.floor(Math.random() * ENEMY_TRAITS.length)]!
 
-  return {
+  const enemy: Enemy = {
     id: Math.random().toString(36).substring(7),
     enemyName: imgData.name, imageUrl: imgData.url,
     maxHp: Math.floor(baseHp * trait.mult.hp), hp: Math.floor(baseHp * trait.mult.hp),
     str: Math.floor(baseStr * trait.mult.str), def: Math.floor(baseDef * trait.mult.def), spd: Math.floor(baseSpd * trait.mult.spd),
-    traitName: trait.name, buffs: { str: 0, mag: 0, def: 0, spd: 0 },
-    isDead: false, animClass: '', popups: [], skillUses: 3, isCharging: false, isDefending: false
+    traitId: trait.id, traitName: trait.name, buffs: { str: 0, mag: 0, def: 0, spd: 0 },
+    isDead: false, animClass: '', popups: [], skillUses: type === 'boss' ? 5 : 3, isCharging: false, isDefending: false,
+    resist: { ...trait.resist }, intent: null, physImmune: 0
+  }
+  return enemy
+}
+
+// -----------------------------------------------------------------------------
+// 敵の特性：ステータス倍率・耐性・固有の技
+// -----------------------------------------------------------------------------
+const ENEMY_TRAITS = [
+  { id: 'all_rounder', name: 'エース', mult: { hp: 1.2, str: 1.2, def: 1.2, spd: 1.2 }, resist: { phys: 1.0, mag: 1.0 } },
+  { id: 'fighter', name: 'ファイター', mult: { hp: 1.4, str: 1.3, def: 0.5, spd: 1.0 }, resist: { phys: 0.85, mag: 1.15 } },
+  { id: 'iron_soldier', name: '鋼鉄兵', mult: { hp: 1.0, str: 1.0, def: 1.9, spd: 0.5 }, resist: { phys: 0.6, mag: 1.3 } },
+  { id: 'berserker', name: 'ベルセルク', mult: { hp: 0.5, str: 1.9, def: 0.7, spd: 1.0 }, resist: { phys: 1.2, mag: 0.9 } },
+  { id: 'thief', name: 'シーフ', mult: { hp: 1.0, str: 0.6, def: 1.0, spd: 2.1 }, resist: { phys: 1.1, mag: 0.6 } }
+] as const
+
+// 後半の敵の伸び（4階以降に効き始め、10階でおよそ1.5倍）
+const LATE_ENEMY_GROWTH = 0.03
+const lateEnemyGrowth = (floor: number) => 1 + LATE_ENEMY_GROWTH * Math.pow(Math.max(0, floor - 3), 1.2)
+
+// 旧セーブの敵に、新しい項目を補う
+const normalizeEnemy = (e: any): Enemy => {
+  const trait = ENEMY_TRAITS.find(t => t.id === e.traitId || t.name === e.traitName) ?? ENEMY_TRAITS[0]
+  return {
+    ...e,
+    traitId: trait.id, traitName: trait.name,
+    resist: e.resist && typeof e.resist.phys === 'number' ? e.resist : { ...trait.resist },
+    physImmune: Number(e.physImmune) || 0,
+    intent: e.intent ?? null,
+    animClass: '', popups: []
   }
 }
+
+// 耐性・弱点の表示
+const resistLabels = (e: Enemy) => {
+  const labels: { text: string; kind: 'weak' | 'strong' }[] = []
+  if (e.resist.mag > 1) labels.push({ text: '弱点 魔法', kind: 'weak' })
+  if (e.resist.phys > 1) labels.push({ text: '弱点 物理', kind: 'weak' })
+  if (e.resist.phys < 1) labels.push({ text: '物理に強い', kind: 'strong' })
+  if (e.resist.mag < 1) labels.push({ text: '魔法に強い', kind: 'strong' })
+  return labels
+}
+
+const INTENTS: Record<string, Omit<EnemyIntent, 'id'>> = {
+  attack: { label: '攻撃', detail: '通常攻撃', danger: 'low' },
+  defend: { label: '防御', detail: 'ダメージを半減する', danger: 'low' },
+  // エース
+  ace_heal: { label: 'エリカヒール', detail: '傷ついた仲間のHPを30%回復', danger: 'mid' },
+  ace_special: { label: 'エリカスペシャル', detail: '現在HPの20%を削る魔法（回避不可）', danger: 'mid' },
+  // ファイター
+  charge: { label: '力をためる', detail: '次のターンに痛恨の一撃を放つ', danger: 'mid' },
+  crush: { label: '痛恨の一撃', detail: '大ダメージ。防御しないと1ターン気絶', danger: 'high' },
+  hammer: { label: 'エリカハンマー', detail: '自分のHPを削って強打（1.5倍）', danger: 'mid' },
+  atk_up: { label: '攻撃力アップ', detail: '自分の攻撃力を上げる', danger: 'low' },
+  // 鋼鉄兵
+  iron_wall: { label: 'アイアンウォール', detail: '防御力を大きく上げる', danger: 'low' },
+  repair: { label: 'リペア', detail: '自分のHPを25%回復', danger: 'low' },
+  pile: { label: 'パイルバンカー', detail: '必中の一撃（1.3倍・回避不可）', danger: 'mid' },
+  // ベルセルク
+  reckless: { label: '捨て身の一撃', detail: '自分のHPを削って2倍の攻撃', danger: 'high' },
+  frenzy: { label: '狂乱撃', detail: '1.6倍の強打', danger: 'mid' },
+  desperado: { label: 'デスペラード', detail: '当たれば3倍の超火力（命中率45%）', danger: 'high' },
+  // シーフ
+  snap: { label: 'シャドウスナップ', detail: 'あなたの攻撃力と魔力を下げる', danger: 'mid' },
+  haste: { label: 'ヘイスト', detail: '自分の素早さと攻撃力を上げる', danger: 'low' },
+  mirage: { label: 'ミラージュ', detail: '2ターンの間、物理攻撃を無効化', danger: 'mid' }
+}
+const makeIntent = (id: string): EnemyIntent => ({ id, ...(INTENTS[id] ?? INTENTS.attack!) })
 
 const startNextWave = () => {
   battlePhase.value = 'コマンドを選択'
@@ -408,12 +563,33 @@ const startNextWave = () => {
     addLog(`${currentEnemies.value[0].enemyName} があらわれた！`, 'system')
     playSE('enemy_appear')
   }
+  planIntents()
 }
 
 const getStat = (actor: any, statName: string) => Math.max(1, Math.floor((actor[statName] || 0) * (1 + (actor.buffs[statName] || 0) / 100)))
 
-const performAction = (attacker: any, defender: any, action: string | Skill, isAoE = false) => {
-  if (attacker.hp <= 0) return
+// 物理攻撃かどうか（通常攻撃と物理スキル）
+const isPhysicalAction = (action: string | Skill) =>
+  action === 'attack' || (typeof action === 'object' && action.type === 'attack_physical')
+
+// 耐性・弱点の倍率。必殺技は属性を問わない。
+const resistMultiplier = (defender: any, action: string | Skill) => {
+  if (!defender?.resist) return 1
+  if (typeof action === 'object' && action.type === 'ultimate') return 1
+  if (typeof action === 'object' && action.type === 'attack_magic') return defender.resist.mag
+  return defender.resist.phys
+}
+
+// 戻り値: 攻撃が当たってダメージを与えたら true
+const performAction = (attacker: any, defender: any, action: string | Skill, isAoE = false): boolean => {
+  if (attacker.hp <= 0) return false
+
+  // シーフのミラージュ中は物理攻撃がすり抜ける
+  if (defender && defender !== attacker && defender.physImmune > 0 && isPhysicalAction(action)) {
+    addLog(`${defender.name || defender.enemyName} の残像をすり抜けた！（物理無効 あと${defender.physImmune}回）`)
+    triggerAnim(defender, 'guard', 'MISS')
+    return false
+  }
 
   if (action === 'defend') {
     attacker.isDefending = true; triggerAnim(attacker, 'guard', 'GUARD')
@@ -423,34 +599,29 @@ const performAction = (attacker: any, defender: any, action: string | Skill, isA
       attacker.mp = Math.min(attacker.maxMp, attacker.mp + recoverMp)
       addLog(`MPが ${recoverMp} 回復した！`, 'heal')
     }
-    return
+    return true
   }
 
   if (typeof action === 'object') {
     const skill = action
     if (skill.hitRate && Math.random() * 100 > skill.hitRate) {
       addLog(`${attacker.name || attacker.enemyName} の ${skill.name} は外れた！`)
-      return
+      return false
     }
     if (!isAoE) {
       addLog(`${attacker.name || attacker.enemyName} の ${skill.name}！`)
 
     }
 
-    // ★魔法や必殺技ならカットイン演出
-    if (skill.type === 'ultimate' || skill.name === '痛恨の一撃！！') {
-      if (!isAoE) showCutin(attacker.avatarUrl || attacker.imageUrl, skill.name, attacker !== player.value)
-    }
-
     if (!isAoE) playSE(skill.type === 'attack_magic' || skill.type === 'ultimate' || skill.type === 'heal' || skill.type === 'buff' ? 'skill_magic' : 'skill_phys')
 
     if (skill.type === 'heal') {
-      if (isAoE && defender !== attacker) return
+      if (isAoE && defender !== attacker) return false
       const amount = Math.min(attacker.maxHp - attacker.hp, Math.floor(attacker.maxHp * (skill.multiplier ?? 0.5)))
       attacker.hp = Math.min(attacker.maxHp, attacker.hp + amount)
       addLog(`${attacker.name || attacker.enemyName} のHPが ${amount} 回復した！`, 'heal')
       triggerAnim(attacker, 'heal', `+${amount}`)
-      return
+      return true
     }
 
     if (skill.type === 'buff' || skill.type === 'debuff') {
@@ -462,7 +633,7 @@ const performAction = (attacker: any, defender: any, action: string | Skill, isA
       }
       addLog(`${target.name || target.enemyName} のステータスが変化した！`, 'system')
       triggerAnim(target, 'heal', 'UP/DOWN')
-      return
+      return true
     }
 
     const isMagical = skill.type === 'attack_magic' || skill.type === 'ultimate'
@@ -470,7 +641,7 @@ const performAction = (attacker: any, defender: any, action: string | Skill, isA
       const evadeRate = Math.min(40, Math.max(0, (getStat(defender, 'spd') - getStat(attacker, 'spd')) * 2))
       if (Math.random() * 100 < evadeRate) {
         addLog(`${defender.name || defender.enemyName} は攻撃をかわした！`)
-        return
+        return false
       }
     }
 
@@ -478,21 +649,26 @@ const performAction = (attacker: any, defender: any, action: string | Skill, isA
     if (skill.isPercent) {
       dmg = Math.max(1, Math.floor(defender.hp * (skill.isPercent / 100)))
     } else {
-      const atkStat = isMagical ? getStat(attacker, 'mag') : getStat(attacker, 'str')
+      // 必殺技は力と魔力の高い方で威力が決まる（物理職でも使えるように）
+      const atkStat = skill.type === 'ultimate'
+        ? Math.max(getStat(attacker, 'str'), getStat(attacker, 'mag'))
+        : isMagical ? getStat(attacker, 'mag') : getStat(attacker, 'str')
       const defStat = (skill.type === 'ultimate' || skill.ignoreDef || isMagical) ? 0 : getStat(defender, 'def')
       dmg = Math.max(1, atkStat * (skill.multiplier ?? 1) - defStat * 0.5)
     }
 
     if (defender.isDefending) dmg *= 0.5
+    const resist = skill.isPercent ? 1 : resistMultiplier(defender, skill)
+    dmg *= resist
     const finalDamage = Math.max(1, Math.floor(dmg * (0.95 + Math.random() * 0.1)))
-    addLog(`${defender.name || defender.enemyName} に ${finalDamage} のダメージ！`, 'damage')
+    addLog(`${defender.name || defender.enemyName} に ${finalDamage} のダメージ！${resistNote(resist)}`, 'damage')
     defender.hp = Math.max(0, defender.hp - finalDamage)
     triggerAnim(defender, isMagical ? 'magic' : 'damage', finalDamage.toString())
     playSE('damage')
 
     // ★プレイヤー被弾時に画面フラッシュ
     if (defender === player.value) flashScreen()
-    return
+    return true
   }
 
   // 通常攻撃
@@ -501,7 +677,7 @@ const performAction = (attacker: any, defender: any, action: string | Skill, isA
   const evadeRate = Math.min(40, Math.max(0, (getStat(defender, 'spd') - getStat(attacker, 'spd')) * 2))
   if (Math.random() * 100 < evadeRate) {
     addLog(`${defender.name || defender.enemyName} は攻撃をかわした！`)
-    return
+    return false
   }
   const isCrit = (Math.random() * 100) < (5 + (attacker.luk || 0) * 0.5)
   if (isCrit) addLog('会心の一撃！！', 'damage')
@@ -510,16 +686,21 @@ const performAction = (attacker: any, defender: any, action: string | Skill, isA
   if (!isCrit) dmg -= (getStat(defender, 'def') * 0.5)
   else dmg *= 1.5
   if (defender.isDefending) dmg *= 0.5
+  const resist = resistMultiplier(defender, 'attack')
+  dmg *= resist
 
   const finalDamage = Math.max(1, Math.floor(dmg * (0.95 + Math.random() * 0.1)))
-  addLog(`${defender.name || defender.enemyName} に ${finalDamage} のダメージ！`, 'damage')
+  addLog(`${defender.name || defender.enemyName} に ${finalDamage} のダメージ！${resistNote(resist)}`, 'damage')
   defender.hp = Math.max(0, defender.hp - finalDamage)
   triggerAnim(defender, 'damage', finalDamage.toString())
   playSE('damage')
 
   // ★プレイヤー被弾時に画面フラッシュ
   if (defender === player.value) flashScreen()
+  return true
 }
+
+const resistNote = (resist: number) => resist > 1 ? '（弱点！）' : resist < 1 ? '（いまひとつ）' : ''
 
 const skillCostHp = (s: Skill) => s.cost_hp_percent ? Math.max(1, Math.floor(player.value.hp * s.cost_hp_percent / 100)) : 0
 const skillUnavailable = (s: Skill): string => {
@@ -557,33 +738,31 @@ const executeAction = async (requestedAction: string | Skill) => {
   isProcessing.value = true; showSkillMenu.value = false
   try {
     addLog(`【ターン ${battleState.value.turn}】`, 'system')
-    battlePhase.value = 'あなたの行動'
-    if (player.value.stunTurns > 0) {
-      player.value.stunTurns--; player.value.isDefending = false
-      addLog(`${player.value.name} は動けない！`)
-    } else {
-      player.value.isDefending = action === 'defend'
-      const target = currentEnemies.value[targetIndex.value]?.hp > 0 ? currentEnemies.value[targetIndex.value] : currentEnemies.value.find(e => e.hp > 0)
-      if (!target) return
-      if (typeof action === 'object') {
-        player.value.hp -= skillCostHp(action)
-        player.value.mp = action.type === 'ultimate' ? 0 : player.value.mp - (action.cost_mp || 0)
-        if (action.target === 'all' && !['heal', 'buff'].includes(action.type)) {
-          addLog(`${player.value.name} の ${action.name}！`)
-          playSE(action.type === 'attack_physical' ? 'skill_phys' : 'skill_magic')
-          if (action.type === 'ultimate') showCutin(player.value.avatarUrl, action.name)
-          currentEnemies.value.filter(e => e.hp > 0).forEach(e => performAction(player.value, e, action, true))
-        } else performAction(player.value, target, action)
-      } else performAction(player.value, target, action)
-    }
-    await pause(650); if (!active()) return
-    markDefeated()
-    // 1体ずつ「行動→結果→次の敵」。倒した敵は回復・反撃しない。
-    for (const enemy of currentEnemies.value) {
-      if (enemy.isDead || enemy.hp <= 0 || player.value.hp <= 0) continue
+    ensureIntents()
+
+    // 素早さ順に行動する。防御は最優先（先に構えてから敵の攻撃を受ける）。
+    const order = buildTurnOrder(action === 'defend')
+    for (const actor of order) {
+      if (!active()) return
+      if (player.value.hp <= 0 || currentEnemies.value.every(e => e.isDead || e.hp <= 0)) break
+
+      if (actor === 'player') {
+        battlePhase.value = 'あなたの行動'
+        if (typeof action === 'object' && player.value.stunTurns <= 0) {
+          await playSkillCutin(action); if (!active()) return
+        }
+        actPlayer(action)
+        await pause(650); if (!active()) return
+        markDefeated()
+        continue
+      }
+
+      const enemy = actor
+      if (enemy.isDead || enemy.hp <= 0) continue
       battlePhase.value = `${enemy.enemyName} の行動`
       actingEnemyId.value = enemy.id
       await pause(180); if (!active()) return
+      await playEnemyCutin(enemy); if (!active()) return
       processEnemyTurn(enemy, currentEnemies.value)
       await pause(650); if (!active()) return
       markDefeated()
@@ -603,61 +782,211 @@ const executeAction = async (requestedAction: string | Skill) => {
     } else {
       battleState.value.turn++; battlePhase.value = 'コマンドを選択'
       if (currentEnemies.value[targetIndex.value]?.isDead) targetIndex.value = currentEnemies.value.findIndex(e => !e.isDead)
+      planIntents()
     }
   } finally {
     if (token === turnToken) { isProcessing.value = false; actingEnemyId.value = ''; saveLocal() }
   }
 }
 
+// プレイヤーの行動（気絶中は何もできない）
+const actPlayer = (action: string | Skill) => {
+  if (player.value.stunTurns > 0) {
+    player.value.stunTurns--; player.value.isDefending = false
+    addLog(`${player.value.name} は気絶していて動けない！`, 'damage')
+    triggerAnim(player.value, 'guard', 'STUN')
+    return
+  }
+  player.value.isDefending = action === 'defend'
+  const target = currentEnemies.value[targetIndex.value]?.hp > 0 ? currentEnemies.value[targetIndex.value] : currentEnemies.value.find(e => e.hp > 0)
+  if (!target) return
+  if (typeof action === 'object') {
+    player.value.hp -= skillCostHp(action)
+    player.value.mp = action.type === 'ultimate' ? 0 : player.value.mp - (action.cost_mp || 0)
+    if (action.target === 'all' && !['heal', 'buff'].includes(action.type)) {
+      addLog(`${player.value.name} の ${action.name}！`)
+      playSE(action.type === 'attack_physical' ? 'skill_phys' : 'skill_magic')
+      currentEnemies.value.filter(e => e.hp > 0).forEach(e => performAction(player.value, e, action, true))
+    } else performAction(player.value, target, action)
+  } else performAction(player.value, target, action)
+}
+
+// 行動順：素早さが高い順。同じならプレイヤーが先。防御を選んだときはプレイヤーが最優先。
+type TurnActor = 'player' | Enemy
+const buildTurnOrder = (playerFirst = false): TurnActor[] => {
+  const enemies = currentEnemies.value.filter(e => !e.isDead && e.hp > 0)
+  const playerSpd = getStat(player.value, 'spd')
+  const actors: { actor: TurnActor; spd: number; tie: number }[] = [
+    { actor: 'player', spd: playerFirst ? Infinity : playerSpd, tie: 0 },
+    ...enemies.map((e, i) => ({ actor: e as TurnActor, spd: getStat(e, 'spd'), tie: i + 1 }))
+  ]
+  return actors.sort((a, b) => b.spd - a.spd || a.tie - b.tie).map(a => a.actor)
+}
+
+// 画面に出す行動順（防御しない場合）
+const turnOrderPreview = computed(() =>
+  buildTurnOrder(false).map(actor => actor === 'player'
+    ? { key: 'player', label: 'あなた', isPlayer: true }
+    : { key: actor.id, label: actor.traitName, isPlayer: false })
+)
+
+// --- 敵の行動予告 ---
+const planIntents = () => {
+  currentEnemies.value.forEach(e => {
+    if (e.isDead || e.hp <= 0) { e.intent = null; return }
+    e.intent = planEnemyIntent(e, currentEnemies.value)
+  })
+}
+const ensureIntents = () => {
+  if (currentEnemies.value.some(e => !e.isDead && e.hp > 0 && !e.intent)) planIntents()
+}
+
+const planEnemyIntent = (enemy: Enemy, allEnemies: Enemy[]): EnemyIntent => {
+  // 力をためた次のターンは必ず痛恨の一撃
+  if (enemy.isCharging) return makeIntent('crush')
+
+  const rand = Math.random() * 100
+  if (enemy.skillUses <= 0) return makeIntent(rand < 80 ? 'attack' : 'defend')
+
+  const hpRate = enemy.hp / enemy.maxHp
+  const p = player.value
+
+  switch (enemy.traitId) {
+    case 'all_rounder': {
+      const hurt = allEnemies.some(e => !e.isDead && e.hp > 0 && e.hp < e.maxHp * 0.7)
+      if (hurt && rand < 50) return makeIntent('ace_heal')
+      if (rand < 80) return makeIntent('ace_special')
+      return makeIntent('attack')
+    }
+    case 'fighter':
+      if (rand < 30) return makeIntent('charge')
+      if (rand < 55 && enemy.hp > enemy.maxHp * 0.3) return makeIntent('hammer')
+      if (rand < 75 && (enemy.buffs.str || 0) < 40) return makeIntent('atk_up')
+      return makeIntent('attack')
+    case 'iron_soldier':
+      if (hpRate < 0.5 && rand < 55) return makeIntent('repair')
+      if ((enemy.buffs.def || 0) < 40 && rand < 35) return makeIntent('iron_wall')
+      if (rand < 70) return makeIntent('pile')
+      return makeIntent('attack')
+    case 'berserker':
+      if (rand < 25 && hpRate > 0.2) return makeIntent('reckless')
+      if (rand < 50) return makeIntent('frenzy')
+      if (rand < 70) return makeIntent('desperado')
+      return makeIntent('attack')
+    case 'thief':
+      if (enemy.physImmune <= 0 && rand < 25) return makeIntent('mirage')
+      if ((p.buffs.str || 0) > -40 && rand < 50) return makeIntent('snap')
+      if ((enemy.buffs.spd || 0) < 40 && rand < 70) return makeIntent('haste')
+      return makeIntent('attack')
+  }
+  return makeIntent('attack')
+}
 
 const processEnemyTurn = (enemy: Enemy, allEnemies: Enemy[]) => {
   if (enemy.hp <= 0 || enemy.isDead) return
   enemy.isDefending = false
-  let hasSkill = enemy.skillUses > 0
-  let rand = Math.floor(Math.random() * 100)
+  // ミラージュの残り回数は、その敵の手番が来るたびに1つ減る
+  if (enemy.physImmune > 0) enemy.physImmune--
 
-  if (enemy.isCharging) {
-    enemy.isCharging = false
-    performAction(enemy, player.value, { id: 't', name: '痛恨の一撃！！', description: '', type: 'attack_physical', multiplier: 1.6 })
-    return
-  }
+  const intent = enemy.intent ?? planEnemyIntent(enemy, allEnemies)
+  enemy.intent = null
+  const p = player.value
+  const name = enemy.enemyName
+  const useSkill = () => { enemy.skillUses = Math.max(0, enemy.skillUses - 1) }
+  const skillAttack = (skill: Partial<Skill> & { name: string }) =>
+    performAction(enemy, p, { id: intent.id, description: '', type: 'attack_physical', ...skill } as Skill)
 
-  if (!hasSkill) { performAction(enemy, player.value, rand < 80 ? 'attack' : 'defend'); return }
+  switch (intent.id) {
+    case 'defend':
+      performAction(enemy, p, 'defend'); return
 
-  if (enemy.traitName === 'エース') {
-    if (rand < 50 && allEnemies.some(e => e.hp > 0 && e.hp < e.maxHp * 0.7)) {
-      let target = allEnemies.find(e => e.hp > 0 && e.hp < e.maxHp * 0.7) || enemy
-      let hurtAlly = allEnemies.find(e => e !== enemy && !e.isDead && e.hp > 0 && e.hp < e.maxHp * 0.5)
-      if (hurtAlly) target = hurtAlly
-      addLog(`${enemy.enemyName} の エリカヒール！！`)
-      let healAmount = Math.floor(target.maxHp * 0.3)
+    case 'ace_heal': {
+      let target = allEnemies.find(e => e !== enemy && !e.isDead && e.hp > 0 && e.hp < e.maxHp * 0.5)
+        || allEnemies.find(e => !e.isDead && e.hp > 0 && e.hp < e.maxHp * 0.7)
+      if (!target) { skillAttack({ name: 'エリカスペシャル！！', type: 'attack_magic', isPercent: 20 }); useSkill(); return }
+      addLog(`${name} の エリカヒール！！`)
+      const healAmount = Math.floor(target.maxHp * 0.3)
       target.hp = Math.min(target.maxHp, target.hp + healAmount)
       addLog(`${target.enemyName} のHPが ${healAmount} 回復した！`, 'heal')
-      triggerAnim(target, 'heal', `+${healAmount}`)
-      playSE('skill_magic')
-      enemy.skillUses--
-    } else if (rand < 80) {
-      performAction(enemy, player.value, { id: 's', name: 'エリカスペシャル！！', description: '', type: 'attack_magic', isPercent: 20 })
-      enemy.skillUses--
-    } else performAction(enemy, player.value, 'attack')
-  } else if (enemy.traitName === 'ファイター') {
-    if (rand < 30) {
-      addLog(`${enemy.enemyName} は 力をためている！！`, 'system')
-      enemy.isCharging = true; enemy.skillUses--
-    } else if (rand < 60) {
-      let cost = Math.floor(enemy.maxHp * 0.3)
-      if (enemy.hp > cost) {
-        addLog(`${enemy.enemyName} の エリカハンマー！！`)
-        enemy.hp -= cost; triggerAnim(enemy, 'damage', `-${cost}`)
-        performAction(enemy, player.value, { id:'h', name: 'エリカハンマー！！', description:'', type: 'attack_physical', multiplier: 1.5 })
-        enemy.skillUses--
-      } else performAction(enemy, player.value, 'attack')
-    } else if (rand < 80) {
-      addLog(`${enemy.enemyName} は 自身の攻撃力を上げた！！`, 'system')
-      enemy.buffs.str = Math.min(40, enemy.buffs.str + 20); triggerAnim(enemy, 'heal', 'ATK UP'); enemy.skillUses--
-    } else performAction(enemy, player.value, 'attack')
-  } else {
-    performAction(enemy, player.value, 'attack') // 簡易化
+      triggerAnim(target, 'heal', `+${healAmount}`); playSE('skill_magic'); useSkill()
+      return
+    }
+    case 'ace_special':
+      skillAttack({ name: 'エリカスペシャル！！', type: 'attack_magic', isPercent: 20 }); useSkill(); return
+
+    case 'charge':
+      addLog(`${name} は 力をためている！！ 次のターンに備えよう`, 'system')
+      enemy.isCharging = true; triggerAnim(enemy, 'heal', 'CHARGE'); useSkill()
+      return
+    case 'crush': {
+      enemy.isCharging = false
+      const wasDefending = p.isDefending
+      const hit = skillAttack({ name: '痛恨の一撃！！', multiplier: 1.6 })
+      if (hit && !wasDefending && p.hp > 0) {
+        p.stunTurns = Math.max(p.stunTurns, 1)
+        addLog(`${p.name} は体勢を崩して気絶した！（次の行動ができない）`, 'damage')
+      }
+      return
+    }
+    case 'hammer': {
+      const cost = Math.floor(enemy.maxHp * 0.3)
+      if (enemy.hp <= cost) { performAction(enemy, p, 'attack'); return }
+      addLog(`${name} の エリカハンマー！！`)
+      enemy.hp -= cost; triggerAnim(enemy, 'damage', `-${cost}`)
+      skillAttack({ name: 'エリカハンマー！！', multiplier: 1.5 }); useSkill()
+      return
+    }
+    case 'atk_up':
+      addLog(`${name} は 自身の攻撃力を上げた！！`, 'system')
+      enemy.buffs.str = Math.min(40, (enemy.buffs.str || 0) + 20); triggerAnim(enemy, 'heal', 'ATK UP'); useSkill()
+      return
+
+    case 'iron_wall':
+      addLog(`${name} の アイアンウォール！ 装甲が硬くなった！`, 'system')
+      enemy.buffs.def = 40; triggerAnim(enemy, 'guard', 'DEF UP'); useSkill()
+      return
+    case 'repair': {
+      const amount = Math.min(enemy.maxHp - enemy.hp, Math.floor(enemy.maxHp * 0.25))
+      enemy.hp += amount
+      addLog(`${name} の リペア！ HPが ${amount} 回復した！`, 'heal')
+      triggerAnim(enemy, 'heal', `+${amount}`); playSE('skill_magic'); useSkill()
+      return
+    }
+    case 'pile':
+      skillAttack({ name: 'パイルバンカー！！', multiplier: 1.3, isSureHit: true }); useSkill(); return
+
+    case 'reckless': {
+      const cost = Math.floor(enemy.maxHp * 0.15)
+      enemy.hp = Math.max(1, enemy.hp - cost); triggerAnim(enemy, 'damage', `-${cost}`)
+      addLog(`${name} は 捨て身で飛びかかった！`)
+      skillAttack({ name: '捨て身の一撃！！', multiplier: 2.0 }); useSkill()
+      return
+    }
+    case 'frenzy':
+      skillAttack({ name: '狂乱撃！！', multiplier: 1.6 }); useSkill(); return
+    case 'desperado':
+      skillAttack({ name: 'デスペラード！！', multiplier: 3.0, hitRate: 45 }); useSkill(); return
+
+    case 'snap':
+      addLog(`${name} の シャドウスナップ！`)
+      p.buffs.str = Math.max(-40, (p.buffs.str || 0) - 20)
+      p.buffs.mag = Math.max(-40, (p.buffs.mag || 0) - 20)
+      addLog(`${p.name} の攻撃力と魔力が下がった！`, 'damage')
+      triggerAnim(p, 'damage', 'DOWN'); playSE('skill_magic'); useSkill()
+      return
+    case 'haste':
+      addLog(`${name} の ヘイスト！ 動きが速くなった！`, 'system')
+      enemy.buffs.spd = Math.min(40, (enemy.buffs.spd || 0) + 30)
+      enemy.buffs.str = Math.min(40, (enemy.buffs.str || 0) + 20)
+      triggerAnim(enemy, 'heal', 'SPD UP'); useSkill()
+      return
+    case 'mirage':
+      addLog(`${name} の ミラージュ！ 姿が揺らいで見える…（物理攻撃が2回無効）`, 'system')
+      enemy.physImmune = 2; triggerAnim(enemy, 'guard', 'MIRAGE'); playSE('skill_magic'); useSkill()
+      return
+
+    default:
+      performAction(enemy, p, 'attack')
   }
 }
 
@@ -688,13 +1017,32 @@ const checkBonuses = () => {
 }
 
 
-const allocateStat = (key: string) => {
-  if (gameState.value === 'reward' && statPoints.value > 0 && statList.some(s => s.key === key)) {
-    if (key === 'maxHp') { player.value.maxHp += 10; player.value.hp += 10 }
-    else if (key === 'maxMp') { player.value.maxMp += 5; player.value.mp += 5 }
-    else player.value[key] += 1
-    statPoints.value--; saveLocal()
+// 同じステータスに振るほど必要ポイントが増える（1つに極振りするより、散らした方が得）
+// 例: STAT_TIER_SIZE = 10 なら、10回目までは1pt、20回目までは2pt、以降3pt…
+const STAT_TIER_SIZE = 10
+const statAlloc = ref<Record<string, number>>({})
+const statCost = (key: string) => 1 + Math.floor((statAlloc.value[key] || 0) / STAT_TIER_SIZE)
+const sanitizeStatAlloc = (value: unknown): Record<string, number> => {
+  const result: Record<string, number> = {}
+  if (value && typeof value === 'object') {
+    for (const { key } of statList) {
+      const n = Number((value as Record<string, unknown>)[key])
+      if (Number.isFinite(n) && n > 0) result[key] = Math.floor(n)
+    }
   }
+  return result
+}
+
+const allocateStat = (key: string) => {
+  if (gameState.value !== 'reward' || !statList.some(s => s.key === key)) return
+  const cost = statCost(key)
+  if (statPoints.value < cost) return
+  if (key === 'maxHp') { player.value.maxHp += 10; player.value.hp += 10 }
+  else if (key === 'maxMp') { player.value.maxMp += 5; player.value.mp += 5 }
+  else player.value[key] += 1
+  statPoints.value -= cost
+  statAlloc.value = { ...statAlloc.value, [key]: (statAlloc.value[key] || 0) + 1 }
+  saveLocal()
 }
 
 const unlearnedSkills = computed(() => allSkills.value.filter(s => !player.value.skills.includes(s.id) && (!s.min_floor || s.min_floor <= battleState.value.floor)))
@@ -980,7 +1328,7 @@ const loadAssets = async () => {
     if (!Array.isArray(skills) || !skills.length || !Array.isArray(songs) || !questions.questions?.length) throw new Error('必要なJSONの形式が正しくありません。')
     // 旧JSONでも10階までに習得可能。9階の休憩所で最終技が揃う。
     const unlockFloor = (n: number) => n >= 18 ? 9 : n >= 13 ? 8 : Math.min(n, 9)
-    allSkills.value = skills.map((s: Skill) => ({ ...s, min_floor: unlockFloor(s.min_floor || 1), ...(s.id === 'skill_mr_lostman' ? { multiplier: 0.5 } : {}) }))
+    allSkills.value = skills.map((s: Skill) => ({ ...s, min_floor: unlockFloor(s.min_floor || 1) }))
     const unique = new Map<string, Song>()
     songs.forEach((song: Song) => { const id = songId(song); if (id && !unique.has(id)) unique.set(id, { ...song, title: song.title || '曲名未登録' }) })
     thePillowsSongs.value = [...unique.values()]
@@ -988,12 +1336,48 @@ const loadAssets = async () => {
     dataReady.value = true
   } catch (e: any) { dataError.value = e.message }
 }
+// --- キーボード操作（PC向け） ---
+const handleKeyDown = (event: KeyboardEvent) => {
+  if (event.ctrlKey || event.metaKey || event.altKey || event.repeat) return
+  const target = event.target as HTMLElement | null
+  if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return
+  if (gameState.value !== 'battle' || setlistOpen.value) return
+
+  const key = event.key.length === 1 ? event.key.toLowerCase() : event.key
+  let handled = true
+
+  if (floorIntroOpen.value) {
+    if (key === 'Enter') beginFloor()
+    else handled = false
+  } else if (key === 'a') executeAction('attack')
+  else if (key === 'd') executeAction('defend')
+  else if (['1', '2', '3', '4'].includes(key)) {
+    const skill = availableSkills.value[Number(key) - 1]
+    if (skill) executeAction(skill)
+  } else if (key === 'ArrowLeft' || key === 'ArrowRight') {
+    if (isProcessing.value) return
+    const alive = currentEnemies.value.map((e, i) => ({ e, i })).filter(x => !x.e.isDead)
+    if (alive.length > 1) {
+      const pos = Math.max(0, alive.findIndex(x => x.i === targetIndex.value))
+      const next = alive[(pos + (key === 'ArrowRight' ? 1 : alive.length - 1)) % alive.length]!
+      targetIndex.value = next.i
+    }
+  } else handled = false
+
+  if (handled) {
+    event.preventDefault()
+    if (document.activeElement instanceof HTMLButtonElement) document.activeElement.blur()
+  }
+}
+
 onMounted(() => {
+  window.addEventListener('keydown', handleKeyDown)
   loadAssets()
   document.addEventListener('visibilitychange', onVisibility)
   window.addEventListener('pagehide', onPageHide)
 })
 onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeyDown)
   if (!isProcessing.value) saveLocal()
   destroyMusic(); disposed = true; cancelTurn()
   timers.forEach(clearTimeout); timers.clear()
@@ -1126,7 +1510,11 @@ onUnmounted(() => {
                         class="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-erika min-h-[100px] mb-4"></textarea>
             </div>
             <button @click="submitCharMake" class="w-full py-4 bg-erika text-black font-black text-lg rounded-full shadow-[0_0_20px_rgba(243,156,18,0.3)] hover:bg-erika-light hover:-translate-y-1 transition-all">
-              アバターを生成してダイブする
+              {{ avatarFallbackOffered ? '選び直して、もう一度生成する' : 'アバターを生成してダイブする' }}
+            </button>
+            <button v-if="avatarFallbackOffered" @click="startWithoutAvatar"
+                    class="w-full mt-3 py-3 bg-transparent border border-zinc-500 text-zinc-200 font-bold rounded-full hover:bg-white/10 transition-colors">
+              画像なし（デフォルトの姿）で冒険を始める
             </button>
           </div>
         </div>
@@ -1141,7 +1529,10 @@ onUnmounted(() => {
       <section v-if="gameState === 'battle'" class="battle-layout">
         <header class="floor-heading">
           <div><p class="eyebrow">FLOOR {{ battleState.floor }} / 10 · WAVE {{ battleState.enemyCount }} / 5</p><h2>{{ floorStory.title }}</h2></div>
-          <button class="small-button" @click="battleSpeed = battleSpeed === 1 ? 1.5 : 1; saveLocal()">{{ battleSpeed }}× テンポ</button>
+          <div class="button-row heading-buttons">
+            <button class="small-button" @click="cutinEnabled = !cutinEnabled; saveLocal()" :aria-pressed="cutinEnabled">カットイン {{ cutinEnabled ? 'ON' : 'OFF' }}</button>
+            <button class="small-button" @click="battleSpeed = battleSpeed === 1 ? 1.5 : 1; saveLocal()">{{ battleSpeed }}× テンポ</button>
+          </div>
         </header>
         <p class="flavor-line">{{ floorStory.lines[battleState.enemyCount - 1] }}</p>
         <div v-if="floorIntroOpen" class="intro-panel">
@@ -1163,11 +1554,24 @@ onUnmounted(() => {
               <div class="enemy-caption"><strong>{{ enemy.enemyName }}</strong><span>{{ enemy.hp }} / {{ enemy.maxHp }}</span></div>
             </div>
             <div class="health-track"><div :style="{ width: Math.max(0, enemy.hp / enemy.maxHp * 100) + '%' }"></div></div>
-            <div class="status-row"><span v-if="enemy.isCharging">⚠ 力をためている</span><span v-if="enemy.isDefending">防御中</span><span v-for="(value, stat) in enemy.buffs" v-show="value !== 0" :key="stat">{{ statNames[stat] || stat }} {{ value > 0 ? '+' : '' }}{{ value }}%</span></div>
+            <div v-if="!enemy.isDead && enemy.intent" class="intent-box" :class="`danger-${enemy.intent.danger}`">
+              <small>次の行動</small><strong>{{ enemy.intent.label }}</strong><span>{{ enemy.intent.detail }}</span>
+            </div>
+            <div class="status-row">
+              <span v-for="r in resistLabels(enemy)" :key="r.text" :class="`resist-${r.kind}`">{{ r.text }}</span>
+              <span v-if="enemy.physImmune > 0" class="resist-strong">物理無効 あと{{ enemy.physImmune }}回</span>
+              <span v-if="enemy.isDefending">防御中</span>
+              <span v-for="(value, stat) in enemy.buffs" v-show="value !== 0" :key="stat">{{ statNames[stat] || stat }} {{ value > 0 ? '+' : '' }}{{ value }}%</span>
+            </div>
           </button>
         </div>
         <section class="battle-journal" aria-live="polite" aria-atomic="false">
           <div class="journal-heading"><strong>{{ isProcessing ? battlePhase : floorIntroOpen ? '探索の準備' : 'コマンドを選択' }}</strong><button class="text-button" @click="showFullLog = !showFullLog">{{ showFullLog ? '閉じる' : '戦闘ログ' }}</button></div>
+          <p v-if="!floorIntroOpen && !isProcessing" class="turn-order">
+            <span class="turn-order-title">行動順</span>
+            <template v-for="(a, i) in turnOrderPreview" :key="a.key"><span v-if="i" aria-hidden="true">→</span><span :class="{ 'is-player': a.isPlayer }">{{ a.label }}</span></template>
+            <small>（防御は最優先）</small>
+          </p>
           <div ref="logContainer" :class="{ 'expanded-log': showFullLog }"><p v-for="(log, i) in visibleLogs" :key="i" :class="log.colorClass">{{ log.text }}</p></div>
         </section>
         <div class="command-dock">
@@ -1178,9 +1582,10 @@ onUnmounted(() => {
               <div class="vital-line"><span>MP</span><div class="vital-track mp"><div :style="{ width: Math.max(0, player.mp/player.maxMp*100)+'%' }"></div></div><b>{{ player.mp }}/{{ player.maxMp }}</b></div>
             </div>
           </div>
-          <div class="status-row"><span v-if="player.isDefending">防御中</span><span v-for="(value, stat) in player.buffs" v-show="value !== 0" :key="stat">{{ statNames[stat] || stat }} {{ value > 0 ? '+' : '' }}{{ value }}%</span></div>
-          <div class="base-commands"><button :disabled="isProcessing || floorIntroOpen" @click="executeAction('attack')">通常攻撃</button><button :disabled="isProcessing || floorIntroOpen" @click="executeAction('defend')">防御 <small>被ダメ半減・MP回復</small></button></div>
+          <div class="status-row"><span v-if="player.stunTurns > 0" class="resist-weak">気絶中：次の行動はできません</span><span v-if="player.isDefending">防御中</span><span v-for="(value, stat) in player.buffs" v-show="value !== 0" :key="stat">{{ statNames[stat] || stat }} {{ value > 0 ? '+' : '' }}{{ value }}%</span></div>
+          <div class="base-commands"><button :disabled="isProcessing || floorIntroOpen" @click="executeAction('attack')">{{ player.stunTurns > 0 ? '気絶中…ターンを進める' : '通常攻撃' }}</button><button :disabled="isProcessing || floorIntroOpen" @click="executeAction('defend')">防御 <small>被ダメ半減・MP回復</small></button></div>
           <p class="setlist-label">SETLIST · {{ availableSkills.length }}/4 <span>スキルはここから直接選択</span></p>
+          <p class="key-hint">キーボード: A 攻撃 ・ D 防御 ・ 1〜4 スキル ・ ←→ 対象を切り替え ・ Enter 探索を始める</p>
           <div class="skill-grid"><button v-for="skill in availableSkills" :key="skill.id" :disabled="!!skillUnavailable(skill)" @click="executeAction(skill)" :title="skill.description">
             <span class="skill-meta">{{ skillRole(skill) }} · {{ skill.target === 'all' ? '全体' : ['heal','buff'].includes(skill.type) ? '自身' : '単体' }} <b>{{ skillCostLabel(skill) }}</b></span>
             <strong>{{ skill.name }}</strong><small>{{ skillUnavailable(skill) || skill.description }}</small>
@@ -1202,8 +1607,8 @@ onUnmounted(() => {
         <div class="listening-progress"><div :style="{ width: watchTime/60*100+'%' }"></div></div>
         <div class="tier-steps"><span :class="{ reached: true }">0秒 · Very Hard<br>5pt / 1曲</span><span :class="{ reached: hasGot30sBonus }">30秒 · Normal<br>16pt / 2曲</span><span :class="{ reached: hasGot60sBonus }">60秒 · Easy<br>24pt / 3曲</span></div>
         <p class="help-text">累計 {{ Math.floor(watchTime) }}秒 / 60秒。未視聴でも進めます。外部YouTubeでの視聴は計測できません。</p>
-        <div class="growth-box"><h3>ステータス強化 <span>残り {{ statPoints }}pt</span></h3><p class="help-text">獲得ポイントによって難易度が変わります。敵の強さは共通です。</p>
-          <div class="stat-grid"><div v-for="stat in statList" :key="stat.key"><span>{{ stat.label }}<b>{{ player[stat.key] }}</b></span><button :disabled="statPoints <= 0" @click="allocateStat(stat.key)" :aria-label="`${stat.label}に1ポイント割り振る`">＋</button></div></div>
+        <div class="growth-box"><h3>ステータス強化 <span>残り {{ statPoints }}pt</span></h3><p class="help-text">獲得ポイントによって難易度が変わります。敵の強さは共通です。<br>同じステータスに{{ STAT_TIER_SIZE }}回振るごとに、必要なポイントが1つ増えます。</p>
+          <div class="stat-grid"><div v-for="stat in statList" :key="stat.key"><span>{{ stat.label }}<b>{{ player[stat.key] }}</b></span><button :disabled="statPoints < statCost(stat.key)" @click="allocateStat(stat.key)" :aria-label="`${stat.label}に${statCost(stat.key)}ポイント使って強化`">＋<small>{{ statCost(stat.key) }}pt</small></button></div></div>
         </div>
         <div class="growth-box"><h3>セットリスト <span>{{ equippedSkillIds.length }}/4曲</span></h3><p class="help-text">習得済みの曲から、戦闘に持ち込む4曲を選びます。</p><div class="equipped-pills"><span v-for="s in availableSkills" :key="s.id">{{ s.name }}</span></div><button class="small-button" @click="setlistOpen = true">セットリストを編成</button>
         <div class="skill-tabs-container">
@@ -1371,25 +1776,19 @@ onUnmounted(() => {
       </section>
     </div>
 
-    <!-- スキルカットイン -->
-    <div v-if="activeCutin" 
-        class="fixed inset-x-0 top-1/3 z-50 flex items-center justify-center pointer-events-none"
-        v-motion
-        :initial="{ opacity: 0 }"
-        :enter="{ opacity: 1 }"
-        :leave="{ opacity: 0 }">
-        <!-- 横帯グラデーション -->
-        <div class="flex items-center gap-6 w-full py-4 px-10 bg-gradient-to-r to-transparent via-black/50"
-            :class="activeCutin.color"
-            v-motion
-            :initial="{ x: -120, skewX: -8 }"
-            :enter="{ x: 0, skewX: -8, transition: { duration: 160 } }"
-            :leave="{ x: 120, opacity: 0 }">
-            <img :src="activeCutin.img" class="w-16 h-16 md:w-24 md:h-24 object-cover rounded-full border-4 border-white shadow-[0_0_20px_rgba(255,255,255,0.8)]">
-            <h2 class="text-xl md:text-3xl font-black text-white italic drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)] tracking-wider">
-            {{ activeCutin.text }}
-            </h2>
+    <!-- スキルカットイン（自分は左から青、敵は右から赤。必殺技・大技は大きく） -->
+    <div v-if="activeCutin" :key="activeCutin.id" class="cutin-layer" aria-hidden="true"
+         :class="[`cutin-${activeCutin.side}`, { 'cutin-big': activeCutin.big }]"
+         :style="{ '--cutin-ms': `${activeCutin.duration}ms` }">
+      <div v-if="activeCutin.big" class="cutin-flash"></div>
+      <div class="cutin-band">
+        <div class="cutin-lines"></div>
+        <div class="cutin-portrait"><img :src="activeCutin.img" alt="" @error="($event.target as HTMLImageElement).src = DEFAULT_AVATAR"></div>
+        <div class="cutin-text">
+          <small>{{ activeCutin.kind }}</small>
+          <strong>{{ activeCutin.text }}</strong>
         </div>
+      </div>
     </div>
 </template>
 
@@ -1456,6 +1855,45 @@ onUnmounted(() => {
 }
 /* Combat UI: keep art spacious and commands readable on touch screens. */
 .battle-layout,.rest-panel{color:#e4e4e7;text-align:left}.floor-heading,.journal-heading,.button-row{display:flex;align-items:center;justify-content:space-between;gap:12px}.floor-heading h2,.rest-panel h2{font-size:clamp(20px,4vw,28px);font-weight:800;color:#fafafa;margin:4px 0}.eyebrow{font-size:10px;letter-spacing:.18em;font-weight:800;color:#f5b74e}.flavor-line{font-size:13px;line-height:1.9;color:#a1a1aa;margin:10px 0 18px}.small-button,.primary-button{border-radius:10px;padding:10px 14px;font-size:12px;font-weight:700;cursor:pointer;line-height:1.5}.small-button{background:#27272a;color:#f4f4f5;border:1px solid #52525b}.primary-button{background:#f4b64f;color:#18181b;border:1px solid #f4b64f}.text-button{color:#e8bb75;font-size:12px;text-decoration:underline;text-underline-offset:3px;cursor:pointer}.help-text{font-size:12px;line-height:1.8;color:#a1a1aa;margin:10px 0}.error-text{color:#fca5a5;font-size:13px;line-height:1.8;margin:10px 0}.intro-panel{padding:20px;background:#1e1c19;border:1px solid #806033;border-radius:16px;margin:12px 0 20px}.intro-panel>p:not(.eyebrow){font-size:14px;line-height:2;margin:12px 0 20px}.button-row{flex-wrap:wrap;justify-content:flex-start}.enemy-stage{display:grid;grid-template-columns:1fr;gap:14px}.enemy-stage.duo{grid-template-columns:repeat(2,minmax(0,1fr))}.enemy-card{display:block;text-align:left;background:#17171a;border:1px solid #38383e;border-radius:16px;overflow:hidden;min-width:0;color:#f4f4f5;transition:border-color .2s,opacity .3s,box-shadow .2s;padding:0}.enemy-card.selected{border-color:#f3b44e;box-shadow:0 0 0 2px #f3b44e33}.enemy-card.acting{border-color:#fb7185;box-shadow:0 0 22px #fb718544}.enemy-card.fallen{opacity:.3;filter:grayscale(1)}.enemy-art{position:relative;height:clamp(250px,46vh,480px);background:radial-gradient(ellipse at top,#343239,#121215);overflow:hidden}.enemy-art>img{width:100%;height:100%;object-fit:contain;display:block}.enemy-stage.duo .enemy-art{height:clamp(240px,38vh,410px)}.trait-label,.target-label,.defeated-label{position:absolute;top:12px;font-size:10px;letter-spacing:.08em;background:#111111bb;border:1px solid #ffffff33;border-radius:6px;padding:4px 8px}.trait-label{left:10px}.target-label{right:10px;background:#e8ad45;color:#141414;font-weight:900}.defeated-label{top:45%;left:50%;transform:translateX(-50%);font-weight:900;font-size:16px}.enemy-caption{position:absolute;bottom:0;left:0;right:0;padding:42px 14px 12px;background:linear-gradient(transparent,#09090bf0);display:flex;justify-content:space-between;align-items:flex-end;gap:8px}.enemy-caption strong{font-size:14px;line-height:1.5;overflow-wrap:anywhere}.enemy-caption>span{font-size:11px;color:#d4d4d8;white-space:nowrap}.health-track{height:5px;background:#3f252b}.health-track>div{height:100%;background:#e55e77;transition:width .25s}.status-row{display:flex;flex-wrap:wrap;gap:4px;min-height:12px;padding:6px 8px}.status-row>span{font-size:10px;color:#dfc99e;background:#ffffff09;border-radius:4px;padding:2px 6px}.battle-journal{background:#151518;border:1px solid #323237;border-radius:12px;padding:12px 16px;margin:14px 0}.journal-heading{margin-bottom:8px}.journal-heading>strong{font-size:12px;color:#e3c088}.battle-journal p{font-size:12px;line-height:1.7;min-height:20px}.expanded-log{max-height:210px;overflow-y:auto}.command-dock{position:relative;background:#111114f5;border:1px solid #444449;border-radius:18px;padding:14px;z-index:10;backdrop-filter:blur(16px);box-shadow:0 -10px 35px #0005;margin-top:12px}.player-strip{display:flex;gap:12px;align-items:center}.player-portrait{position:relative;width:50px;height:50px;flex-shrink:0}.player-portrait>img{width:100%;height:100%;object-fit:cover;border-radius:12px;border:1px solid #c89b52}.player-vitals{flex:1;min-width:0}.player-vitals>strong{font-size:12px;display:block;margin-bottom:6px}.player-vitals small{font-size:10px;color:#a1a1aa;margin-left:5px}.vital-line{display:flex;align-items:center;gap:8px;font-size:10px;margin:4px 0}.vital-line>span{width:20px}.vital-line>b{width:68px;text-align:right;font-variant-numeric:tabular-nums}.vital-track{flex:1;height:5px;background:#303035;border-radius:9px;overflow:hidden}.vital-track>div{height:100%;transition:width .25s}.vital-track.hp>div{background:#65c4a6}.vital-track.mp>div{background:#7caaf2}.base-commands,.skill-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.base-commands>button{background:#303038;border:1px solid #52525b;padding:9px;border-radius:9px;font-size:13px;font-weight:700}.base-commands small{font-weight:400;font-size:10px;color:#a1a1aa;margin-left:4px}.skill-grid>button{background:#1b2331;border:1px solid #394a66;color:#dce7f8;text-align:left;border-radius:10px;padding:9px 11px;min-height:76px}.skill-grid>button>strong{font-size:12px;display:block;line-height:1.4;overflow-wrap:anywhere}.skill-grid>button>small{font-size:10px;line-height:1.4;color:#a6b7d1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-top:3px}.skill-meta{font-size:9px;display:flex;justify-content:space-between;gap:4px;color:#a8bbda;margin-bottom:3px}.setlist-label{font-size:9px;letter-spacing:.1em;color:#bba77e;margin:10px 0 6px;display:flex;justify-content:space-between}.setlist-label>span{letter-spacing:0;color:#8b8b96}.combat-floats{position:absolute;inset:0;pointer-events:none;display:flex;justify-content:center;align-items:center;z-index:20}.combat-number{position:absolute;font-size:36px;font-weight:900;color:#fff;text-shadow:0 2px 4px #000,0 0 16px #000;animation:float-number .8s ease-out forwards}.combat-number.heal{color:#80ebba}.combat-number.magic{color:#b6a0ff}.combat-number.guard{color:#8ec5ff;font-size:22px}.rest-panel{padding:24px;background:#141416;border:1px solid #343438;border-radius:20px}.reward-tier{padding:16px;border:1px solid #76603c;background:#2b2419;border-radius:12px;display:flex;flex-wrap:wrap;align-items:center;gap:10px}.reward-tier>strong{font-size:22px;color:#f1c579}.reward-tier>span{font-size:12px;color:#d9c5a1}.song-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:16px 0}.song-choices>button{padding:12px;text-align:left;background:#202024;border:1px solid #3f3f46;border-radius:10px;min-width:0}.song-choices strong{display:block;font-size:12px;line-height:1.5;overflow-wrap:anywhere;margin:4px 0}.song-choices small,.song-choices span{font-size:10px;color:#a1a1aa}.chosen{border-color:#e7b467!important;background:#342919!important;color:#f8d699!important}.music-player{width:100%;aspect-ratio:16/9;min-height:210px;background:#09090b;border-radius:12px;overflow:hidden;margin:12px 0}.music-player :deep(iframe){width:100%;height:100%;min-height:210px}.listening-progress{height:6px;background:#303035;border-radius:5px;overflow:hidden;margin-top:18px}.listening-progress>div{height:100%;background:#eabb72;transition:width .2s}.tier-steps{display:grid;grid-template-columns:repeat(3,1fr);font-size:11px;line-height:1.7;color:#71717a;margin:8px 0}.tier-steps>span:nth-child(2){text-align:center}.tier-steps>span:last-child{text-align:right}.tier-steps .reached{color:#ebc286}.growth-box{background:#1c1c20;border:1px solid #38383e;padding:18px;border-radius:14px;margin:20px 0;color:#e4e4e7;text-align:left}.growth-box h3{font-weight:700;font-size:15px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}.growth-box h3>span{font-size:12px;color:#e5bd7e}.stat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.stat-grid>div{display:flex;justify-content:space-between;align-items:center;padding:8px;background:#26262b;border-radius:8px}.stat-grid span{font-size:10px;color:#a1a1aa}.stat-grid b{display:block;font-size:15px;color:#eee}.stat-grid button{width:40px;height:40px;border:1px solid #547363;border-radius:8px;background:#284237;color:#beebd0;font-size:18px}.equipped-pills{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}.equipped-pills>span{font-size:11px;border:1px solid #6e5939;color:#ebc286;padding:6px 10px;border-radius:20px}.skill-search{display:flex;gap:8px;margin:14px 0}.skill-search input,.skill-search select{min-width:0;border:1px solid #52525b;background:#121214;color:#eee;border-radius:8px;padding:10px;font-size:12px}.skill-search input{flex:1}.learn-list{max-height:360px;overflow-y:auto}.learn-list>div{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:12px 0;border-bottom:1px solid #ffffff0d}.learn-list>div>div{flex:1;min-width:0}.learn-list strong,.setlist-options strong{display:block;font-size:13px}.learn-list p,.setlist-options p{font-size:11px;color:#a1a1aa;line-height:1.6;margin:4px 0}.learn-list small,.setlist-options small{font-size:10px;color:#c5a678}.next-floor{width:100%;padding:16px}.setlist-backdrop{position:fixed;inset:0;background:#000b;backdrop-filter:blur(5px);z-index:90;display:flex;align-items:center;justify-content:center;padding:18px}.setlist-dialog{width:100%;max-width:620px;max-height:85dvh;overflow-y:auto;background:#18181b;border:1px solid #685439;border-radius:18px;padding:22px;color:#eee;box-shadow:0 20px 100px #0009}.setlist-dialog h2{font-size:20px;font-weight:800}.setlist-options{display:grid;gap:8px}.setlist-options>button{display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:left;padding:14px;background:#252529;border:1px solid #45454b;border-radius:10px}.setlist-options b{font-size:11px;white-space:nowrap}.song-library-list{list-style:none;padding:0;margin:18px 0}.song-library-list li{padding:8px 0;border-bottom:1px solid #ffffff15}.song-library-list li>button{width:100%;display:flex;gap:12px;align-items:center;text-align:left;border:1px solid transparent;padding:12px;border-radius:8px}.song-library-list li>button>div{flex:1}.song-library-list strong{display:block;font-size:13px}.song-library-list small{display:block;font-size:10px;color:#a1a1aa;margin-top:5px}.song-library-list li>a{display:inline-block;margin-left:42px}.music-library{margin-bottom:28px}
+/* 敵の行動予告 */
+.intent-box{display:grid;grid-template-columns:auto 1fr;column-gap:8px;align-items:baseline;margin:6px 8px 0;padding:6px 10px;border-radius:8px;border:1px solid #52525b;background:#1f1f24}
+.intent-box small{font-size:9px;letter-spacing:.1em;color:#a1a1aa;grid-row:span 2}
+.intent-box strong{font-size:13px;color:#f4f4f5}
+.intent-box span{font-size:10px;color:#a1a1aa;line-height:1.5}
+.intent-box.danger-mid{border-color:#a16207;background:#2a2112}.intent-box.danger-mid strong{color:#fbbf24}
+.intent-box.danger-high{border-color:#dc2626;background:#2c1414;animation:intent-pulse 1.2s ease-in-out infinite}.intent-box.danger-high strong{color:#f87171}
+@keyframes intent-pulse{0%,100%{box-shadow:0 0 0 0 #dc262600}50%{box-shadow:0 0 14px 0 #dc262666}}
+.status-row>span.resist-weak{color:#fecaca;background:#7f1d1d66}
+.status-row>span.resist-strong{color:#bfdbfe;background:#1e3a8a66}
+/* 行動順 */
+.turn-order{display:flex;flex-wrap:wrap;align-items:center;gap:4px;font-size:11px!important;color:#a1a1aa;margin-bottom:6px}
+.turn-order-title{font-size:9px;letter-spacing:.12em;color:#bba77e;margin-right:4px}
+.turn-order .is-player{color:#fbbf24;font-weight:700}
+.turn-order small{font-size:10px;color:#71717a}
+.key-hint{display:none;font-size:10px;color:#71717a;margin:0 0 6px}
+@media(min-width:768px){.key-hint{display:block}}
+.stat-grid button small{display:block;font-size:9px;line-height:1;margin-top:1px}
+.heading-buttons{gap:6px;flex-wrap:nowrap}
+/* --- スキルカットイン --- */
+.cutin-layer{position:fixed;inset:0;z-index:80;pointer-events:none;display:flex;align-items:center;overflow:hidden}
+.cutin-band{position:relative;width:100%;height:clamp(120px,22vh,190px);display:flex;align-items:center;gap:clamp(12px,3vw,28px);padding:0 clamp(16px,6vw,72px);overflow:hidden;transform:skewY(-4deg);animation:cutin-band var(--cutin-ms) cubic-bezier(.2,.8,.2,1) forwards}
+.cutin-player .cutin-band{background:linear-gradient(90deg,#1d4ed8f2 0%,#1e3a8acc 45%,#0b1020aa 75%,transparent 100%);border-block:2px solid #93c5fd;--cutin-from:-110%;--cutin-to:110%}
+.cutin-enemy .cutin-band{flex-direction:row-reverse;text-align:right;background:linear-gradient(270deg,#b91c1cf2 0%,#7f1d1dcc 45%,#1a0909aa 75%,transparent 100%);border-block:2px solid #fca5a5;--cutin-from:110%;--cutin-to:-110%}
+.cutin-lines{position:absolute;inset:0;opacity:.35;background:repeating-linear-gradient(90deg,transparent 0 22px,#ffffff55 22px 24px,transparent 24px 60px);animation:cutin-lines .35s linear infinite}
+.cutin-enemy .cutin-lines{animation-direction:reverse}
+.cutin-portrait{position:relative;flex-shrink:0;height:150%;aspect-ratio:3/4;transform:skewY(4deg);clip-path:polygon(14% 0,100% 0,86% 100%,0 100%);border:0;filter:drop-shadow(0 0 12px #fff8)}
+.cutin-portrait img{width:100%;height:100%;object-fit:cover;object-position:center 20%}
+.cutin-text{position:relative;transform:skewY(4deg);min-width:0}
+.cutin-text small{display:block;font-size:clamp(10px,1.6vw,13px);letter-spacing:.3em;color:#ffffffcc;font-weight:800}
+.cutin-text strong{display:block;font-size:clamp(22px,5vw,46px);line-height:1.15;font-weight:900;font-style:italic;color:#fff;letter-spacing:.04em;text-shadow:0 3px 0 #0008,0 0 18px #000a;overflow-wrap:anywhere}
+.cutin-big .cutin-band{height:clamp(160px,30vh,260px)}
+.cutin-big .cutin-text strong{font-size:clamp(28px,7vw,64px);color:#fde68a;text-shadow:0 3px 0 #0009,0 0 24px #f59e0b}
+.cutin-big.cutin-enemy .cutin-text strong{color:#fecaca;text-shadow:0 3px 0 #0009,0 0 24px #ef4444}
+.cutin-flash{position:absolute;inset:0;background:#fff;animation:cutin-flash var(--cutin-ms) ease-out forwards}
+@keyframes cutin-band{0%{transform:translateX(var(--cutin-from)) skewY(-4deg);opacity:0}14%{transform:translateX(0) skewY(-4deg);opacity:1}80%{transform:translateX(0) skewY(-4deg);opacity:1}100%{transform:translateX(var(--cutin-to)) skewY(-4deg);opacity:0}}
+@keyframes cutin-flash{0%{opacity:.85}25%{opacity:0}100%{opacity:0}}
+@keyframes cutin-lines{to{background-position:60px 0}}
+@media (prefers-reduced-motion: reduce){.cutin-band{animation:none;opacity:1;transform:skewY(-4deg)}.cutin-lines{animation:none}.cutin-flash{display:none}}
 button:disabled{cursor:not-allowed}.base-commands>button:disabled,.skill-grid>button:disabled,.small-button:disabled,.primary-button:disabled,.stat-grid button:disabled,.setlist-options>button:disabled{opacity:.4}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #f3bc61;outline-offset:3px}.anim-magic{animation:magic-hit .42s ease-out}.anim-guard{animation:guard-glow .5s ease-out}
 @keyframes float-number{0%{opacity:0;transform:translateY(15px) scale(.7)}20%{opacity:1;transform:translateY(0) scale(1.12)}75%{opacity:1}100%{opacity:0;transform:translateY(-45px) scale(1)}}
 @keyframes magic-hit{0%,100%{filter:none}35%{filter:brightness(1.8) drop-shadow(0 0 18px #aa88ff)}}

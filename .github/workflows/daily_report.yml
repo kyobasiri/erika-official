@@ -4,7 +4,7 @@ name: エリカの自動日報生成
 on:
   schedule:
     # 毎日日本時間の朝7:00（UTCの22:00）に自動実行
-    - cron: '0 20 * * *'
+    - cron: '0 22 * * *'
   workflow_dispatch:
     # GitHubの画面から手動で実行するためのボタンも有効化
 
@@ -58,7 +58,19 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
 
-          # 生成・更新されたファイルを指定（assets/audio/ を追加）
-          git add reports/ assets/reports.json assets/audio/ 
+          # report_gen.py の出力先はすべて public/ 配下
+          #   public/reports/        : 日報(.md) と YouTube ID(.txt)
+          #   public/assets/*.json   : 日報一覧 (reports.json / public_reports.json)
+          #   public/assets/images/  : アイキャッチ画像
+          # 音声・動画(public/assets/audio/)は YouTube 投稿後に削除される一時ファイルなのでコミットしない
+          git add public/reports/ public/assets/reports.json public/assets/public_reports.json public/assets/images/
 
-          git diff --quiet && git diff --staged --quiet || (git commit -m "エリカが本日の日報と音声を自動生成しました 📝🎧" && git push)
+          if git diff --staged --quiet; then
+            echo "変更はありません"
+            exit 0
+          fi
+
+          git commit -m "エリカが本日の日報を自動生成しました 📝"
+          # 実行中に別のワークフローが push していても失敗しないよう、最新を取り込んでから push
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push

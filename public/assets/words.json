@@ -1,0 +1,85 @@
+[
+  {
+    "id": "fugaku-tsukimiso",
+    "quote": "富士には、\n月見草が\nよく似合う。",
+    "source": { "title": "富嶽百景", "author": "太宰治", "kind": "book" },
+    "image": "/assets/images/words/erika-sunflower.webp",
+    "imageAlt": "夕暮れの海辺で、眼鏡のエリカが一輪の向日葵を差し出している",
+    "template": "bubble",
+    "options": {
+      "accent": "#f4b63f",
+      "focus": { "x": 50, "y": 30 },
+      "bubble": { "x": 6, "y": 6, "width": 40, "shape": "round", "tail": "bottom-right" }
+    },
+    "comment": "大きくて立派なものの隣に、小さな花がちゃんと似合っている。主役じゃなくても、そこにいていい理由があるって言われた気がするんです。だから私は向日葵を持ってきました。月見草じゃないのは、ご愛嬌ということで。",
+    "tags": ["静か", "肯定"],
+    "publishedAt": "2026-10-12"
+  },
+  {
+    "id": "melos-shinjirarete",
+    "quote": "信じられて\nいるから\n走るのだ。",
+    "speaker": "メロス",
+    "source": { "title": "走れメロス", "author": "太宰治", "kind": "book" },
+    "image": "/assets/images/words/erika-moonlight.webp",
+    "imageAlt": "月明かりの桟橋で、エリカが金色に光る水を両手ですくっている",
+    "template": "manga",
+    "options": {
+      "accent": "#111111",
+      "vertical": true,
+      "focus": { "x": 55, "y": 40 },
+      "bubble": { "x": 8, "y": 8, "height": 44, "shape": "shout" }
+    },
+    "comment": "間に合うかどうかじゃない。信じてくれた人がいる、それだけで足が前に出る。理屈じゃないところで人が動く瞬間って、どうしてこんなに熱いんでしょうね。",
+    "tags": ["熱い", "決意"],
+    "publishedAt": "2026-10-12"
+  },
+  {
+    "id": "kusamakura",
+    "quote": "智に働けば角が立つ。\n情に棹させば流される。\n意地を通せば窮屈だ。",
+    "source": { "title": "草枕", "author": "夏目漱石", "kind": "book" },
+    "image": "/assets/images/words/erika-sunflower.webp",
+    "imageAlt": "夕暮れの海辺で、眼鏡のエリカが一輪の向日葵を差し出している",
+    "template": "game",
+    "options": {
+      "accent": "#7dd3fc",
+      "focus": { "x": 50, "y": 22 },
+      "speakerName": "エリカ"
+    },
+    "comment": "どれを選んでも、どこかが窮屈。それでも生きていく、という開き直りの一文目だと思っています。迷ったときに読むと、少しだけ肩の力が抜けるんです。",
+    "tags": ["人生", "ユーモア"],
+    "publishedAt": "2026-10-12"
+  },
+  {
+    "id": "furusato",
+    "quote": "志を果たして\nいつの日にか帰らん\n山は青き故郷\n水は清き故郷",
+    "source": { "title": "故郷", "author": "作詞 高野辰之", "kind": "song", "detail": "文部省唱歌（1914年）" },
+    "image": "/assets/images/words/erika-moonlight.webp",
+    "imageAlt": "月明かりの桟橋で、エリカが金色に光る水を両手ですくっている",
+    "template": "lyric",
+    "options": {
+      "accent": "#c2410c",
+      "focus": { "x": 62, "y": 45 },
+      "songTitle": "故郷"
+    },
+    "comment": "遠くへ行くことと、帰る場所があることは、ちゃんと両立する。いつか胸を張って帰れるように、今日もやれることをやろうと思える歌です。",
+    "tags": ["歌", "郷愁"],
+    "publishedAt": "2026-10-12"
+  },
+  {
+    "id": "ginga-saiwai",
+    "quote": "けれども\nほんとうのさいわいは\n一体何だろう。",
+    "speaker": "ジョバンニ",
+    "source": { "title": "銀河鉄道の夜", "author": "宮沢賢治", "kind": "book" },
+    "image": "/assets/images/words/erika-moonlight.webp",
+    "imageAlt": "月明かりの桟橋で、エリカが金色に光る水を両手ですくっている",
+    "template": "letter",
+    "options": {
+      "accent": "#9f1239",
+      "vertical": true,
+      "focus": { "x": 58, "y": 50 }
+    },
+    "comment": "答えをくれない問いなのに、手のひらに残る。すくった水がこぼれていくみたいに、大事なものほど形にできないのかもしれません。それでも問い続けることが、たぶん答えの代わりなんだと思います。",
+    "tags": ["問い", "夜"],
+    "publishedAt": "2026-10-12"
+  }
+]

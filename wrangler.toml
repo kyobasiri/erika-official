@@ -15,3 +15,18 @@ id = "8bd96d4e26724747a6204d8d01d7d689"
 [[r2_buckets]]
 binding = "R2_BUCKET"
 bucket_name = "erika-rpg-assets"
+
+# 4. 好きな言葉（/words）の管理ページ用
+#    手順は docs/words-admin-setup.md を参照。
+#    D1 を作成したら、下のコメント（#）を外して database_id とログイン設定を入れてください。
+#    （存在しない ID のままだとデプロイが失敗するので、作成前はコメントのままにしておきます）
+[[d1_databases]]
+binding = "DB"
+database_name = "erika-words"
+database_id = "75249b05-6d1a-4075-bd65-e1022a337157"
+migrations_dir = "migrations"
+
+[vars]
+ACCESS_TEAM_DOMAIN = "erikakataru.cloudflareaccess.com"
+ACCESS_AUD = "fdf2efd9-e2a7-476e-8db9-b1b7f27fc8b6"
+ADMIN_EMAILS = "kyobasiri@gmail.com"

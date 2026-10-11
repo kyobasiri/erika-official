@@ -17,6 +17,7 @@ import ReportDetailView from '../views/ReportDetailView.vue'
 import RpgView from '../views/RpgView.vue'
 import BeatView from '../views/BeatView.vue'
 import LabyrinthView from '../views/LabyrinthView.vue'
+import WordsView from '../views/WordsView.vue'
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -44,7 +45,10 @@ const routes: Array<RouteRecordRaw> = [
   { path: '/gallery', name: 'gallery', component: GalleryView },
   { path: '/privacy', name: 'privacy', component: PrivacyView },
   { path: '/contact', name: 'contact', component: ContactView },
-  { path: '/labyrinth', name: 'labyrinth', component: LabyrinthView }
+  { path: '/labyrinth', name: 'labyrinth', component: LabyrinthView },
+  { path: '/words', name: 'words', component: WordsView },
+  // 管理ページは自分しか使わないので、必要になったときだけ読み込む
+  { path: '/admin/words', name: 'admin-words', component: () => import('../views/AdminWordsView.vue') }
 ]
 
 const router = createRouter({
