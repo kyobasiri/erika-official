@@ -816,16 +816,16 @@ const beginFloor = () => {
   floorIntroOpen.value = false; setlistOpen.value = false; systemNotification.value = null; saveLocal()
 }
 const floorStories = [
-  { title: 'まだ名前のない入口', intro: '扉の向こうから、誰かがチューニングする音が聞こえる。ここで必要なのは、完璧な準備より最初の一歩だ。', lines: ['靴音が静寂をほどいていく。', 'ポケットの中のピックを握り直した。', '二つの足音が、あなたの歩幅を試している。', '少しだけ、呼吸が整ってきた。', '扉の前で立ち止まる。始まりを終える時間だ。'], outro: '最初の扉を越えた。まだ知らない自分が、少しだけ前を歩いている。' },
-  { title: '午前零時の留守番電話', intro: '再生されなかったメッセージが、廊下にこだまする。返事は言葉でなくてもいい。先へ進む足音で伝えよう。', lines: ['発信音だけが遠くに残る。', '伝えそびれた言葉を思い出した。', '二つの呼び出し音が重なる。', '今なら、違う返事ができる気がした。', '受話器の向こうで、誰かが息をひそめる。'], outro: '返事のない夜にも、確かに届くものがある。' },
-  { title: '片道切符の待合室', intro: '時刻表には行き先だけが書かれている。出発時刻は、自分で決めるらしい。', lines: ['切符の角は少し丸くなっている。', '空席に荷物を置き、すぐに持ち直す。', '二本の線路が、同じ闇へ続いている。', '発車ベルはまだ鳴らない。', '最後の改札が、行く手をふさいだ。'], outro: '戻るための切符はない。それでも、歩き出せた。' },
-  { title: '忘れ物だけの教室', intro: '机の上には、完成しなかった夢が並んでいる。一つだけ持って帰れるなら、何を選ぶだろう。', lines: ['消し跡の残るノートを見つけた。', '窓際の席には、誰も座っていない。', '二つの問いが、答えを待っている。', '正解のない問題を、そっと閉じた。', '最後のチャイムが鳴る。'], outro: '未完成のままでも、大切にしていい。' },
-  { title: 'ノイズの向こうの声', intro: '周波数を合わせるたびに、違う誰かの声が混ざる。あなた自身の声は、まだちゃんと聞こえるだろうか。', lines: ['小さなノイズが耳の奥に残る。', '聞き覚えのある声が途切れた。', '二つの波形がぶつかり合う。', '音量を下げると、聞こえるものがあった。', '沈黙の直前、強い反応が走る。'], outro: '誰かの声を聞くことと、自分を失うことは違う。' },
-  { title: '拍手のないステージ', intro: '客席は空だ。けれど、演奏をやめる理由にはならなかった。誰に届くかより、何を鳴らすか。', lines: ['床板が一度だけきしんだ。', 'マイクに触れず、深く息を吸う。', '二つの影がステージへ上がる。', '最後列まで届くつもりで、前を向いた。', '開演の合図は、自分で出す。'], outro: '拍手は聞こえなかった。それでも、確かに演奏した。' },
-  { title: '書き直された地図', intro: 'ここまでの道が地図から消えている。覚えているなら、それで十分だ。次の道は、まだ誰も描いていない。', lines: ['折り目だけが、道の名残を示している。', '迷った場所に小さな印を付けた。', '二つの分かれ道が、また一つになる。', '地図を閉じても、足は止まらない。', '余白の中心で、行く手を阻む気配がする。'], outro: '迷った跡も、あなたの道になった。' },
-  { title: '明日への未送信', intro: '未来の自分に宛てた手紙がある。読み終えるには、もう少し先へ進まなければならない。', lines: ['封筒には今日の日付が書かれていた。', '弱音のあとに、一行だけ希望が残る。', '二つのためらいを、胸の中でほどく。', '続きを書くために、ペンをしまった。', '差出人の名前が、ゆっくり浮かび上がる。'], outro: '返事は、明日のあなたに任せよう。' },
-  { title: '最後のリハーサル', intro: 'やり直しは何度でもできる。けれど、この一回は今しかない。失敗を避けるより、鳴らしたい音を思い出そう。', lines: ['いつもの手順を、丁寧になぞる。', '少しのずれにも、意味がある。', '二つの緊張が、同時に迫ってくる。', 'もう一度だけ、弦を確かめた。', '準備は終わった。あとは踏み出すだけだ。'], outro: '完璧ではない。だからこそ、あなたの演奏だ。' },
-  { title: 'アンコールのその先', intro: '終わりを迎えるために、ここまで来た。その先に何を持って帰るかは、あなたが決めていい。', lines: ['最初の一歩を思い出した。', '旅の途中で出会った音がよみがえる。', '二つの問いに、今度は迷わなかった。', '終わりの気配が、静かに近づいている。', '最後の扉。あなたのセットリストを、鳴らし切ろう。'], outro: '冒険は終わっても、耳に残った音楽は続いていく。' }
+  { title: '始まりの扉', intro: '古びた扉が、静かに開いた。冒険は、ここから始まる。', lines: ['足音が、石の廊下に響く。', '松明の火が、かすかに揺れた。', '二つの影が、行く手に立ちはだかる。', '剣の柄を、強く握りしめた。', '奥の扉の前に、番人が待っている。'], outro: '最初の扉を越えた。冒険は、まだ始まったばかりだ。' },
+  { title: '霧の回廊', intro: '白い霧が、足元を包んでいる。見えない先へ、進むしかない。', lines: ['霧の奥で、水の滴る音がする。', '古い石碑に、消えかけた文字が残っている。', '二つの光が、霧の中で瞬いた。', '風が止み、静けさが戻る。', '霧の最奥に、大きな影が立っている。'], outro: '霧は晴れた。道は、まだ続いている。' },
+  { title: '忘れられた橋', intro: '深い谷に、古い石橋が架かっている。渡れば、もう戻れないという。', lines: ['橋の石は、苔むして冷たい。', '谷底から、風が吹き上げてくる。', '二つの影が、橋の向こうで待っている。', '崩れた欄干の先に、塔が見えた。', '橋の中ほどに、守り手が立ちふさがる。'], outro: '橋を渡りきった。振り返らず、先へ進もう。' },
+  { title: '眠れる森', intro: '森は、深い眠りについている。目覚めさせぬよう、そっと進もう。', lines: ['木々の間から、淡い光がこぼれる。', '足元で、枯れ葉がかさりと鳴った。', '二つの目が、闇の中で光っている。', '古い大樹が、枝を揺らした。', '森の主が、ゆっくりと目を開ける。'], outro: '森はふたたび、静かな眠りに戻った。' },
+  { title: '月影の泉', intro: '月の光を湛えた泉が、静かに輝いている。ここには、不思議な力が宿るという。', lines: ['水面に、白い月が揺れている。', '泉のほとりに、小さな花が咲いていた。', '二つの精霊が、水の上を舞う。', '冷たい水が、傷を癒やしてくれた。', '月が雲に隠れ、泉の主が姿を現す。'], outro: '月はふたたび、泉を照らした。' },
+  { title: '竜の寝床', intro: '熱を帯びた風が、洞窟の奥から吹いてくる。ここは、竜の棲む場所だ。', lines: ['岩肌が、ほのかに赤く光っている。', '足元に、焼け焦げた剣が落ちていた。', '二つの炎が、闇の中で揺らめく。', '遠くで、低い唸り声が響く。', '黄金の山の上で、大きな影が身を起こす。'], outro: '洞窟に、静けさが戻った。' },
+  { title: '沈んだ城', intro: '湖の底に、古い城が眠っている。かつての栄華は、水の中に消えた。', lines: ['青い光が、石の壁に揺れている。', '朽ちた旗が、水の流れになびく。', '二つの亡霊が、広間をさまよっている。', '階段の先に、重い扉が見える。', '玉座の間で、亡き王の影が待っている。'], outro: '城は、ふたたび水底の眠りについた。' },
+  { title: '星降りの塔', intro: '夜空に届くほどの高い塔。登るほどに、星が近くなる。', lines: ['螺旋の階段が、天へと続いている。', '窓の外に、流れ星が走った。', '二つの星の守り手が、行く手をさえぎる。', '塔の風が、旅人の外套をはためかせた。', '最上階で、星読みの魔導士が待っている。'], outro: '夜空の星が、静かに瞬いていた。' },
+  { title: '影の玉座', intro: '光の届かない広間に、玉座だけが残っている。座る者のいない王座が、あなたを待っている。', lines: ['闇の中に、冷たい風が吹いている。', '壁の紋章が、かすかに光った。', '二つの影が、音もなく近づいてくる。', '剣が、小さく震えた。', '玉座の上に、黒い騎士が座っている。'], outro: '影は消え、玉座に光が差した。' },
+  { title: '終わりの扉', intro: 'ここまで来た。最後の扉の向こうに、すべての答えがある。', lines: ['旅の始まりを思い出した。', '仲間と越えた道が、胸によみがえる。', '二つの試練が、最後の力を試す。', '扉の奥から、まばゆい光が漏れている。', '扉の先で、闇の王が待ち構えている。'], outro: '冒険は終わった。けれど、物語は語り継がれていく。' }
 ]
 const floorStory = computed(() => floorStories[Math.max(0, Math.min(9, battleState.value.floor - 1))]!)
 function shuffled<T>(items: T[]): T[] {
@@ -833,6 +833,16 @@ function shuffled<T>(items: T[]): T[] {
   for (let i = result.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [result[i], result[j]] = [result[j]!, result[i]!] }
   return result
 }
+
+const skillTabs = [
+  { value: 'all', label: 'すべて' },
+  { value: 'attack_physical', label: '物理' },
+  { value: 'attack_magic', label: '魔法' },
+  { value: 'heal', label: '回復' },
+  { value: 'buff', label: '強化' },
+  { value: 'debuff', label: '弱体' },
+  { value: 'ultimate', label: '必殺' }
+]
 
 // 共通のYouTubeプレーヤー。3曲の選択と、クリア後の楽曲図鑑に使用。
 const rewardChoices = ref<Song[]>([])
@@ -1187,10 +1197,21 @@ onUnmounted(() => {
           <div class="stat-grid"><div v-for="stat in statList" :key="stat.key"><span>{{ stat.label }}<b>{{ player[stat.key] }}</b></span><button :disabled="statPoints <= 0" @click="allocateStat(stat.key)" :aria-label="`${stat.label}に1ポイント割り振る`">＋</button></div></div>
         </div>
         <div class="growth-box"><h3>セットリスト <span>{{ equippedSkillIds.length }}/4曲</span></h3><p class="help-text">習得済みの曲から、戦闘に持ち込む4曲を選びます。</p><div class="equipped-pills"><span v-for="s in availableSkills" :key="s.id">{{ s.name }}</span></div><button class="small-button" @click="setlistOpen = true">セットリストを編成</button></div>
-        <div class="growth-box"><h3>新しい曲を習得 <span>残り {{ skillPoints }}曲分</span></h3>
-          <div class="skill-search"><input v-model="skillSearch" placeholder="曲名で検索" aria-label="習得する曲を検索"><select v-model="skillFilter" aria-label="スキルの種類"><option value="all">すべて</option><option value="attack_physical">物理</option><option value="attack_magic">魔法</option><option value="heal">回復</option><option value="buff">強化</option><option value="debuff">弱体</option><option value="ultimate">必殺</option></select></div>
-          <div class="learn-list"><div v-for="skill in visibleUnlearned" :key="skill.id"><div><small>{{ skillRole(skill) }} · {{ skill.target === 'all' ? '全体' : '単体／自身' }}</small><strong>{{ skill.name }}</strong><p>{{ skill.description }}</p></div><button class="small-button" :disabled="skillPoints <= 0" @click="learnSelectedSkill(skill)">習得</button></div><p v-if="!visibleUnlearned.length" class="help-text">該当する未習得の曲はありません。</p></div>
+        <div class="skill-tabs-container">
+        <!-- タブUI -->
+        <div class="skill-tabs">
+          <button v-for="tab in skillTabs" :key="tab.value"
+                  @click="skillFilter = tab.value"
+                  :class="{ active: skillFilter === tab.value }"
+                  :aria-pressed="skillFilter === tab.value">
+            {{ tab.label }}
+          </button>
         </div>
+        <!-- 検索ボックス -->
+        <div class="skill-search">
+          <input v-model="skillSearch" placeholder="曲名で絞り込み..." aria-label="習得する曲を検索">
+        </div>
+      </div>
         <button class="primary-button next-floor" :disabled="equippedSkillIds.length === 0" @click="goToNextFloor">{{ rewardTier }} の成長報酬で、次の階層へ →</button>
         <p v-if="statPoints || skillPoints" class="help-text">未使用の {{ statPoints }}pt・習得権 {{ skillPoints }}曲分は次の休憩所へ持ち越せます。</p>
       </section>
@@ -1330,6 +1351,54 @@ onUnmounted(() => {
 
 .anim-damage { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; filter: brightness(2) sepia(1) hue-rotate(-50deg) saturate(5); }
 .anim-heal { filter: brightness(1.5) drop-shadow(0 0 10px #2ecc71); transition: filter 0.4s; }
+
+/* タブと検索ボックスのコンテナ */
+.skill-tabs-container {
+  margin: 14px 0;
+}
+
+/* タブのデザイン */
+.skill-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.skill-tabs button {
+  background: #1b1b1f;
+  border: 1px solid #38383e;
+  color: #a1a1aa;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  transition: all 0.2s;
+}
+
+.skill-tabs button:hover {
+  background: #27272a;
+  color: #e4e4e7;
+}
+
+/* 選択中のタブのデザイン */
+.skill-tabs button.active {
+  background: #2b2419;
+  border-color: #e7b467;
+  color: #f8d699;
+  box-shadow: 0 0 8px rgba(231, 180, 103, 0.2);
+}
+
+/* 既存の .skill-search を少し調整（selectを消したため） */
+.skill-search input {
+  width: 100%;
+  border: 1px solid #52525b;
+  background: #121214;
+  color: #eee;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 12px;
+}
 
 @keyframes shake {
   10%, 90% { transform: translate3d(-2px, 0, 0); }

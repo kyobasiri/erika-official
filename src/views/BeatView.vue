@@ -111,7 +111,6 @@ const JUDGE_LINE = 80
 const PERFECT_MS = 50
 const GREAT_MS = 100
 const GOOD_MS = 200
-const COUNTDOWN_MS = 3000
 
 const defaultSettings: Settings = {
   offset: 0,

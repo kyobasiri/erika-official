@@ -549,7 +549,7 @@
       "spd": 20
     },
     "min_floor": 5,
-    "description": "MPを8消費し、自身の力20%・素早さ20%を上昇させる。"
+    "description": "Only this fact is wonderful. MPを8消費し、自身の力20%・素早さ20%を上昇させる。"
   },
   {
     "id": "skill_brilliant_crown",
@@ -562,7 +562,7 @@
       "def": 20
     },
     "min_floor": 5,
-    "description": "MPを8消費し、自身の魔力20%・防御20%を上昇させる。"
+    "description": "もう夢を見ない王様その指で幕を引く。MPを8消費し、自身の魔力20%・防御20%を上昇させる。"
   },
   {
     "id": "skill_no_self_control",
@@ -575,7 +575,7 @@
       "spd": 20
     },
     "min_floor": 4,
-    "description": "MPを8消費し、自身の防御20%・素早さ20%を上昇させる。"
+    "description": "要らないぜ窓の外に甘い実がなったってもぎ取ってたたきつけたNO self control.MPを8消費し、自身の防御20%・素早さ20%を上昇させる。"
   },
   {
     "id": "skill_clean_slate_revolution",
@@ -588,7 +588,7 @@
       "mag": 20
     },
     "min_floor": 8,
-    "description": "MPを9消費し、自身の力20%・魔力20%を上昇させる。"
+    "description": "許せなかった時効の無い罪を飲み込めるか。飲み干すのさ。MPを9消費し、自身の力20%・魔力20%を上昇させる。"
   },
   {
     "id": "skill_be_wild",
@@ -600,11 +600,11 @@
       "str": 40
     },
     "min_floor": 7,
-    "description": "MPを12消費し、自身の力40%を上昇させる。"
+    "description": "越えた相手は1秒後の自分。MPを12消費し、自身の力40%を上昇させる。"
   },
   {
-    "id": "skill_pulse",
-    "name": "pulse",
+    "id": "skill_pied_piper",
+    "name": "Pied Piper",
     "type": "buff",
     "target": "single",
     "cost_mp": 12,
@@ -612,11 +612,11 @@
       "mag": 40
     },
     "min_floor": 7,
-    "description": "MPを12消費し、自身の魔力40%を上昇させる。"
+    "description": "気分のままに好きな歌うたってくれ。心があるんだろう？MPを12消費し、自身の魔力40%を上昇させる。"
   },
   {
-    "id": "skill_she_is_perfect",
-    "name": "She is perfect",
+    "id": "skill_no_surrender",
+    "name": "No Surrender",
     "type": "buff",
     "target": "single",
     "cost_mp": 12,
@@ -624,11 +624,11 @@
       "def": 40
     },
     "min_floor": 7,
-    "description": "MPを12消費し、自身の防御40%を上昇させる。"
+    "description": "俯くなよ立ち止まったし元に絶望しかない日々もいつかは潜り抜けて元通り笑ってよ。MPを12消費し、自身の防御40%を上昇させる。"
   },
   {
-    "id": "skill_skinny_blues",
-    "name": "Skinny Blues",
+    "id": "skill_paper_triangle",
+    "name": "Paper Triangle",
     "type": "debuff",
     "target": "single",
     "cost_mp": 5,
@@ -639,8 +639,8 @@
     "description": "MPを5消費し、敵単体の力20%を低下させる。"
   },
   {
-    "id": "skill_sick_vibration",
-    "name": "Sick Vibration",
+    "id": "skill_tokyo_zombie",
+    "name": "Tokyo Zombie",
     "type": "debuff",
     "target": "single",
     "cost_mp": 5,
@@ -648,11 +648,11 @@
       "mag": -20
     },
     "min_floor": 1,
-    "description": "MPを5消費し、敵単体の魔力20%を低下させる。"
+    "description": "The Knock Came At Dead Of Night. MPを5消費し、敵単体の魔力20%を低下させる。"
   },
   {
-    "id": "skill_biscuit_hammer",
-    "name": "ビスケットハンマー",
+    "id": "skill_bad_dreams",
+    "name": "BAD DREAMS",
     "type": "debuff",
     "target": "single",
     "cost_mp": 6,
@@ -660,11 +660,11 @@
       "def": -20
     },
     "min_floor": 1,
-    "description": "MPを6消費し、敵単体の防御20%を低下させる。"
+    "description": "わおーん。MPを6消費し、敵単体の防御20%を低下させる。"
   },
   {
-    "id": "skill_slow_down",
-    "name": "Slow down",
+    "id": "skill_across_the_metropolis",
+    "name": "Across the metropolis",
     "type": "debuff",
     "target": "single",
     "cost_mp": 6,
@@ -672,11 +672,11 @@
       "spd": -20
     },
     "min_floor": 2,
-    "description": "MPを6消費し、敵単体の素早さ20%を低下させる。"
+    "description": "Nothings gannna chages your world. MPを6消費し、敵単体の素早さ20%を低下させる。"
   },
   {
-    "id": "skill_degeneration",
-    "name": "Degeneration",
+    "id": "skill_snoozer",
+    "name": "Snoozer",
     "type": "debuff",
     "target": "single",
     "cost_mp": 9,
@@ -685,11 +685,11 @@
       "mag": -20
     },
     "min_floor": 5,
-    "description": "MPを9消費し、敵単体の力20%・魔力20%を低下させる。"
+    "description": "愛と呼ぶには足りない恋心で満たされていた。MPを9消費し、敵単体の力20%・魔力20%を低下させる。"
   },
   {
-    "id": "skill_borderline_case",
-    "name": "Borderline Case",
+    "id": "skill_fighting_pose",
+    "name": "ファイティングポーズ",
     "type": "debuff",
     "target": "single",
     "cost_mp": 9,
@@ -698,11 +698,11 @@
       "spd": -20
     },
     "min_floor": 5,
-    "description": "MPを9消費し、敵単体の防御20%・素早さ20%を低下させる。"
+    "description": "表彰台はもう登れないレフェリーの哀れを目にファイティングポーズ構えるだけ。MPを9消費し、敵単体の防御20%・素早さ20%を低下させる。"
   },
   {
-    "id": "skill_skeleton_liar",
-    "name": "Skeleton Liar",
+    "id": "skill_super_trampoline_schoolkid",
+    "name": "スーパートランポリン スクールキッド",
     "type": "debuff",
     "target": "single",
     "cost_mp": 12,
@@ -710,11 +710,11 @@
       "def": -40
     },
     "min_floor": 8,
-    "description": "MPを12消費し、敵単体の防御40%を低下させる。"
+    "description": "スーパートランポリン スクールキッド！MPを12消費し、敵単体の防御40%を低下させる。"
   },
   {
-    "id": "skill_sleepy_head",
-    "name": "Sleepy Head",
+    "id": "skill_backseat_dog",
+    "name": "Back seat dog",
     "type": "debuff",
     "target": "single",
     "cost_mp": 12,
@@ -722,11 +722,11 @@
       "spd": -40
     },
     "min_floor": 8,
-    "description": "MPを12消費し、敵単体の素早さ40%を低下させる。"
+    "description": "もしかしてなんて罪な夢は心をかき混ぜる。MPを12消費し、敵単体の素早さ40%を低下させる。"
   },
   {
-    "id": "skill_ritalin_202",
-    "name": "Ritalin 202",
+    "id": "skill_carnival",
+    "name": "CARNIVAL",
     "type": "debuff",
     "target": "all",
     "cost_mp": 18,
@@ -734,11 +734,11 @@
       "str": -20
     },
     "min_floor": 5,
-    "description": "MPを18消費し、敵全体の力20%を低下させる。"
+    "description": "観覧車に独りで暮らしてる大嫌いな世界を見下ろして。MPを18消費し、敵全体の力20%を低下させる。"
   },
   {
-    "id": "skill_moll_town_prisoner",
-    "name": "モールタウンプリズナー",
+    "id": "skill_pumpkin_and_atrocity",
+    "name": "Pumpkin and atrocity",
     "type": "debuff",
     "target": "all",
     "cost_mp": 20,
@@ -746,11 +746,11 @@
       "def": -20
     },
     "min_floor": 5,
-    "description": "MPを20消費し、敵全体の防御20%を低下させる。"
+    "description": "If you dont believe me. Its good bye.MPを20消費し、敵全体の防御20%を低下させる。"
   },
   {
-    "id": "skill_nightmare",
-    "name": "Nightmare",
+    "id": "skill_sad_fad_love",
+    "name": "Sad Fad Love",
     "type": "debuff",
     "target": "all",
     "cost_mp": 28,
@@ -759,7 +759,7 @@
       "mag": -20
     },
     "min_floor": 8,
-    "description": "MPを28消費し、敵全体の力20%・魔力20%を低下させる。"
+    "description": "So I know Its that unrelate me.MPを28消費し、敵全体の力20%・魔力20%を低下させる。"
   },
   {
     "id": "skill_funny_bunny",
@@ -767,21 +767,21 @@
     "type": "ultimate",
     "target": "single",
     "cost_mp": 999,
-    "multiplier": 3.5,
+    "multiplier": 4.0,
     "condition": "hp_under_30",
     "min_floor": 4,
-    "description": "【条件: HP30%以下】全MPを消費し、敵単体に3.5倍の防御無視ダメージ。"
+    "description": "キミの夢が叶うのは誰かのおかげじゃないぜ。風の強いを選んで走ってきた。【条件: HP30%以下】全MPを消費し、敵単体に4倍の防御無視ダメージ。"
   },
   {
-    "id": "skill_carnival",
-    "name": "カーニバル",
+    "id": "skill_ride_on_shooting_star",
+    "name": "Ride on shooting star",
     "type": "ultimate",
     "target": "all",
     "cost_mp": 999,
-    "multiplier": 2.5,
+    "multiplier": 3.0,
     "condition": "hp_under_30",
     "min_floor": 6,
-    "description": "【条件: HP30%以下】全MPを消費し、敵全体に2.5倍の防御無視ダメージ。"
+    "description": "Ride on shooting star 心の声で散弾銃のように歌い続けた。【条件: HP30%以下】全MPを消費し、敵全体に3.0倍の防御無視ダメージ。"
   },
   {
     "id": "skill_my_foot",
@@ -789,32 +789,32 @@
     "type": "ultimate",
     "target": "single",
     "cost_mp": 999,
-    "multiplier": 4.5,
+    "multiplier": 7,
     "condition": "hp_under_20",
-    "min_floor": 8,
-    "description": "【条件: HP20%以下】全MPを消費し、敵単体に4.5倍の防御無視ダメージ。"
+    "min_floor": 6,
+    "description": "いつまでも諦めの悪い挑戦者のように走れMY FOOT踵を鳴らして。【条件: HP20%以下】全MPを消費し、敵単体に7.0倍の防御無視ダメージ。"
   },
   {
-    "id": "skill_rocknroll_sinners",
-    "name": "ROCK'N'ROLL SINNERS",
+    "id": "skill_about_a_rocknroll_band",
+    "name": "About A Rock'n'Roll Band",
     "type": "ultimate",
     "target": "all",
     "cost_mp": 999,
-    "multiplier": 3.3,
+    "multiplier": 5.5,
     "condition": "hp_under_20",
-    "min_floor": 9,
-    "description": "【条件: HP20%以下】全MPを消費し、敵全体に3.3倍の防御無視ダメージ。"
+    "min_floor": 6,
+    "description": "今夜もロックンロールの引力は万能で道なき道を切り開いていくんだ。【条件: HP20%以下】全MPを消費し、敵全体に5.5倍の防御無視ダメージ。"
   },
   {
     "id": "skill_third_eye",
-    "name": "サード アイ",
+    "name": "王様になれ",
     "type": "ultimate",
     "target": "single",
     "cost_mp": 999,
-    "multiplier": 5.5,
+    "multiplier": 6.0,
     "condition": "hp_under_10",
-    "min_floor": 8,
-    "description": "【条件: HP10%以下】全MPを消費し、敵単体に5.5倍の防御無視ダメージ。"
+    "min_floor": 6,
+    "description": "夢現てなづけて自由自在気分次第脳細胞の支配下で王様になれ。【条件: HP10%以下】全MPを消費し、敵単体に6.0倍の防御無視ダメージ。"
   },
   {
     "id": "skill_konoyonohatemade",
@@ -822,21 +822,21 @@
     "type": "ultimate",
     "target": "all",
     "cost_mp": 999,
-    "multiplier": 4.1,
+    "multiplier": 4.5,
     "condition": "hp_under_10",
     "min_floor": 8,
-    "description": "【条件: HP10%以下】全MPを消費し、敵全体に4.1倍の防御無視ダメージ。"
+    "description": "聞こえてくるのはキミの声それ以外は要らなくなってた。【条件: HP10%以下】全MPを消費し、敵全体に4.5倍の防御無視ダメージ。"
   },
   {
-    "id": "skill_no_surrender",
-    "name": "No Surrender",
+    "id": "skill_hybrid_rainbow",
+    "name": "ハイブリッド レインボウ",
     "type": "ultimate",
     "target": "single",
     "cost_mp": 999,
-    "multiplier": 7,
+    "multiplier": 8.5,
     "condition": "hp_under_5",
     "min_floor": 9,
-    "description": "【条件: HP5%以下】全MPを消費し、敵単体に7.0倍の防御無視ダメージ。"
+    "description": "I can feel that hybrid rainbow.【条件: HP5%以下】全MPを消費し、敵単体に8.5倍の防御無視ダメージ。"
   },
   {
     "id": "skill_fool_on_the_planet",
@@ -844,9 +844,9 @@
     "type": "ultimate",
     "target": "all",
     "cost_mp": 999,
-    "multiplier": 5.5,
+    "multiplier": 10,
     "condition": "hp_under_5",
     "min_floor": 9,
-    "description": "【条件: HP5%以下】全MPを消費し、敵全体に5.5倍の防御無視ダメージ。"
+    "description": "すべてが変わっても僕は変わらない。【条件: HP5%以下】全MPを消費し、敵全体に10倍の防御無視ダメージ。"
   }
 ]
