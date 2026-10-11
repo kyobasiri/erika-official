@@ -2,6 +2,7 @@ import os
 import json
 import time
 import base64
+import re
 from openai import OpenAI
 
 # ==========================================
@@ -12,6 +13,9 @@ SAKURA_API_BASE = "https://api.ai.sakura.ad.jp/v1"
 SAKURA_MODEL = "preview/gemma-4-31B-it"
 
 GALLERY_DIR = 'public/assets/images/gallery'
+# 崩れていた既存の説明文を作り直す件数の上限（1回の実行あたり）。
+# 一度に全部やるとデプロイが長く止まるので、push のたびに少しずつ直す。新しい画像はこの上限に含めない。
+MAX_REGENERATE_PER_RUN = int(os.environ.get('GALLERY_MAX_REGENERATE', '200'))
 GALLERY_OUTPUT = 'public/assets/gallery.json'
 ALT_CACHE_FILE = 'alt_cache.json' # これはそのままでもOK
 ARTICLES_DIR = 'public/articles'
@@ -26,6 +30,42 @@ if SAKURA_API_KEY:
         api_key=SAKURA_API_KEY,
         base_url=SAKURA_API_BASE
     )
+
+# モデルの出力の後始末
+#  - 制御用の文字（<tool_call|>、<|im_end|>、<end_of_turn> など）を取り除く
+#  - 説明文の代わりに <img ... alt=...> を書いてきた場合は、alt の中身を取り出す
+_CONTROL_TOKEN = re.compile(r'<\|?/?[A-Za-z_][\w-]*\|?>')
+_ALT_ATTR = re.compile(r'alt\s*[=:]\s*["\']?([^"\'>\n`}]+)')
+# 説明文の先頭にくっつく不要な文字（}、{、記号、英字のかけら など）。日本語が始まるところまで落とす
+_LEADING_JUNK = re.compile(r'^[^぀-ヿ㐀-鿿０-ｚ「『（]+')
+
+def clean_model_text(text):
+    text = _CONTROL_TOKEN.sub('', text or '')
+    m = _ALT_ATTR.search(text)
+    if m:
+        text = m.group(1)
+    text = text.replace('```html', '').replace('```', '').replace('`', '').replace('**', '')
+    text = text.replace('\r', '').replace('\n', '')
+    text = _LEADING_JUNK.sub('', text.strip())
+    # 「い。白い狐の…」のような、前の文の切れ端を落とす
+    text = re.sub(r'^.{1,3}。(?=.{8,})', '', text)
+    return text.strip().rstrip('}').strip()
+
+# 説明文として使えない出力か（思考の過程・断り文句・指示文の写し・長すぎる・HTMLの残りなど）
+_BROKEN_WORDS = ('記述してください', '思考', '提供されていない', '添付されていない', 'できません', '申し訳',
+                 'アップロード', '提案', 'alt属性', 'キャプション', '画像の分析', '以下の')
+
+def looks_broken(text):
+    if not text or len(text) < 8 or len(text) > 90:
+        return True
+    if any(w in text for w in _BROKEN_WORDS):
+        return True
+    if '<' in text or '>' in text or '[' in text or '*' in text:
+        return True
+    if re.search(r'https?://|\.jp\b|\.com\b', text):
+        return True
+    ascii_letters = sum(1 for c in text if c.isascii() and c.isalpha())
+    return ascii_letters > len(text) * 0.3
 
 def encode_image(image_path):
     """画像をBase64形式にエンコードする"""
@@ -52,28 +92,37 @@ def generate_alt_and_enemy_name(image_path, filename):
     )
     alt_user_prompt = f"{context}\nこの画像の特徴を50文字以内で説明してください。"
 
-    try:
-        alt_response = sakura_client.chat.completions.create(
-            model=SAKURA_MODEL,
-            messages=[
-                {"role": "system", "content": alt_system_prompt},
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": alt_user_prompt},
-                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
-                    ]
-                }
-            ],
-            temperature=0.3,
-            max_tokens=100
-        )
-        alt_text = (alt_response.choices[0].message.content or "").strip().replace('"', '').replace('「', '').replace('」', '')
-        if not alt_text:
-            alt_text = f"エリカの画像 ({filename})"
-    except Exception as e:
-        print(f"  [Error] Sakura LLM (alt) failed for {filename}: {e}")
-        alt_text = f"エリカの画像 ({filename})"
+    alt_text = ""
+    for attempt in range(2):  # 壊れた出力のときは1回だけ作り直す
+        try:
+            alt_response = sakura_client.chat.completions.create(
+                model=SAKURA_MODEL,
+                messages=[
+                    {"role": "system", "content": alt_system_prompt},
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": alt_user_prompt},
+                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+                        ]
+                    }
+                ],
+                temperature=0.3,
+                max_tokens=100
+            )
+            alt_text = clean_model_text(alt_response.choices[0].message.content).replace('"', '').replace('「', '').replace('」', '')
+        except Exception as e:
+            print(f"  [Error] Sakura LLM (alt) failed for {filename}: {e}")
+            alt_text = ""
+        if not looks_broken(alt_text):
+            break
+        print(f"  [Retry] alt の出力が崩れていたので作り直します: {alt_text[:40]!r}")
+        alt_text = ""
+        time.sleep(1)
+
+    # それでも作れなかったときは空にしておく（次回の実行でまた作り直される）
+    if looks_broken(alt_text):
+        alt_text = ""
 
     time.sleep(1) # APIの連続リクエスト制限対策
 
@@ -100,7 +149,7 @@ def generate_alt_and_enemy_name(image_path, filename):
             ],
             temperature=0.8, 
             max_tokens=100        )
-        enemy_name = (enemy_response.choices[0].message.content or "").strip()
+        enemy_name = clean_model_text(enemy_response.choices[0].message.content)
         enemy_name = enemy_name.replace('"', '').replace('「', '').replace('」', '').replace('\n', '')
         
         if not enemy_name or enemy_name == "エリカ" or "ネームレス" in enemy_name:
@@ -126,9 +175,12 @@ def generate_gallery_json():
                 for cat in old_gallery:
                     for img in cat.get("images", []):
                         key = f"{cat['name']}/{img['file']}"
+                        # 以前の出力に残っている制御用の文字も、ここで掃除する
+                        alt = clean_model_text(img.get("alt", ""))
                         existing_data[key] = {
-                            "alt": img.get("alt", ""),
-                            "enemy_name": img.get("enemy_name", "")
+                            # 使えない説明文は空にして、下で作り直させる
+                            "alt": "" if looks_broken(alt) else alt,
+                            "enemy_name": clean_model_text(img.get("enemy_name", ""))
                         }
         except json.JSONDecodeError:
             pass
@@ -137,6 +189,7 @@ def generate_gallery_json():
     dirs = [d for d in os.listdir(GALLERY_DIR) if os.path.isdir(os.path.join(GALLERY_DIR, d))]
     categories = sorted(dirs, reverse=True)
     
+    regenerated = 0
     for category in categories:
         cat_path = os.path.join(GALLERY_DIR, category)
         image_files = sorted([f for f in os.listdir(cat_path) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp'))])
@@ -151,7 +204,13 @@ def generate_gallery_json():
             if isinstance(cached, dict) and cached.get('alt') and cached.get('enemy_name') and cached.get('enemy_name') != "ネームレス エリカ":
                 alt_text = cached['alt']
                 enemy_name = cached['enemy_name']
+            elif isinstance(cached, dict) and regenerated >= MAX_REGENERATE_PER_RUN:
+                # 既存の画像の作り直しは、上限に達したら次回へ回す
+                alt_text = cached.get('alt', '')
+                enemy_name = cached.get('enemy_name') or "ネームレス エリカ"
             else:
+                if isinstance(cached, dict):
+                    regenerated += 1
                 print(f"[{cache_key}] 画像を解析して alt と enemy_name を生成中...")
                 alt_text, enemy_name = generate_alt_and_enemy_name(file_path, img_file)
                 time.sleep(1) # API制限対策

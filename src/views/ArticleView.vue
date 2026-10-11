@@ -1,282 +1,586 @@
 <script setup lang="ts">
-import { ref, onMounted, nextTick, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { marked } from 'marked'
+import '@fontsource/shippori-mincho/600.css'
+import ImageLightbox from '../components/ImageLightbox.vue'
+import LiteYouTube from '../components/LiteYouTube.vue'
+import { articleDate, cleanAlt, parseArticle, type ArticleBlock, type ParsedArticle } from '../articles/parseArticle'
 
-interface ArticleRef {
-  id: string
-  title: string
-}
+interface ArticleRef { id: string; title: string }
+interface GalleryFolder { name: string; images: { file: string; alt?: string }[] }
 
 const route = useRoute()
 const articleId = ref('')
-const compiledMarkdown = ref('<p class="text-zinc-400 animate-pulse">読み込み中...</p>')
-
+const article = ref<ParsedArticle | null>(null)
+const loading = ref(true)
+const loadError = ref('')
 const prevArticle = ref<ArticleRef | null>(null)
 const nextArticle = ref<ArticleRef | null>(null)
+const galleryFolders = ref<GalleryFolder[]>([])
+const lightboxIndex = ref<number | null>(null)
+const expanded = ref<Set<number>>(new Set())
+const copied = ref(false)
 
-const dailyImages = ref<any[]>([])
+// 画像が多いまとまりは、最初はこの枚数だけ見せる
+const COLLAPSE_AFTER = 12
 
-// Markdown描画後に独自のスタイルを適用するためのラッパー関数
-const parseMarkdown = async (text: string) => {
-  const xLinkRegex = /^[ \t]*https?:\/\/(?:x\.com|twitter\.com)\/([a-zA-Z0-9_]+\/status\/\d+)[^\s<]*[ \t]*$/gm
-  text = text.replace(xLinkRegex, '\n\n<div class="flex justify-center my-6"><blockquote class="twitter-tweet" data-align="center"><a href="https://twitter.com/$1"></a></blockquote></div>\n\n')
-
-  const ytShortsRegex = /^[ \t]*https?:\/\/(?:www\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]+)[^\s<]*[ \t]*$/gm
-  text = text.replace(ytShortsRegex, '\n\n<div class="max-w-[320px] mx-auto my-6 rounded-xl overflow-hidden shadow-lg"><div class="relative pb-[177.77%] h-0"><iframe src="https://www.youtube.com/embed/$1" class="absolute top-0 left-0 w-full h-full border-none" allowfullscreen></iframe></div></div>\n\n')
-
-  const ytNormalRegex = /^[ \t]*https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)[^\s<]*[ \t]*$/gm
-  text = text.replace(ytNormalRegex, '\n\n<div class="relative pb-[56.25%] h-0 overflow-hidden w-full my-6 rounded-xl shadow-lg"><iframe src="https://www.youtube.com/embed/$1" class="absolute top-0 left-0 w-full h-full border-none" allowfullscreen></iframe></div>\n\n')
-
-  const imageTagRegex = /\[\[([a-zA-Z0-9_.-]+\.(?:jpg|jpeg|png|webp|gif))\]\]/gm
-  text = text.replace(imageTagRegex, `\n\n<div class="my-6 flex justify-center"><img src="/assets/images/gallery/${articleId.value}/$1" alt="ギャラリー画像" class="rounded-xl shadow-lg max-w-full h-auto"></div>\n\n`)
-
-  return await marked.parse(text)
+const date = computed(() => articleDate(articleId.value))
+const folderOf = (id: string) => galleryFolders.value.find(g => g.name === id.split('-')[0])
+const coverOf = (id: string) => {
+  const folder = folderOf(id)
+  if (!folder?.images?.length) return ''
+  const cover = folder.images.find(i => i.file === '0.webp') ?? folder.images[0]!
+  return `/assets/images/gallery/${folder.name}/${cover.file}`
 }
 
-// X(Twitter)のウィジェットを動的に読み込み・再レンダリングする関数
-const loadTwitterWidget = () => {
-  if (!document.getElementById('twitter-wjs')) {
-    const script = document.createElement('script')
-    script.id = 'twitter-wjs'
-    script.src = 'https://platform.twitter.com/widgets.js'
-    script.async = true
-    script.charset = 'utf-8'
-    document.head.appendChild(script)
+const cover = computed(() => coverOf(articleId.value) || article.value?.images[0]?.src || '')
+const coverIndex = computed(() => article.value?.images.findIndex(i => i.src === cover.value) ?? -1)
+const lightboxImages = computed(() => article.value?.images.map(i => ({ src: i.src, alt: i.alt })) ?? [])
+
+async function fetchJson<T>(url: string): Promise<T | null> {
+  try {
+    const res = await fetch(url, { cache: 'no-cache' })
+    return res.ok ? ((await res.json()) as T) : null
+  } catch {
+    return null
   }
-  
-  // 既にスクリプトがある、または追加された直後にDOMをスキャンさせる
-  setTimeout(() => {
-    // @ts-ignore
-    if (window.twttr && window.twttr.widgets) {
-      // @ts-ignore
-      window.twttr.widgets.load()
-    }
-  }, 500)
 }
 
-// 記事データを取得する関数（使い回せるように分離）
-const fetchArticleData = async () => {
-  const id = (route.query.id as string) || '001-test'
+async function load() {
+  const id = typeof route.query.id === 'string' ? route.query.id : ''
   articleId.value = id
-  compiledMarkdown.value = '<p class="text-zinc-400 animate-pulse">読み込み中...</p>'
+  loading.value = true
+  loadError.value = ''
+  article.value = null
+  expanded.value = new Set()
+  lightboxIndex.value = null
   prevArticle.value = null
   nextArticle.value = null
 
-  dailyImages.value = []
-
-  // 1. 前後の記事情報を取得
-  try {
-    const articlesRes = await fetch(`/assets/articles.json?t=${new Date().getTime()}`)
-    if (articlesRes.ok) {
-      const articles: ArticleRef[] = await articlesRes.json()
-      const currentIndex = articles.findIndex(a => a.id === id)
-      if (currentIndex !== -1) {
-        if (currentIndex < articles.length - 1) prevArticle.value = articles[currentIndex + 1]
-        if (currentIndex > 0) nextArticle.value = articles[currentIndex - 1]
-      }
-    }
-  } catch (e) {
-    console.error("Articles list fetch failed", e)
+  if (!id) {
+    loadError.value = '記事が指定されていません。'
+    loading.value = false
+    return
   }
 
-  // 2. Markdown本文を取得してパース
-  try {
-    const response = await fetch(`/articles/${id}.md`)
-    if (!response.ok) throw new Error('記事が見つかりません')
-    let text = await response.text()
+  const [articles, galleries, text] = await Promise.all([
+    fetchJson<ArticleRef[]>('/assets/articles.json'),
+    fetchJson<GalleryFolder[]>('/assets/gallery.json'),
+    fetch(`/articles/${encodeURIComponent(id)}.md`).then(async r => (r.ok ? r.text() : null)).catch(() => null)
+  ])
+  if (id !== articleId.value) return // 読み込み中に別の記事へ移動した
 
-    if (text.trim().toLowerCase().startsWith('<!doctype html>') || text.trim().toLowerCase().startsWith('<html')) {
-      throw new Error('Markdownファイルが見つからず、index.htmlが返却されました。publicフォルダ内の配置を確認してください。')
+  galleryFolders.value = Array.isArray(galleries) ? galleries : []
+  if (Array.isArray(articles)) {
+    const i = articles.findIndex(a => a.id === id)
+    if (i >= 0) {
+      prevArticle.value = articles[i + 1] ?? null // 古い記事
+      nextArticle.value = articles[i - 1] ?? null // 新しい記事
     }
-
-    text = text.replace(/\r/g, '')
-    compiledMarkdown.value = await parseMarkdown(text)
-
-    // DOM更新後にTwitterウィジェットを実行
-    nextTick(() => {
-      loadTwitterWidget()
-    })
-  } catch (error) {
-    console.error(error)
-    compiledMarkdown.value = `<p class="text-red-400 font-bold">記事の読み込みに失敗しました。</p>`
   }
 
+  // 記事ファイルが無いと index.html が返ってくるので、それも「見つからない」として扱う
+  if (!text || /^\s*<(!doctype|html)/i.test(text)) {
+    loadError.value = '記事が見つかりませんでした。'
+    loading.value = false
+    return
+  }
+
+  const folder = folderOf(id)
+  // AIが作った説明文は崩れていることがあるので、掃除してから使う（使えないものは既定の説明になる）
+  const altMap = new Map((folder?.images ?? []).map(img => [img.file, cleanAlt(img.alt)]))
+  article.value = parseArticle(text, {
+    imageBase: `/assets/images/gallery/${id.split('-')[0]}`,
+    altFor: file => altMap.get(file)
+  })
+  document.title = `${article.value.mainTitle} | Erika Official`
+  loading.value = false
+
+  await nextTick()
+  if (article.value.blocks.some(b => b.type === 'x')) loadTwitterWidget()
+}
+
+// X（旧Twitter）の埋め込み
+function loadTwitterWidget() {
+  const w = window as unknown as { twttr?: { widgets?: { load: () => void } } }
+  if (w.twttr?.widgets) { w.twttr.widgets.load(); return }
+  if (document.getElementById('twitter-wjs')) return
+  const script = document.createElement('script')
+  script.id = 'twitter-wjs'
+  script.src = 'https://platform.twitter.com/widgets.js'
+  script.async = true
+  script.charset = 'utf-8'
+  document.head.appendChild(script)
+}
+
+function visibleImages(block: Extract<ArticleBlock, { type: 'gallery' }>, i: number) {
+  return expanded.value.has(i) || block.images.length <= COLLAPSE_AFTER + 4
+    ? block.images
+    : block.images.slice(0, COLLAPSE_AFTER)
+}
+function expand(i: number) {
+  expanded.value = new Set(expanded.value).add(i)
+}
+
+// 共有
+const shareUrl = computed(() => (typeof window !== 'undefined' ? window.location.href : ''))
+const xShareHref = computed(() =>
+  `https://x.com/intent/post?text=${encodeURIComponent(article.value?.title ?? '')}&url=${encodeURIComponent(shareUrl.value)}`
+)
+async function copyLink() {
   try {
-    const galRes = await fetch(`/assets/gallery.json?t=${new Date().getTime()}`)
-    if (galRes.ok) {
-      const galleries = await galRes.json()
-      
-      // 記事ID（例: 20260925 または 20260925-news）から日付部分を抽出
-      const dateFolder = id.split('-')[0] 
-      
-      // フォルダ名と一致するカテゴリを検索
-      const currentGallery = galleries.find((g: any) => g.name === dateFolder)
-      
-      if (currentGallery && currentGallery.images) {
-        dailyImages.value = currentGallery.images.map((img: any) => ({
-          ...img,
-          url: `/assets/images/gallery/${currentGallery.name}/${img.file}`,
-          folder: currentGallery.name // ギャラリー遷移用のパラメータとして保持
-        }))
-      }
-    }
-  } catch (e) {
-    console.error("Gallery fetch failed", e)
+    await navigator.clipboard.writeText(shareUrl.value)
+    copied.value = true
+    setTimeout(() => { copied.value = false }, 2000)
+  } catch {
+    window.prompt('このURLをコピーしてください', shareUrl.value)
   }
 }
 
-// 初回マウント時に実行
-onMounted(() => {
-  fetchArticleData()
-})
+// 読んだ位置のバー
+const progress = ref(0)
+function onScroll() {
+  const max = document.documentElement.scrollHeight - window.innerHeight
+  progress.value = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0
+}
 
-// URLのクエリパラメータ (?id=xxx) が変更されたら、再度フェッチ処理を走らせる
-watch(
-  () => route.query.id,
-  (newId) => {
-    if (newId) {
-      fetchArticleData()
-      window.scrollTo({ top: 0, behavior: 'smooth' }) // ページトップへスクロール
-    }
+onMounted(() => {
+  void load()
+  window.addEventListener('scroll', onScroll, { passive: true })
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('scroll', onScroll)
+  document.title = 'Erika Official | AI Art & Music'
+})
+watch(() => route.query.id, (id, old) => {
+  if (id && id !== old) {
+    void load()
+    window.scrollTo({ top: 0 })
   }
-)
+})
 </script>
 
 <template>
-  <div class="bg-zinc-950 min-h-screen pt-24 pb-12">
-    <div class="container mx-auto px-4 max-w-4xl">
-      
-      <!-- 記事本文エリア -->
-      <div class="bg-black/60 backdrop-blur-md rounded-2xl p-6 md:p-10 border border-white/10 shadow-2xl mb-12">
-        <!-- 
-          v-htmlでレンダリングされるMarkdown要素にスタイルを当てるため、
-          "prose" クラス（通常はTailwind Typographyプラグインが必要）の代わりに
-          親要素から子要素へ直接スタイルを指定するカスタムクラス `markdown-body` を設定しています。
-        -->
-        <div class="markdown-body" v-html="compiledMarkdown"></div>
-      </div>
+  <div class="article-page">
+    <div class="progress" :style="{ transform: `scaleX(${progress})` }" aria-hidden="true"></div>
 
-      <div v-if="dailyImages.length > 0" class="mb-12">
-        <h3 class="text-xl font-bold text-white mb-4 border-l-4 border-erika pl-3 drop-shadow-md">
-          Today's Archives
-        </h3>
-        
-        <!-- 横スクロールコンテナ -->
-        <div class="flex gap-4 overflow-x-auto hide-scrollbar pb-4 snap-x snap-mandatory">
-          
-          <!-- 画像アイテム -->
-          <div v-for="(img, index) in dailyImages" :key="index" 
-               class="shrink-0 w-40 md:w-56 aspect-[4/5] rounded-xl overflow-hidden bg-black/40 border border-white/10 snap-center group relative shadow-lg">
-            <img :src="img.url" :alt="img.alt || 'エリカの画像'" loading="lazy"
-                 class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
-          </div>
-          
-          <!-- ギャラリーへの導線（スクロールの最後） -->
-          <div class="shrink-0 w-40 md:w-56 aspect-[4/5] flex items-center justify-center snap-center bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 hover:border-erika/50 transition-all group">
-            <router-link :to="`/gallery?folder=${dailyImages[0].folder}`" 
-                         class="flex flex-col items-center justify-center p-4 text-zinc-400 group-hover:text-erika transition-colors w-full h-full">
-              <span class="text-4xl mb-4 group-hover:scale-110 group-hover:-translate-y-1 transition-transform">🖼️</span>
-              <span class="text-sm font-bold text-center leading-relaxed">
-                じっくり高画質で<br>見たい方はこちら
-              </span>
-            </router-link>
-          </div>
-
-        </div>
-      </div>
-
-      <!-- ページネーション（前後の記事） -->
-      <nav class="flex flex-col md:flex-row justify-between items-center gap-6 border-t border-white/10 pt-10">
-        <!-- 次の記事（新しい記事：配列の-1） -->
-        <div class="w-full md:w-1/3 text-center md:text-left">
-          <router-link v-if="nextArticle" :to="`/article?id=${nextArticle.id}`" 
-                       class="inline-block w-full px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors truncate">
-            &laquo; 次の記事へ
-          </router-link>
-          <span v-else class="inline-block w-full px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-600 cursor-not-allowed">
-            &laquo; 次の記事へ
-          </span>
-        </div>
-
-        <div class="w-full md:w-1/3 text-center">
-          <router-link to="/blog" class="inline-block px-8 py-3 rounded-full border border-erika text-erika hover:bg-erika hover:text-black transition-all font-bold">
-            記事一覧に戻る
-          </router-link>
-        </div>
-
-        <!-- 前の記事（古い記事：配列の+1） -->
-        <div class="w-full md:w-1/3 text-center md:text-right">
-          <router-link v-if="prevArticle" :to="`/article?id=${prevArticle.id}`" 
-                       class="inline-block w-full px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors truncate">
-            前の記事へ &raquo;
-          </router-link>
-          <span v-else class="inline-block w-full px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-600 cursor-not-allowed">
-            前の記事へ &raquo;
-          </span>
-        </div>
-      </nav>
-
+    <p v-if="loading" class="state">記事を読み込んでいます…</p>
+    <div v-else-if="loadError" class="state">
+      <p>{{ loadError }}</p>
+      <router-link to="/blog" class="pill">記事一覧へ</router-link>
     </div>
+
+    <article v-else-if="article">
+      <!-- 冒頭 -->
+      <header class="hero">
+        <div v-if="cover" class="hero-bg" :style="{ backgroundImage: `url(${cover})` }" aria-hidden="true"></div>
+        <div class="hero-inner">
+          <div class="hero-text">
+            <nav class="crumbs" aria-label="パンくず">
+              <router-link to="/">ホーム</router-link><span>/</span><router-link to="/blog">Activities</router-link>
+            </nav>
+            <p class="series">
+              <span v-if="article.seriesNumber" class="badge">GALLERY #{{ article.seriesNumber }}</span>
+              <time v-if="date" :datetime="date.iso">{{ date.label }}</time>
+            </p>
+            <h1>{{ article.mainTitle }}</h1>
+            <p v-if="article.series" class="series-name">{{ article.series }}</p>
+            <p class="meta">
+              <span v-if="article.images.length">画像 {{ article.images.length }}枚</span>
+              <span v-if="article.tags.length">#{{ article.tags[0] }}</span>
+            </p>
+          </div>
+          <button
+            v-if="cover"
+            class="hero-cover"
+            :disabled="coverIndex < 0"
+            :aria-label="coverIndex >= 0 ? '表紙の画像を大きく見る' : undefined"
+            @click="coverIndex >= 0 && (lightboxIndex = coverIndex)"
+          >
+            <img :src="cover" :alt="article.images[coverIndex]?.alt || article.mainTitle" fetchpriority="high">
+          </button>
+        </div>
+      </header>
+
+      <!-- 本文 -->
+      <div class="body">
+        <template v-for="(block, i) in article.blocks" :key="i">
+          <div v-if="block.type === 'markdown'" class="prose" v-html="block.html"></div>
+
+          <section v-else-if="block.type === 'gallery'" class="gallery-block" :aria-label="`画像 ${block.images.length}枚`">
+            <p class="gallery-head"><span>{{ block.images.length }} IMAGES</span>タップで大きく見られます</p>
+            <ul class="masonry">
+              <li v-for="img in visibleImages(block, i)" :key="img.file">
+                <button @click="lightboxIndex = img.index" :aria-label="`${img.alt}（大きく見る）`">
+                  <img :src="img.src" :alt="img.alt" loading="lazy" decoding="async">
+                </button>
+              </li>
+            </ul>
+            <button v-if="visibleImages(block, i).length < block.images.length" class="more" @click="expand(i)">
+              残り {{ block.images.length - visibleImages(block, i).length }}枚を見る
+            </button>
+          </section>
+
+          <figure v-else-if="block.type === 'image'" class="single">
+            <button @click="lightboxIndex = block.image.index" :aria-label="`${block.image.alt}（大きく見る）`">
+              <img :src="block.image.src" :alt="block.image.alt" loading="lazy" decoding="async">
+            </button>
+            <figcaption v-if="block.image.alt">{{ block.image.alt }}</figcaption>
+          </figure>
+
+          <div v-else-if="block.type === 'x'" class="embed x-embed">
+            <p class="embed-label">X に投稿したエリカ</p>
+            <blockquote class="twitter-tweet" data-theme="dark" data-align="center" data-dnt="true">
+              <a :href="block.url" target="_blank" rel="noopener noreferrer">X で投稿を見る ↗</a>
+            </blockquote>
+          </div>
+
+          <div v-else-if="block.type === 'youtube'" class="embed" :class="{ narrow: block.vertical }">
+            <p class="embed-label">{{ block.vertical ? 'SHORTS' : 'VIDEO' }}</p>
+            <LiteYouTube :id="block.id" :vertical="block.vertical" />
+          </div>
+
+          <section v-else-if="block.type === 'music'" class="music">
+            <div class="music-text">
+              <p class="music-label"><span class="eq" aria-hidden="true"><i></i><i></i><i></i></span>NOW LISTENING</p>
+              <p class="music-title">{{ block.title }}</p>
+              <p v-if="block.artist" class="music-artist">{{ block.artist }}</p>
+            </div>
+            <LiteYouTube :id="block.id" :title="`${block.artist} ${block.title}`.trim()" />
+          </section>
+
+          <blockquote v-else-if="block.type === 'quote'" class="pull-quote">
+            <p>{{ block.text }}</p>
+          </blockquote>
+
+          <a v-else-if="block.type === 'channel'" :href="block.url" target="_blank" rel="noopener noreferrer" class="channel">
+            <span class="yt-icon" aria-hidden="true">
+              <svg viewBox="0 0 68 48"><path d="M66.5 7.7a8.6 8.6 0 0 0-6-6C55.2.3 34 .3 34 .3s-21.2 0-26.5 1.4a8.6 8.6 0 0 0-6 6C.1 13 .1 24 .1 24s0 11 1.4 16.3a8.6 8.6 0 0 0 6 6c5.3 1.4 26.5 1.4 26.5 1.4s21.2 0 26.5-1.4a8.6 8.6 0 0 0 6-6C67.9 35 67.9 24 67.9 24s0-11-1.4-16.3z" fill="#ff0033"/><path d="M45 24 27 14v20z" fill="#fff"/></svg>
+            </span>
+            <span class="channel-text">
+              <small>YouTube</small>
+              <strong>エリカが好き勝手に語るチャンネル</strong>
+              <span>声のついた、動くエリカに会いに行く</span>
+            </span>
+            <span class="channel-go" aria-hidden="true">→</span>
+          </a>
+        </template>
+
+        <!-- 末尾 -->
+        <footer class="article-foot">
+          <ul v-if="article.tags.length" class="tags">
+            <li v-for="t in article.tags" :key="t">#{{ t }}</li>
+          </ul>
+          <div class="share">
+            <a :href="xShareHref" target="_blank" rel="noopener noreferrer" class="pill">X で共有</a>
+            <button class="pill" @click="copyLink">{{ copied ? 'コピーしました' : 'リンクをコピー' }}</button>
+            <router-link v-if="folderOf(articleId)" :to="`/gallery?folder=${articleId.split('-')[0]}`" class="pill">ギャラリーで見る</router-link>
+          </div>
+        </footer>
+      </div>
+
+      <!-- 前後の記事 -->
+      <nav class="pager" aria-label="前後の記事">
+        <router-link v-if="nextArticle" :to="`/article?id=${nextArticle.id}`" class="pager-card">
+          <img v-if="coverOf(nextArticle.id)" :src="coverOf(nextArticle.id)" alt="" loading="lazy">
+          <span><small>← 新しい記事</small><strong>{{ nextArticle.title }}</strong></span>
+        </router-link>
+        <span v-else class="pager-card empty"></span>
+        <router-link v-if="prevArticle" :to="`/article?id=${prevArticle.id}`" class="pager-card right">
+          <img v-if="coverOf(prevArticle.id)" :src="coverOf(prevArticle.id)" alt="" loading="lazy">
+          <span><small>前の記事 →</small><strong>{{ prevArticle.title }}</strong></span>
+        </router-link>
+        <span v-else class="pager-card empty"></span>
+      </nav>
+      <p class="back"><router-link to="/blog" class="pill accent">記事一覧に戻る</router-link></p>
+    </article>
+
+    <ImageLightbox v-model:index="lightboxIndex" :images="lightboxImages" />
   </div>
 </template>
 
-<style>
-/* Markdownから生成されたHTML用のスタイル */
-.markdown-body h1 {
-  font-size: 1.875rem;
+<style scoped>
+.article-page {
+  --accent: #f39c12;
+  --ink: #f4f4f5;
+  --muted: #a1a1aa;
+  --line: rgba(255, 255, 255, 0.1);
+  min-height: 100vh;
+  background: #0b0b0d;
+  color: var(--ink);
+  padding-bottom: 72px;
+}
+.progress {
+  position: fixed;
+  top: 64px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+  transform-origin: left;
+  z-index: 40;
+  pointer-events: none;
+}
+.state {
+  padding: 160px 16px;
+  text-align: center;
+  color: var(--muted);
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+  transition: border-color 0.2s, background 0.2s;
+}
+.pill:hover { border-color: rgba(243, 156, 18, 0.6); background: rgba(243, 156, 18, 0.08); }
+.pill.accent { border-color: var(--accent); color: var(--accent); }
+
+/* ---- 冒頭 ---- */
+.hero {
+  position: relative;
+  overflow: hidden;
+  padding: 112px 16px 56px;
+  border-bottom: 1px solid var(--line);
+}
+.hero-bg {
+  position: absolute;
+  inset: -40px;
+  background-size: cover;
+  background-position: center 30%;
+  filter: blur(40px) saturate(1.2);
+  opacity: 0.35;
+  transform: scale(1.1);
+}
+.hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(11, 11, 13, 0.3) 0%, #0b0b0d 100%);
+}
+.hero-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 1080px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.65fr);
+  gap: 48px;
+  align-items: center;
+}
+.crumbs { display: flex; gap: 8px; font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+.crumbs a:hover { color: var(--ink); }
+.series { display: flex; align-items: center; gap: 12px; margin: 0 0 14px; font-size: 13px; color: #d4d4d8; letter-spacing: 0.08em; }
+.badge { padding: 4px 10px; border-radius: 6px; background: var(--accent); color: #141414; font-weight: 900; font-size: 11px; letter-spacing: 0.14em; }
+h1 {
+  margin: 0;
+  font-size: clamp(32px, 5vw, 56px);
+  line-height: 1.2;
   font-weight: 900;
-  color: #fff;
-  margin-bottom: 1.5rem;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
-  padding-bottom: 0.5rem;
+  letter-spacing: 0.02em;
+  /* 日本語は単語の途中で折れやすいので、均等割り（balance）はしない */
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
 }
-.markdown-body h2 {
-  font-size: 1.5rem;
+.series-name { margin: 14px 0 0; font-size: 15px; color: #d4d4d8; letter-spacing: 0.1em; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 22px 0 0; font-size: 12px; color: var(--muted); }
+.hero-cover {
+  justify-self: end;
+  width: min(100%, 380px);
+  aspect-ratio: 4 / 5;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  transform: rotate(1.5deg);
+  transition: transform 0.4s ease;
+}
+.hero-cover:not(:disabled):hover { transform: rotate(0) scale(1.02); }
+.hero-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* ---- 本文 ---- */
+.body {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 16px 0;
+}
+.prose { font-size: 16px; line-height: 2; color: #d4d4d8; }
+.prose :deep(p) { margin: 0 0 1.1em; }
+.prose :deep(a) { color: #fbbf24; text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
+.prose :deep(h2) { font-size: 22px; font-weight: 800; color: var(--ink); margin: 2.2em 0 0.8em; padding-left: 12px; border-left: 3px solid var(--accent); }
+.prose :deep(h3) { font-size: 18px; font-weight: 800; color: var(--ink); margin: 1.8em 0 0.6em; }
+.prose :deep(ul), .prose :deep(ol) { padding-left: 1.4em; margin: 0 0 1.4em; }
+.prose :deep(ul) { list-style: disc; }
+.prose :deep(ol) { list-style: decimal; }
+.prose :deep(blockquote) { margin: 1.6em 0; padding: 12px 18px; border-left: 3px solid var(--accent); background: rgba(243, 156, 18, 0.06); border-radius: 0 10px 10px 0; color: #e4e4e7; }
+.prose :deep(img) { max-width: 100%; border-radius: 12px; }
+
+.gallery-block {
+  /* 本文より広く使う */
+  width: min(1080px, calc(100vw - 32px));
+  margin: 32px 0 48px;
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.gallery-head { display: flex; align-items: baseline; gap: 12px; margin: 0 0 14px; font-size: 12px; color: var(--muted); }
+.gallery-head span { font-weight: 900; color: var(--accent); letter-spacing: 0.16em; }
+.masonry { list-style: none; padding: 0; margin: 0; columns: 4 220px; column-gap: 12px; }
+.masonry li { break-inside: avoid; margin-bottom: 12px; }
+.masonry button,
+.single button {
+  display: block;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #18181b;
+  cursor: zoom-in;
+}
+.masonry img { width: 100%; height: auto; display: block; transition: transform 0.5s ease, opacity 0.3s; }
+.masonry button:hover img,
+.masonry button:focus-visible img { transform: scale(1.04); }
+.more {
+  display: block;
+  margin: 8px auto 0;
+  padding: 12px 28px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  color: var(--accent);
   font-weight: 700;
-  color: #f39c12; /* エリカカラー */
-  margin-top: 2rem;
-  margin-bottom: 1rem;
+  font-size: 14px;
 }
-.markdown-body h3 {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #e5e7eb;
-  margin-top: 1.5rem;
-  margin-bottom: 0.75rem;
+.more:hover { background: var(--accent); color: #141414; }
+
+.single { margin: 32px auto 40px; max-width: 520px; }
+.single img { width: 100%; height: auto; display: block; }
+.single figcaption { margin-top: 10px; font-size: 12px; color: var(--muted); text-align: center; line-height: 1.7; }
+
+.embed { margin: 28px 0 40px; }
+.embed.narrow { max-width: 360px; margin-inline: auto; }
+.embed-label { margin: 0 0 10px; font-size: 11px; font-weight: 900; letter-spacing: 0.2em; color: var(--muted); }
+.x-embed :deep(.twitter-tweet) {
+  margin: 0 auto !important;
 }
-.markdown-body p {
-  color: #d1d5db;
-  line-height: 1.8;
-  margin-bottom: 1.25rem;
+/* 埋め込みが読み込めないときに見えるリンク */
+.x-embed blockquote {
+  margin: 0;
+  padding: 18px 20px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: #141418;
 }
-.markdown-body a {
-  color: #60a5fa;
-  text-decoration: underline;
+.x-embed blockquote a { color: var(--ink); font-weight: 700; }
+
+.music {
+  margin: 40px 0;
+  padding: 22px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #1c1712 0%, #121214 70%);
+  border: 1px solid rgba(243, 156, 18, 0.25);
+  display: grid;
+  gap: 18px;
 }
-.markdown-body a:hover {
-  color: #93c5fd;
+.music-label { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 11px; font-weight: 900; letter-spacing: 0.24em; color: var(--accent); }
+.eq { display: inline-flex; gap: 2px; align-items: flex-end; height: 12px; }
+.eq i { width: 3px; background: var(--accent); border-radius: 1px; animation: eq 1s ease-in-out infinite; }
+.eq i:nth-child(2) { animation-delay: 0.2s; }
+.eq i:nth-child(3) { animation-delay: 0.4s; }
+@keyframes eq { 0%, 100% { height: 3px; } 50% { height: 12px; } }
+.music-title { margin: 6px 0 0; font-size: clamp(24px, 4vw, 32px); font-weight: 900; line-height: 1.2; }
+.music-artist { margin: 4px 0 0; font-size: 14px; color: #d4d4d8; letter-spacing: 0.08em; }
+
+.pull-quote {
+  margin: 44px 0 20px;
+  padding: 8px 0 8px 28px;
+  position: relative;
+  border-left: 2px solid var(--accent);
 }
-.markdown-body ul {
-  list-style-type: disc;
-  padding-left: 1.5rem;
-  color: #d1d5db;
-  margin-bottom: 1.25rem;
+.pull-quote::before {
+  content: '“';
+  position: absolute;
+  left: 10px;
+  top: -34px;
+  font-family: 'Shippori Mincho', serif;
+  font-size: 72px;
+  color: rgba(243, 156, 18, 0.45);
+  line-height: 1;
 }
-.markdown-body ol {
-  list-style-type: decimal;
-  padding-left: 1.5rem;
-  color: #d1d5db;
-  margin-bottom: 1.25rem;
+.pull-quote p {
+  margin: 0;
+  font-family: 'Shippori Mincho', serif;
+  font-weight: 600;
+  font-size: clamp(19px, 3vw, 24px);
+  line-height: 1.9;
+  color: var(--ink);
 }
-.markdown-body blockquote {
-  border-left: 4px solid #f39c12;
-  padding-left: 1rem;
-  color: #9ca3af;
-  font-style: italic;
-  margin-bottom: 1.25rem;
-  background-color: rgba(243,156,18,0.05);
-  padding: 1rem;
-  border-radius: 0 0.5rem 0.5rem 0;
+
+.channel {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 40px 0;
+  padding: 18px 20px;
+  border-radius: 18px;
+  background: #141418;
+  border: 1px solid var(--line);
+  transition: border-color 0.2s, transform 0.2s;
+}
+.channel:hover { border-color: rgba(255, 0, 51, 0.6); transform: translateY(-2px); }
+.yt-icon svg { width: 44px; height: 32px; display: block; }
+.channel-text { flex: 1; display: grid; gap: 2px; }
+.channel-text small { font-size: 11px; color: var(--muted); letter-spacing: 0.14em; }
+.channel-text strong { font-size: 16px; }
+.channel-text span { font-size: 12px; color: var(--muted); }
+.channel-go { font-size: 22px; color: var(--muted); }
+
+.article-foot { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--line); }
+.tags { list-style: none; padding: 0; margin: 0 0 20px; display: flex; flex-wrap: wrap; gap: 8px; }
+.tags li { font-size: 12px; color: #d4d4d8; padding: 4px 10px; border-radius: 999px; background: #18181b; }
+.share { display: flex; flex-wrap: wrap; gap: 10px; }
+
+/* ---- 前後の記事 ---- */
+.pager {
+  max-width: 1080px;
+  margin: 64px auto 0;
+  padding: 0 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.pager-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  border-radius: 16px;
+  background: #141418;
+  border: 1px solid var(--line);
+  min-width: 0;
+  transition: border-color 0.2s;
+}
+.pager-card:hover { border-color: rgba(243, 156, 18, 0.5); }
+.pager-card.right { flex-direction: row-reverse; text-align: right; }
+.pager-card.empty { visibility: hidden; }
+.pager-card img { width: 64px; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 10px; flex-shrink: 0; }
+.pager-card span { display: grid; gap: 4px; min-width: 0; }
+.pager-card small { font-size: 11px; color: var(--muted); letter-spacing: 0.1em; }
+.pager-card strong { font-size: 14px; line-height: 1.5; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.back { text-align: center; margin: 32px 0 0; }
+
+@media (max-width: 820px) {
+  .hero { padding-top: 96px; }
+  .hero-inner { grid-template-columns: 1fr; gap: 28px; }
+  .hero-cover { justify-self: center; width: min(78%, 340px); }
+  .pager { grid-template-columns: 1fr; }
+  .pager-card.right { flex-direction: row; text-align: left; }
+  .masonry { columns: 2; column-gap: 8px; }
+  .masonry li { margin-bottom: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .eq i { animation: none; height: 8px; }
 }
 </style>
