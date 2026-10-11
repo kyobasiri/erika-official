@@ -1,48 +1,48 @@
 [
     {
         "id": "e1",
-        "title": "キャッシュ最適化",
-        "text": "「不要なログを削除しておきました。動きが軽くなるはずですよ。」",
+        "title": "癒しの浄化",
+        "text": "「迷宮の隅に溜まっていた澱んだログを、聖なる光で浄化しておきました。傷が癒えていくのを感じませんか？」",
         "type": "positive",
         "effectType": "heal_hp_fixed",
         "effectValue": 20
     },
     {
         "id": "e2",
-        "title": "オーバークロック",
-        "text": "「少しリミッターを外しますね。無理は禁物ですよ？」",
+        "title": "時間延長の呪文",
+        "text": "「古の加速の呪文を、あなたの砂時計に重ねました。残り時間が増えましたよ。ただし、無理は禁物です。」",
         "type": "positive",
         "effectType": "add_time_fixed",
         "effectValue": 15
     },
     {
         "id": "e3",
-        "title": "ショートカット構築",
-        "text": "「こっちのポートを開けておきました。近道できますよ。」",
+        "title": "転送門で前進",
+        "text": "「壁の裏に隠された転送門を開いておきました。光の扉をくぐれば、数歩先まで一気に進めますよ。」",
         "type": "positive",
         "effectType": "warp_forward",
         "effectValue": 2
     },
     {
         "id": "e4",
-        "title": "無限ループの罠",
-        "text": "「ふふっ、バグに引っかかりましたね。抜け出せますか？」",
+        "title": "時を奪うループ",
+        "text": "「あら、時のループに迷い込んでしまいましたね。同じ道を何度も歩かされて、砂時計の砂がどんどん減っていきますよ？」",
         "type": "negative",
         "effectType": "sub_time_fixed",
         "effectValue": 15
     },
     {
         "id": "e5",
-        "title": "過負荷テスト",
-        "text": "「どれくらい耐えられるか、少しテストさせてもらいますね。」",
+        "title": "魔石の重圧",
+        "text": "「巨大な魔石をあなたの肩に乗せてみますね。重みに耐えられるでしょうか。生命力が削られていきますよ。」",
         "type": "negative",
         "effectType": "sub_hp_percent",
         "effectValue": 20
     },
     {
         "id": "e6",
-        "title": "システム掌握",
-        "text": "「管理者権限を要求するプロンプトが出ています。承認しますか？」",
+        "title": "禁断の契約（賭け）",
+        "text": "「禁じられた『管理者の契約書』が現れました。署名すれば大いなる祝福か、手痛い呪いが降りかかります。さあ、どうしますか？」",
         "type": "gamble",
         "effectType": "random_hp_or_damage",
         "effectValue": 50

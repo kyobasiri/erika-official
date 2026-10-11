@@ -73,25 +73,7 @@ interface Reel {
   isSpinning: boolean
 }
 
-interface BGMPlayer {
-  setVolume: (volume: number) => void
-  loadVideoById: (id: string) => void
-  pauseVideo: () => void
-  destroy: () => void
-}
 
-interface YouTubeAPI {
-  Player: new (
-    element: string,
-    options: {
-      videoId: string
-      playerVars: Record<string, string | number>
-      events: {
-        onReady: (event: { target: BGMPlayer }) => void
-      }
-    }
-  ) => BGMPlayer
-}
 
 interface YouTubeWindow extends Window {
   YT?: YouTubeAPI
@@ -124,6 +106,8 @@ const gameState = ref<GameState>('title')
 const gameMode = ref<'oneshot' | 'endless'>('oneshot')
 const difficulty = ref<Difficulty>('normal')
 const currentFloor = ref(1)
+
+
 
 const targetFloor = computed(() => {
   if (gameMode.value === 'endless') return Infinity
@@ -222,6 +206,29 @@ function startTimer() {
     player.value.timeLeft = Math.max(0, player.value.timeLeft - 1)
     if (player.value.timeLeft <= 0) triggerGameOver()
   }, 1000)
+}
+
+interface BGMPlayer {
+  setVolume: (volume: number) => void
+  loadVideoById: (id: string) => void
+  pauseVideo: () => void
+  destroy: () => void
+  seekTo: (seconds: number, allowSeekAhead?: boolean) => void // 追加
+  playVideo: () => void // 追加
+}
+
+interface YouTubeAPI {
+  Player: new (
+    element: string,
+    options: {
+      videoId: string
+      playerVars: Record<string, string | number>
+      events: {
+        onReady: (event: { target: BGMPlayer }) => void
+        onStateChange?: (event: { data: number; target: BGMPlayer }) => void // 追加
+      }
+    }
+  ) => BGMPlayer
 }
 
 // -----------------------------------------------------------------------------
@@ -336,17 +343,31 @@ function createBGMPlayer() {
     events: {
       onReady: event => {
         if (disposed) return
-
         bgmReady = true
         event.target.setVolume(20)
-
         if (pendingVideoId && isPlaying.value) {
           event.target.loadVideoById(pendingVideoId)
           pendingVideoId = null
         }
+      },
+      onStateChange: (event: { data: number; target: BGMPlayer }) => {
+        // YT.PlayerState.ENDED は 0
+        if (event.data === 0) {
+          event.target.seekTo(0);
+          event.target.playVideo();
+        }
       }
     }
   })
+}
+
+function stopNextReel() {
+  if (gameState.value !== 'slot') return
+  // 左から順に回転中のリールを探す
+  const nextIndex = reels.value.findIndex(reel => reel.isSpinning)
+  if (nextIndex !== -1) {
+    stopReel(nextIndex)
+  }
 }
 
 async function loadSongsAndInitBGM() {
@@ -1931,7 +1952,7 @@ onUnmounted(() => {
             {{ slotMessage }}
           </div>
 
-          <div class="flex gap-2 md:gap-4 mb-6">
+          <div class="flex gap-2 md:gap-4 mb-6 justify-center">
             <div
               v-for="(reel, index) in reels"
               :key="index"
@@ -1948,28 +1969,34 @@ onUnmounted(() => {
                   :class="{ 'opacity-80 blur-[2px]': reel.isSpinning }"
                 >
               </div>
-              <button
-                @click="stopReel(index)"
-                :disabled="!reel.isSpinning"
-                class="w-full py-2 bg-zinc-800 text-white font-bold rounded-lg border border-zinc-600 hover:bg-zinc-700 disabled:opacity-30"
-              >
-                STOP
-              </button>
             </div>
           </div>
 
-          <div class="flex flex-col gap-4 w-full max-w-sm">
+          <div class="flex flex-col gap-4 w-full max-w-sm mx-auto">
+            <!-- 回転中：停止ボタン -->
             <button
+              v-if="!isAllStopped"
+              @click="stopNextReel"
+              class="w-full py-4 bg-zinc-200 text-black font-black text-2xl rounded-lg shadow-[0_0_15px_rgba(255,255,255,0.4)] hover:bg-white active:scale-95 transition-all"
+            >
+              STOP!
+            </button>
+
+            <!-- 停止中：開始ボタン -->
+            <button
+              v-if="isAllStopped"
               @click="startSlot"
-              :disabled="player.coins <= 0 || !isAllStopped"
+              :disabled="player.coins <= 0"
               class="w-full py-4 bg-erika text-black font-black text-xl rounded-full shadow-[0_0_15px_rgba(243,156,18,0.4)] hover:bg-amber-400 disabled:opacity-30 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:shadow-none transition-all"
             >
               スロットを回す (1 Coin)
             </button>
+            
+            <!-- 停止中：次へ進むボタン -->
             <button
+              v-if="isAllStopped"
               @click="proceedToNextFloor"
-              :disabled="!isAllStopped"
-              class="w-full py-3 bg-zinc-800 text-white font-bold rounded-full border border-zinc-600 hover:bg-zinc-700 disabled:opacity-30 transition-colors"
+              class="w-full py-3 bg-zinc-800 text-white font-bold rounded-full border border-zinc-600 hover:bg-zinc-700 transition-colors"
             >
               次の階層へ進む ▶
             </button>
