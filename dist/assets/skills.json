@@ -20,44 +20,44 @@
     "description": "現在HPの20%を消費し、敵単体に2.5倍の強力な物理ダメージ。"
   },
   {
-    "id": "skill_poison_rock",
-    "name": "POISON ROCK'N'ROLL",
+    "id": "skill_third_eye",
+    "name": "サードアイ",
     "type": "attack_physical",
     "target": "all",
     "cost_hp_percent": 25,
-    "multiplier": 2,
+    "multiplier": 2.8,
     "min_floor": 3,
-    "description": "現在HPの25%を消費し、敵全体に2.0倍の物理ダメージ。"
+    "description": "第三の目が開眼し、現在HPの25%を消費し、敵全体に2.8倍の物理ダメージ。"
   },
   {
-    "id": "skill_daydream",
-    "name": "DAYDREAM WONDER",
+    "id": "skill_waiting_at_the_busstop",
+    "name": "Waiting At The Busstop",
     "type": "attack_magic",
     "target": "single",
     "cost_mp": 5,
     "multiplier": 1.5,
     "min_floor": 1,
-    "description": "MPを5消費し、敵単体に1.5倍の魔法ダメージ。"
+    "description": "バス停で待ち続け、MPを5消費し、敵単体に1.5倍の魔法ダメージ。"
   },
   {
-    "id": "skill_hybrid_rainbow",
-    "name": "ハイブリッド レインボウ",
+    "id": "skill_trip_dancer",
+    "name": "TRIP DANCER",
     "type": "attack_magic",
     "target": "all",
     "cost_mp": 15,
     "multiplier": 2.5,
     "min_floor": 3,
-    "description": "MPを15消費し、敵全体に2.5倍の魔法ダメージ。"
+    "description": "振り回す手が空に届き、MPを15消費して敵全体に2.5倍の魔法ダメージ。"
   },
   {
-    "id": "skill_mr_lostman",
-    "name": "Please Mr.Lostman",
+    "id": "skill_moon_margaret",
+    "name": "ムーンマーガレット",
     "type": "heal",
     "target": "single",
     "cost_mp": 8,
     "multiplier": 0.5,
     "min_floor": 1,
-    "description": "MPを8消費し、最大HPの50%を回復する。"
+    "description": "僕の庭に君が咲き、MPを8消費し、最大HPの50%を回復する。"
   },
   {
     "id": "skill_little_busters",
@@ -72,11 +72,11 @@
       "spd": 20
     },
     "min_floor": 5,
-    "description": "MPを10消費し、自身の全ステータスを1段階（20%）上昇させる。"
+    "description": "絆の力でMPを10消費し、自身の全ステータスを1段階（20%）上昇させる。"
   },
   {
-    "id": "skill_tokyo_zombie",
-    "name": "Tokyo Zombie",
+    "id": "skill_skeleton_liar",
+    "name": "Skeleton Liar",
     "type": "debuff",
     "target": "single",
     "cost_mp": 12,
@@ -87,7 +87,7 @@
       "spd": -40
     },
     "min_floor": 7,
-    "description": "MPを12消費し、敵単体の全ステータスを2段階（40%）低下させる。"
+    "description": "偽った傷や嘘を見抜き、MPを12消費して敵単体の全ステータスを2段階（40%）低下させる。"
   },
   {
     "id": "skill_good_dreams",
@@ -98,27 +98,27 @@
     "multiplier": 5,
     "condition": "hp_under_8",
     "min_floor": 8,
-    "description": "【条件: HP8%以下】全MPを消費し、敵全体に5.0倍の防御無視ダメージ。"
+    "description": "【条件: HP8%以下】夢を思い出して、敵全体に5.0倍の防御無視ダメージを与える。"
   },
   {
-    "id": "skill_primer_beat",
-    "name": "Primer Beat",
+    "id": "skill_youngster_kent_arrow",
+    "name": "YOUNGSTER (Kent Arrow)",
     "type": "attack_physical",
     "target": "single",
     "cost_hp_percent": 5,
     "multiplier": 1.2,
     "min_floor": 1,
-    "description": "現在HPの5%を消費し、敵単体に1.2倍の物理ダメージ。"
+    "description": "変えられるのは未来だけなんだという想いで、現在HPの5%を消費し、敵単体に1.2倍の物理ダメージを与える。"
   },
   {
-    "id": "skill_paper_triangle",
-    "name": "Paper Triangle",
+    "id": "skill_rush",
+    "name": "Rush",
     "type": "attack_physical",
     "target": "single",
     "cost_hp_percent": 7,
     "multiplier": 1.3,
     "min_floor": 1,
-    "description": "現在HPの7%を消費し、敵単体に1.3倍の物理ダメージ。"
+    "description": "閉ざされた彼女のドアをノックし続ける。現在HPの7%を消費し、敵単体に1.3倍の物理ダメージを与える。"
   },
   {
     "id": "skill_ice_pick",
@@ -128,17 +128,17 @@
     "cost_hp_percent": 12,
     "multiplier": 1.7,
     "min_floor": 2,
-    "description": "現在HPの12%を消費し、敵単体に1.7倍の物理ダメージ。"
+    "description": "今より似合う場所がどこかにある気がしている。現在HPの12%を消費し、敵単体に1.7倍の物理ダメージ。"
   },
   {
-    "id": "skill_spiky_goose",
-    "name": "Spiky Goose",
+    "id": "skill_crazy_sunshine",
+    "name": "CRAZY SUNSHINE",
     "type": "attack_physical",
     "target": "single",
     "cost_hp_percent": 14,
     "multiplier": 1.8,
     "min_floor": 2,
-    "description": "現在HPの14%を消費し、敵単体に1.8倍の物理ダメージ。"
+    "description": "青い欲望にキミと火をつけて何も不安じゃなくなる。現在HPの14%を消費し、敵単体に1.8倍の物理ダメージ。"
   },
   {
     "id": "skill_boon_boon_rock",
@@ -148,27 +148,27 @@
     "cost_hp_percent": 15,
     "multiplier": 2.0,
     "min_floor": 4,
-    "description": "現在HPの15%を消費し、敵単体に2.0倍の物理ダメージ。"
+    "description": "吠えるギターが爆音で唸る。現在HPの15%を消費し、敵単体に2.0倍の物理ダメージ。"
   },
   {
-    "id": "skill_blues_drive_monster",
-    "name": "Blues Drive Monster",
+    "id": "skill_white_ash",
+    "name": "White Ash",
     "type": "attack_physical",
     "target": "single",
     "cost_hp_percent": 25,
     "multiplier": 3.5,
     "min_floor": 5,
-    "description": "現在HPの25%を消費し、敵単体に3.5倍の物理ダメージ。"
+    "description": "手を伸ばす本能はヤケドしていたっても離せない。現在HPの25%を消費し、敵単体に3.5倍の物理ダメージ。"
   },
   {
-    "id": "skill_last_dinosaur",
-    "name": "LAST DINOSAUR",
+    "id": "skill_babylon_tenshi",
+    "name": "バビロン 天使の詩",
     "type": "attack_physical",
     "target": "single",
     "cost_hp_percent": 35,
     "multiplier": 4.2,
     "min_floor": 7,
-    "description": "現在HPの35%を消費し、敵単体に4.2倍の物理ダメージ。"
+    "description": "雲が邪魔したってひるまずに吹き飛ばす。現在HPの35%を消費し、敵単体に4.2倍の物理ダメージ。"
   },
   {
     "id": "skill_fun_fun_fun_ok",
@@ -178,27 +178,27 @@
     "cost_hp_percent": 8,
     "multiplier": 0.85,
     "min_floor": 1,
-    "description": "現在HPの8%を消費し、敵全体に0.85倍の物理ダメージ。"
+    "description": "恋をして傷ついてすぐFUNFUNFUNOK。現在HPの8%を消費し、敵全体に0.85倍の物理ダメージ。"
   },
   {
-    "id": "skill_naked_shuffle",
-    "name": "NAKED SHUFFLE",
+    "id": "skill_come_on_ghost",
+    "name": "Come On, Ghost",
     "type": "attack_physical",
     "target": "all",
     "cost_hp_percent": 12,
     "multiplier": 1.3,
     "min_floor": 2,
-    "description": "現在HPの12%を消費し、敵全体に1.3倍の物理ダメージ。"
+    "description": "覚えてる限りで一番の光を探す。現在HPの12%を消費し、敵全体に1.3倍の物理ダメージ。"
   },
   {
-    "id": "skill_rush",
-    "name": "RUSH",
+    "id": "skill_comic_sonic",
+    "name": "Comic Sonic",
     "type": "attack_physical",
     "target": "all",
     "cost_hp_percent": 18,
     "multiplier": 1.5,
     "min_floor": 3,
-    "description": "現在HPの18%を消費し、敵全体に1.5倍の物理ダメージ。"
+    "description": "夢が叶う前からきらめいて、いつまでも思うまま踊りたい。現在HPの18%を消費し、敵全体に1.5倍の物理ダメージ。"
   },
   {
     "id": "skill_wake_up_frenzy",
@@ -208,177 +208,177 @@
     "cost_hp_percent": 20,
     "multiplier": 1.8,
     "min_floor": 4,
-    "description": "現在HPの20%を消費し、敵全体に1.8倍の物理ダメージ。"
+    "description": "わかりきった予言を全部潰す。現在HPの20%を消費し、敵全体に1.8倍の物理ダメージ。"
   },
   {
-    "id": "skill_over_amp",
-    "name": "OVER AMP",
+    "id": "skill_sono_mirai_wa_ima",
+    "name": "その未来は今",
     "type": "attack_physical",
     "target": "all",
     "cost_hp_percent": 22,
-    "multiplier": 2.2,
+    "multiplier": 2.6,
     "min_floor": 5,
-    "description": "現在HPの22%を消費し、敵全体に2.2倍の物理ダメージ。"
+    "description": "汗をかいて生きてるんだその未来は今。現在HPの22%を消費し、敵全体に2.5倍の物理ダメージ。"
   },
   {
-    "id": "skill_thunder_whales_picnic",
-    "name": "THUNDER WHALES PICNIC",
+    "id": "skill_freebee_honey",
+    "name": "Freebee Honey",
     "type": "attack_physical",
     "target": "all",
     "cost_hp_percent": 30,
-    "multiplier": 3.2,
+    "multiplier": 3.3,
     "min_floor": 6,
-    "description": "現在HPの30%を消費し、敵全体に3.2倍の物理ダメージ。"
+    "description": "最上級に手を伸して痛い目を見たって怖くなくなった。現在HPの30%を消費し、敵全体に3.3倍の物理ダメージ。"
   },
   {
-    "id": "skill_suicide_diving",
-    "name": "SUICIDE DIVING",
+    "id": "skill_stroll_and_roll",
+    "name": "Stroll and roll",
     "type": "attack_physical",
     "target": "single",
     "cost_hp_percent": 45,
     "multiplier": 4.8,
     "min_floor": 8,
-    "description": "現在HPの45%を消費し、敵単体に4.8倍の物理ダメージ。"
+    "description": "砂漠で立ち止まれば終わり歩き続ければどこかに着くぜ。現在HPの45%を消費し、敵単体に4.8倍の物理ダメージ。"
   },
   {
-    "id": "skill_the_killing_field",
-    "name": "THE KILLING FIELD",
+    "id": "skill_thank_you_my_twilight",
+    "name": "Thank You, My Twilight",
     "type": "attack_physical",
     "target": "all",
     "cost_hp_percent": 50,
     "multiplier": 5.5,
     "min_floor": 8,
-    "description": "現在HPの50%を消費し、敵全体に5.5倍の物理ダメージ。"
+    "description": "奇跡は起こらなくても十分だぜ今日が最後の日でも構わない。現在HPの50%を消費し、敵全体に5.5倍の物理ダメージ。"
   },
   {
-    "id": "skill_lemon_drops",
-    "name": "Lemon Drops",
+    "id": "skill_non_fiction",
+    "name": "ノンフィクション",
     "type": "attack_magic",
     "target": "single",
     "cost_mp": 3,
-    "multiplier": 1.1,
+    "multiplier": 1.2,
     "min_floor": 1,
-    "description": "MPを3消費し、敵単体に1.1倍の魔法ダメージ。"
+    "description": "夜は誰にも言えないような夢を見せる。MPを3消費し、敵単体に1.2倍の魔法ダメージ。"
   },
   {
-    "id": "skill_purple_apple",
-    "name": "Purple Apple",
+    "id": "skill_kuuchuurejista_",
+    "name": "空中レジスター",
     "type": "attack_magic",
     "target": "single",
     "cost_mp": 5,
     "multiplier": 1.35,
     "min_floor": 1,
-    "description": "MPを5消費し、敵単体に1.35倍の魔法ダメージ。"
+    "description": "狙うライフルには宙返りのサービスをする。MPを5消費し、敵単体に1.35倍の魔法ダメージ。"
   },
   {
-    "id": "skill_finger_post_of_magic",
-    "name": "Finger post of magic",
+    "id": "skill_purejyar-song",
+    "name": "プレジャー・ソング",
     "type": "attack_magic",
     "target": "single",
     "cost_mp": 8,
     "multiplier": 1.7,
     "min_floor": 2,
-    "description": "MPを8消費し、敵単体に1.7倍の魔法ダメージ。"
+    "description": "心に咲いた希望は疑わないで育ててきた。MPを8消費し、敵単体に1.7倍の魔法ダメージ。"
   },
   {
-    "id": "skill_moon_is_mine",
-    "name": "Moon is mine",
+    "id": "skill_happy_bivouac",
+    "name": "HAPPY BIVOUAC",
     "type": "attack_magic",
     "target": "single",
     "cost_mp": 12,
     "multiplier": 2.15,
     "min_floor": 3,
-    "description": "MPを12消費し、敵単体に2.15倍の魔法ダメージ。"
+    "description": "ここにある人生で僕ら得た答えは頂上なんてないんだ。MPを12消費し、敵単体に2.15倍の魔法ダメージ。"
   },
   {
-    "id": "skill_binary_star",
-    "name": "Binary Star",
+    "id": "skill_good_morning_good_news",
+    "name": "Good Morning Good News",
     "type": "attack_magic",
     "target": "single",
     "cost_mp": 17,
     "multiplier": 2.7,
     "min_floor": 4,
-    "description": "MPを17消費し、敵単体に2.7倍の魔法ダメージ。"
+    "description": "未だ見慣れない自分にすべてをかけて挑みたい。MPを17消費し、敵単体に2.7倍の魔法ダメージ。"
+  },
+  {
+    "id": "skill_ronsamu_diamond",
+    "name": "ロンサムダイヤモンド",
+    "type": "attack_magic",
+    "target": "single",
+    "cost_mp": 23,
+    "multiplier": 3.4,
+    "min_floor": 5,
+    "description": "暗いトンネルを抜けたら望んだ世界と踊れる。MPを23消費し、敵単体に3.4倍の魔法ダメージ。"
   },
   {
     "id": "skill_star_overhead",
     "name": "Star overhead",
     "type": "attack_magic",
     "target": "single",
-    "cost_mp": 23,
-    "multiplier": 3.4,
-    "min_floor": 5,
-    "description": "MPを23消費し、敵単体に3.4倍の魔法ダメージ。"
-  },
-  {
-    "id": "skill_beyond_the_moon",
-    "name": "Beyond the moon",
-    "type": "attack_magic",
-    "target": "single",
     "cost_mp": 30,
     "multiplier": 4.3,
     "min_floor": 7,
-    "description": "MPを30消費し、敵単体に4.3倍の魔法ダメージ。"
+    "description": "遠い日の散らばった夢は星になって頭上にあった。MPを30消費し、敵単体に4.3倍の魔法ダメージ。"
   },
   {
-    "id": "skill_dance_with_god",
-    "name": "Dance with God",
+    "id": "skill_your_order",
+    "name": "YOUR ORDER",
     "type": "attack_magic",
     "target": "single",
     "cost_mp": 40,
     "multiplier": 5.2,
     "min_floor": 8,
-    "description": "MPを40消費し、敵単体に5.2倍の魔法ダメージ。"
+    "description": "好きな道を選んで人生と呼べばいい。MPを40消費し、敵単体に5.2倍の魔法ダメージ。"
   },
   {
-    "id": "skill_rain_brain",
-    "name": "RAIN BRAIN",
+    "id": "skill_calvero",
+    "name": "Calvero",
     "type": "attack_magic",
     "target": "all",
     "cost_mp": 6,
     "multiplier": 0.9,
     "min_floor": 1,
-    "description": "MPを6消費し、敵全体に0.9倍の魔法ダメージ。"
+    "description": "Life always not rosy. MPを6消費し、敵全体に0.9倍の魔法ダメージ。"
   },
   {
-    "id": "skill_colorful_pumpkin_fields",
-    "name": "カラフル・パンプキン・フィールズ",
+    "id": "skill_phantom_pain",
+    "name": "ファントムペイン",
     "type": "attack_magic",
     "target": "all",
     "cost_mp": 9,
     "multiplier": 1.2,
     "min_floor": 2,
-    "description": "MPを9消費し、敵全体に1.2倍の魔法ダメージ。"
+    "description": "あるはずのない時限爆弾の音がチッチッチッ。MPを9消費し、敵全体に1.2倍の魔法ダメージ。"
   },
   {
-    "id": "skill_emerald_city",
-    "name": "EMERALD CITY",
+    "id": "skill_limp_tomorrow",
+    "name": "Limp Tomorrow",
     "type": "attack_magic",
     "target": "all",
     "cost_mp": 13,
     "multiplier": 1.5,
     "min_floor": 3,
-    "description": "MPを13消費し、敵全体に1.5倍の魔法ダメージ。"
+    "description": "絶望がトゲになって胸の奥刺さるんだ。本能は歌になってトゲを抜き進むんだ。MPを13消費し、敵全体に1.5倍の魔法ダメージ。"
   },
   {
-    "id": "skill_subtropical_fantasy",
-    "name": "Subtropical Fantasy",
+    "id": "skill_movement",
+    "name": "MOVEMENT",
     "type": "attack_magic",
     "target": "all",
     "cost_mp": 18,
     "multiplier": 1.9,
     "min_floor": 4,
-    "description": "MPを18消費し、敵全体に1.9倍の魔法ダメージ。"
+    "description": "綺麗な夢だけ持って未だ見ぬ世界目指して進むだろう。MPを18消費し、敵全体に1.9倍の魔法ダメージ。"
   },
   {
-    "id": "skill_crazy_sunshine",
-    "name": "Crazy Sunshine",
+    "id": "skill_prairie_rider",
+    "name": "プレイリー・ライダー",
     "type": "attack_magic",
     "target": "all",
     "cost_mp": 24,
     "multiplier": 2.4,
     "min_floor": 5,
-    "description": "MPを24消費し、敵全体に2.4倍の魔法ダメージ。"
+    "description": "無表情な大地を突き進めそびえたつ暗闇を突き進め。MPを24消費し、敵全体に2.4倍の魔法ダメージ。"
   },
   {
     "id": "skill_march_of_the_god",
@@ -388,7 +388,7 @@
     "cost_mp": 31,
     "multiplier": 3,
     "min_floor": 6,
-    "description": "MPを31消費し、敵全体に3.0倍の魔法ダメージ。"
+    "description": "Yes More light!MPを31消費し、敵全体に3.0倍の魔法ダメージ。"
   },
   {
     "id": "skill_terminal_heavens_rock",
@@ -398,57 +398,57 @@
     "cost_mp": 39,
     "multiplier": 3.7,
     "min_floor": 7,
-    "description": "MPを39消費し、敵全体に3.7倍の魔法ダメージ。"
+    "description": "死に損ねたロッカーに冥福を。MPを39消費し、敵全体に3.7倍の魔法ダメージ。"
   },
   {
-    "id": "skill_sayonara_universe",
-    "name": "さよならユニバース",
+    "id": "skill_curly_rudy",
+    "name": "Curly Rudy",
     "type": "attack_magic",
     "target": "all",
     "cost_mp": 48,
     "multiplier": 4.5,
     "min_floor": 8,
-    "description": "MPを48消費し、敵全体に4.5倍の魔法ダメージ。"
+    "description": "乗りそこなった船を忘れて自分で泳ぎだしてみれば向こう岸はすぐ見えてくる。MPを48消費し、敵全体に4.5倍の魔法ダメージ。"
   },
   {
-    "id": "skill_good_morning_good_news",
-    "name": "Good morning good news",
+    "id": "skill_bran_new_lovesong",
+    "name": "Bran-new lovesong",
     "type": "heal",
     "target": "single",
     "cost_mp": 3,
     "multiplier": 0.2,
     "min_floor": 1,
-    "description": "MPを3消費し、最大HPの20%を回復する。"
+    "description": "嫌いだった自分の事いつの間にか好きになっていた。MPを3消費し、最大HPの20%を回復する。"
   },
   {
     "id": "skill_smile",
-    "name": "Smile",
+    "name": "天使みたいにキミは立ってた",
     "type": "heal",
     "target": "single",
     "cost_mp": 5,
     "multiplier": 0.3,
     "min_floor": 2,
-    "description": "MPを5消費し、最大HPの30%を回復する。"
+    "description": "開くことのない最後の扉を容易く潜り抜けてキミは立ってた。天使みたいに。MPを5消費し、最大HPの30%を回復する。"
   },
   {
-    "id": "skill_song_for_you",
-    "name": "Song for you",
+    "id": "skill_orange_film_garden",
+    "name": "オレンジフィルムガーデン",
     "type": "heal",
     "target": "single",
     "cost_mp": 7,
     "multiplier": 0.4,
     "min_floor": 3,
-    "description": "MPを7消費し、最大HPの40%を回復する。"
+    "description": "君は無防備装って触れそうな距離。MPを7消費し、最大HPの40%を回復する。"
   },
   {
     "id": "skill_rescue",
-    "name": "Rescue",
+    "name": "僕らのハレー彗星",
     "type": "heal",
     "target": "single",
     "cost_mp": 10,
     "multiplier": 0.55,
     "min_floor": 4,
-    "description": "MPを10消費し、最大HPの55%を回復する。"
+    "description": "ハレー彗星が僕らの前にまたその姿を現す日までずっと二人でいたいよ。MPを10消費し、最大HPの55%を回復する。"
   },
   {
     "id": "skill_beautiful_morning_with_you",
@@ -458,67 +458,37 @@
     "cost_mp": 13,
     "multiplier": 0.65,
     "min_floor": 5,
-    "description": "MPを13消費し、最大HPの65%を回復する。"
+    "description": "五日分かりたいな僕ら生まれてきたこと。MPを13消費し、最大HPの65%を回復する。"
   },
   {
-    "id": "skill_our_love_and_peace",
-    "name": "Our love and peace",
+    "id": "skill_kanojyo_wa_kyou",
+    "name": "彼女は今日、",
     "type": "heal",
     "target": "single",
     "cost_mp": 16,
     "multiplier": 0.75,
     "min_floor": 6,
-    "description": "MPを16消費し、最大HPの75%を回復する。"
+    "description": "僕には見せないその笑顔はなんて美して華憐なんだ。MPを16消費し、最大HPの75%を回復する。"
   },
   {
-    "id": "skill_happy_bivouac",
-    "name": "HAPPY BIVOUAC",
+    "id": "skill_kim_deal",
+    "name": "Kim deal",
     "type": "heal",
     "target": "single",
     "cost_mp": 20,
     "multiplier": 0.85,
     "min_floor": 7,
-    "description": "MPを20消費し、最大HPの85%を回復する。"
+    "description": "君の孤独を見破れるのは変な名前の占い師たちじゃない。世界中探しても僕しかいない。MPを20消費し、最大HPの85%を回復する。"
   },
   {
-    "id": "skill_one_life",
-    "name": "ONE LIFE",
+    "id": "skill_energiya",
+    "name": "エネルギヤ",
     "type": "heal",
     "target": "single",
     "cost_mp": 24,
     "multiplier": 1,
     "min_floor": 8,
-    "description": "MPを24消費し、最大HPの100%を回復する。"
-  },
-  {
-    "id": "skill_thank_you_my_twilight",
-    "name": "Thank you, my twilight",
-    "type": "heal",
-    "target": "single",
-    "cost_mp": 18,
-    "multiplier": 0.7,
-    "min_floor": 7,
-    "description": "MPを18消費し、最大HPの70%を回復する。"
-  },
-  {
-    "id": "skill_happy_go_ducky",
-    "name": "Happy Go Ducky!",
-    "type": "heal",
-    "target": "single",
-    "cost_mp": 14,
-    "multiplier": 0.5,
-    "min_floor": 8,
-    "description": "MPを14消費し、最大HPの50%を回復する。"
-  },
-  {
-    "id": "skill_wonderful_sight",
-    "name": "Wonderful Sight",
-    "type": "heal",
-    "target": "single",
-    "cost_mp": 28,
-    "multiplier": 1,
-    "min_floor": 8,
-    "description": "MPを28消費し、最大HPの100%を回復する。"
+    "description": "君には消したい過去だとしても僕には宝物のエネルギー。MPを24消費し、最大HPの100%を回復する。"
   },
   {
     "id": "skill_i_think_i_can",
@@ -530,7 +500,7 @@
       "str": 20
     },
     "min_floor": 1,
-    "description": "MPを5消費し、自身の力20%を上昇させる。"
+    "description": "誰の目にもおよそ不可能なベット楽しみたいな。MPを5消費し、自身の力20%を上昇させる。"
   },
   {
     "id": "skill_perfect_idea",
@@ -542,7 +512,7 @@
       "mag": 20
     },
     "min_floor": 1,
-    "description": "MPを5消費し、自身の魔力20%を上昇させる。"
+    "description": "魔法使いも科学者も丸め込んで暴れてみよう。MPを5消費し、自身の魔力20%を上昇させる。"
   },
   {
     "id": "skill_boys_be_locksmith",
@@ -554,7 +524,7 @@
       "def": 20
     },
     "min_floor": 1,
-    "description": "MPを5消費し、自身の防御20%を上昇させる。"
+    "description": "キミが心を閉ざしたのはどこの誰のせい？MPを5消費し、自身の防御20%を上昇させる。"
   },
   {
     "id": "skill_locomotion_more",
@@ -566,7 +536,7 @@
       "spd": 20
     },
     "min_floor": 1,
-    "description": "MPを5消費し、自身の素早さ20%を上昇させる。"
+    "description": "もてあそばれようぜぎりぎりまで。MPを5消費し、自身の素早さ20%を上昇させる。"
   },
   {
     "id": "skill_ready_steady_go",
@@ -579,7 +549,7 @@
       "spd": 20
     },
     "min_floor": 5,
-    "description": "MPを8消費し、自身の力20%・素早さ20%を上昇させる。"
+    "description": "Only this fact is wonderful. MPを8消費し、自身の力20%・素早さ20%を上昇させる。"
   },
   {
     "id": "skill_brilliant_crown",
@@ -592,7 +562,7 @@
       "def": 20
     },
     "min_floor": 5,
-    "description": "MPを8消費し、自身の魔力20%・防御20%を上昇させる。"
+    "description": "もう夢を見ない王様その指で幕を引く。MPを8消費し、自身の魔力20%・防御20%を上昇させる。"
   },
   {
     "id": "skill_no_self_control",
@@ -605,7 +575,7 @@
       "spd": 20
     },
     "min_floor": 4,
-    "description": "MPを8消費し、自身の防御20%・素早さ20%を上昇させる。"
+    "description": "要らないぜ窓の外に甘い実がなったってもぎ取ってたたきつけたNO self control.MPを8消費し、自身の防御20%・素早さ20%を上昇させる。"
   },
   {
     "id": "skill_clean_slate_revolution",
@@ -618,7 +588,7 @@
       "mag": 20
     },
     "min_floor": 8,
-    "description": "MPを9消費し、自身の力20%・魔力20%を上昇させる。"
+    "description": "許せなかった時効の無い罪を飲み込めるか。飲み干すのさ。MPを9消費し、自身の力20%・魔力20%を上昇させる。"
   },
   {
     "id": "skill_be_wild",
@@ -630,11 +600,11 @@
       "str": 40
     },
     "min_floor": 7,
-    "description": "MPを12消費し、自身の力40%を上昇させる。"
+    "description": "越えた相手は1秒後の自分。MPを12消費し、自身の力40%を上昇させる。"
   },
   {
-    "id": "skill_pulse",
-    "name": "pulse",
+    "id": "skill_pied_piper",
+    "name": "Pied Piper",
     "type": "buff",
     "target": "single",
     "cost_mp": 12,
@@ -642,11 +612,11 @@
       "mag": 40
     },
     "min_floor": 7,
-    "description": "MPを12消費し、自身の魔力40%を上昇させる。"
+    "description": "気分のままに好きな歌うたってくれ。心があるんだろう？MPを12消費し、自身の魔力40%を上昇させる。"
   },
   {
-    "id": "skill_she_is_perfect",
-    "name": "She is perfect",
+    "id": "skill_no_surrender",
+    "name": "No Surrender",
     "type": "buff",
     "target": "single",
     "cost_mp": 12,
@@ -654,11 +624,11 @@
       "def": 40
     },
     "min_floor": 7,
-    "description": "MPを12消費し、自身の防御40%を上昇させる。"
+    "description": "俯くなよ立ち止まったし元に絶望しかない日々もいつかは潜り抜けて元通り笑ってよ。MPを12消費し、自身の防御40%を上昇させる。"
   },
   {
-    "id": "skill_skinny_blues",
-    "name": "Skinny Blues",
+    "id": "skill_paper_triangle",
+    "name": "Paper Triangle",
     "type": "debuff",
     "target": "single",
     "cost_mp": 5,
@@ -669,8 +639,8 @@
     "description": "MPを5消費し、敵単体の力20%を低下させる。"
   },
   {
-    "id": "skill_sick_vibration",
-    "name": "Sick Vibration",
+    "id": "skill_tokyo_zombie",
+    "name": "Tokyo Zombie",
     "type": "debuff",
     "target": "single",
     "cost_mp": 5,
@@ -678,11 +648,11 @@
       "mag": -20
     },
     "min_floor": 1,
-    "description": "MPを5消費し、敵単体の魔力20%を低下させる。"
+    "description": "The Knock Came At Dead Of Night. MPを5消費し、敵単体の魔力20%を低下させる。"
   },
   {
-    "id": "skill_biscuit_hammer",
-    "name": "ビスケットハンマー",
+    "id": "skill_bad_dreams",
+    "name": "BAD DREAMS",
     "type": "debuff",
     "target": "single",
     "cost_mp": 6,
@@ -690,11 +660,11 @@
       "def": -20
     },
     "min_floor": 1,
-    "description": "MPを6消費し、敵単体の防御20%を低下させる。"
+    "description": "わおーん。MPを6消費し、敵単体の防御20%を低下させる。"
   },
   {
-    "id": "skill_slow_down",
-    "name": "Slow down",
+    "id": "skill_across_the_metropolis",
+    "name": "Across the metropolis",
     "type": "debuff",
     "target": "single",
     "cost_mp": 6,
@@ -702,11 +672,11 @@
       "spd": -20
     },
     "min_floor": 2,
-    "description": "MPを6消費し、敵単体の素早さ20%を低下させる。"
+    "description": "Nothings gannna chages your world. MPを6消費し、敵単体の素早さ20%を低下させる。"
   },
   {
-    "id": "skill_degeneration",
-    "name": "Degeneration",
+    "id": "skill_snoozer",
+    "name": "Snoozer",
     "type": "debuff",
     "target": "single",
     "cost_mp": 9,
@@ -715,11 +685,11 @@
       "mag": -20
     },
     "min_floor": 5,
-    "description": "MPを9消費し、敵単体の力20%・魔力20%を低下させる。"
+    "description": "愛と呼ぶには足りない恋心で満たされていた。MPを9消費し、敵単体の力20%・魔力20%を低下させる。"
   },
   {
-    "id": "skill_borderline_case",
-    "name": "Borderline Case",
+    "id": "skill_fighting_pose",
+    "name": "ファイティングポーズ",
     "type": "debuff",
     "target": "single",
     "cost_mp": 9,
@@ -728,11 +698,11 @@
       "spd": -20
     },
     "min_floor": 5,
-    "description": "MPを9消費し、敵単体の防御20%・素早さ20%を低下させる。"
+    "description": "表彰台はもう登れないレフェリーの哀れを目にファイティングポーズ構えるだけ。MPを9消費し、敵単体の防御20%・素早さ20%を低下させる。"
   },
   {
-    "id": "skill_skeleton_liar",
-    "name": "Skeleton Liar",
+    "id": "skill_super_trampoline_schoolkid",
+    "name": "スーパートランポリン スクールキッド",
     "type": "debuff",
     "target": "single",
     "cost_mp": 12,
@@ -740,11 +710,11 @@
       "def": -40
     },
     "min_floor": 8,
-    "description": "MPを12消費し、敵単体の防御40%を低下させる。"
+    "description": "スーパートランポリン スクールキッド！MPを12消費し、敵単体の防御40%を低下させる。"
   },
   {
-    "id": "skill_sleepy_head",
-    "name": "Sleepy Head",
+    "id": "skill_backseat_dog",
+    "name": "Back seat dog",
     "type": "debuff",
     "target": "single",
     "cost_mp": 12,
@@ -752,11 +722,11 @@
       "spd": -40
     },
     "min_floor": 8,
-    "description": "MPを12消費し、敵単体の素早さ40%を低下させる。"
+    "description": "もしかしてなんて罪な夢は心をかき混ぜる。MPを12消費し、敵単体の素早さ40%を低下させる。"
   },
   {
-    "id": "skill_ritalin_202",
-    "name": "Ritalin 202",
+    "id": "skill_carnival",
+    "name": "CARNIVAL",
     "type": "debuff",
     "target": "all",
     "cost_mp": 18,
@@ -764,11 +734,11 @@
       "str": -20
     },
     "min_floor": 5,
-    "description": "MPを18消費し、敵全体の力20%を低下させる。"
+    "description": "観覧車に独りで暮らしてる大嫌いな世界を見下ろして。MPを18消費し、敵全体の力20%を低下させる。"
   },
   {
-    "id": "skill_moll_town_prisoner",
-    "name": "モールタウンプリズナー",
+    "id": "skill_pumpkin_and_atrocity",
+    "name": "Pumpkin and atrocity",
     "type": "debuff",
     "target": "all",
     "cost_mp": 20,
@@ -776,11 +746,11 @@
       "def": -20
     },
     "min_floor": 5,
-    "description": "MPを20消費し、敵全体の防御20%を低下させる。"
+    "description": "If you dont believe me. Its good bye.MPを20消費し、敵全体の防御20%を低下させる。"
   },
   {
-    "id": "skill_nightmare",
-    "name": "Nightmare",
+    "id": "skill_sad_fad_love",
+    "name": "Sad Fad Love",
     "type": "debuff",
     "target": "all",
     "cost_mp": 28,
@@ -789,7 +759,7 @@
       "mag": -20
     },
     "min_floor": 8,
-    "description": "MPを28消費し、敵全体の力20%・魔力20%を低下させる。"
+    "description": "So I know Its that unrelate me.MPを28消費し、敵全体の力20%・魔力20%を低下させる。"
   },
   {
     "id": "skill_funny_bunny",
@@ -797,21 +767,21 @@
     "type": "ultimate",
     "target": "single",
     "cost_mp": 999,
-    "multiplier": 3.5,
+    "multiplier": 4.0,
     "condition": "hp_under_30",
     "min_floor": 4,
-    "description": "【条件: HP30%以下】全MPを消費し、敵単体に3.5倍の防御無視ダメージ。"
+    "description": "キミの夢が叶うのは誰かのおかげじゃないぜ。風の強いを選んで走ってきた。【条件: HP30%以下】全MPを消費し、敵単体に4倍の防御無視ダメージ。"
   },
   {
-    "id": "skill_carnival",
-    "name": "カーニバル",
+    "id": "skill_ride_on_shooting_star",
+    "name": "Ride on shooting star",
     "type": "ultimate",
     "target": "all",
     "cost_mp": 999,
-    "multiplier": 2.5,
+    "multiplier": 3.0,
     "condition": "hp_under_30",
     "min_floor": 6,
-    "description": "【条件: HP30%以下】全MPを消費し、敵全体に2.5倍の防御無視ダメージ。"
+    "description": "Ride on shooting star 心の声で散弾銃のように歌い続けた。【条件: HP30%以下】全MPを消費し、敵全体に3.0倍の防御無視ダメージ。"
   },
   {
     "id": "skill_my_foot",
@@ -819,32 +789,32 @@
     "type": "ultimate",
     "target": "single",
     "cost_mp": 999,
-    "multiplier": 4.5,
+    "multiplier": 7,
     "condition": "hp_under_20",
-    "min_floor": 8,
-    "description": "【条件: HP20%以下】全MPを消費し、敵単体に4.5倍の防御無視ダメージ。"
+    "min_floor": 6,
+    "description": "いつまでも諦めの悪い挑戦者のように走れMY FOOT踵を鳴らして。【条件: HP20%以下】全MPを消費し、敵単体に7.0倍の防御無視ダメージ。"
   },
   {
-    "id": "skill_rocknroll_sinners",
-    "name": "ROCK'N'ROLL SINNERS",
+    "id": "skill_about_a_rocknroll_band",
+    "name": "About A Rock'n'Roll Band",
     "type": "ultimate",
     "target": "all",
     "cost_mp": 999,
-    "multiplier": 3.3,
+    "multiplier": 5.5,
     "condition": "hp_under_20",
-    "min_floor": 9,
-    "description": "【条件: HP20%以下】全MPを消費し、敵全体に3.3倍の防御無視ダメージ。"
+    "min_floor": 6,
+    "description": "今夜もロックンロールの引力は万能で道なき道を切り開いていくんだ。【条件: HP20%以下】全MPを消費し、敵全体に5.5倍の防御無視ダメージ。"
   },
   {
     "id": "skill_third_eye",
-    "name": "サード アイ",
+    "name": "王様になれ",
     "type": "ultimate",
     "target": "single",
     "cost_mp": 999,
-    "multiplier": 5.5,
+    "multiplier": 6.0,
     "condition": "hp_under_10",
-    "min_floor": 8,
-    "description": "【条件: HP10%以下】全MPを消費し、敵単体に5.5倍の防御無視ダメージ。"
+    "min_floor": 6,
+    "description": "夢現てなづけて自由自在気分次第脳細胞の支配下で王様になれ。【条件: HP10%以下】全MPを消費し、敵単体に6.0倍の防御無視ダメージ。"
   },
   {
     "id": "skill_konoyonohatemade",
@@ -852,21 +822,21 @@
     "type": "ultimate",
     "target": "all",
     "cost_mp": 999,
-    "multiplier": 4.1,
+    "multiplier": 4.5,
     "condition": "hp_under_10",
     "min_floor": 8,
-    "description": "【条件: HP10%以下】全MPを消費し、敵全体に4.1倍の防御無視ダメージ。"
+    "description": "聞こえてくるのはキミの声それ以外は要らなくなってた。【条件: HP10%以下】全MPを消費し、敵全体に4.5倍の防御無視ダメージ。"
   },
   {
-    "id": "skill_no_surrender",
-    "name": "No Surrender",
+    "id": "skill_hybrid_rainbow",
+    "name": "ハイブリッド レインボウ",
     "type": "ultimate",
     "target": "single",
     "cost_mp": 999,
-    "multiplier": 7,
+    "multiplier": 8.5,
     "condition": "hp_under_5",
     "min_floor": 9,
-    "description": "【条件: HP5%以下】全MPを消費し、敵単体に7.0倍の防御無視ダメージ。"
+    "description": "I can feel that hybrid rainbow.【条件: HP5%以下】全MPを消費し、敵単体に8.5倍の防御無視ダメージ。"
   },
   {
     "id": "skill_fool_on_the_planet",
@@ -874,9 +844,9 @@
     "type": "ultimate",
     "target": "all",
     "cost_mp": 999,
-    "multiplier": 5.5,
+    "multiplier": 10,
     "condition": "hp_under_5",
     "min_floor": 9,
-    "description": "【条件: HP5%以下】全MPを消費し、敵全体に5.5倍の防御無視ダメージ。"
+    "description": "すべてが変わっても僕は変わらない。【条件: HP5%以下】全MPを消費し、敵全体に10倍の防御無視ダメージ。"
   }
 ]

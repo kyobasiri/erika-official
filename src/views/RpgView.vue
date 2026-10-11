@@ -1196,7 +1196,7 @@ onUnmounted(() => {
         <div class="growth-box"><h3>ステータス強化 <span>残り {{ statPoints }}pt</span></h3><p class="help-text">獲得ポイントによって難易度が変わります。敵の強さは共通です。</p>
           <div class="stat-grid"><div v-for="stat in statList" :key="stat.key"><span>{{ stat.label }}<b>{{ player[stat.key] }}</b></span><button :disabled="statPoints <= 0" @click="allocateStat(stat.key)" :aria-label="`${stat.label}に1ポイント割り振る`">＋</button></div></div>
         </div>
-        <div class="growth-box"><h3>セットリスト <span>{{ equippedSkillIds.length }}/4曲</span></h3><p class="help-text">習得済みの曲から、戦闘に持ち込む4曲を選びます。</p><div class="equipped-pills"><span v-for="s in availableSkills" :key="s.id">{{ s.name }}</span></div><button class="small-button" @click="setlistOpen = true">セットリストを編成</button></div>
+        <div class="growth-box"><h3>セットリスト <span>{{ equippedSkillIds.length }}/4曲</span></h3><p class="help-text">習得済みの曲から、戦闘に持ち込む4曲を選びます。</p><div class="equipped-pills"><span v-for="s in availableSkills" :key="s.id">{{ s.name }}</span></div><button class="small-button" @click="setlistOpen = true">セットリストを編成</button>
         <div class="skill-tabs-container">
         <!-- タブUI -->
         <div class="skill-tabs">
@@ -1212,6 +1212,19 @@ onUnmounted(() => {
           <input v-model="skillSearch" placeholder="曲名で絞り込み..." aria-label="習得する曲を検索">
         </div>
       </div>
+      <!-- スキル一覧表示部分（エラーの原因はここが消えていたこと） -->
+      <div class="learn-list">
+        <div v-for="skill in visibleUnlearned" :key="skill.id">
+          <div>
+            <small>{{ skillRole(skill) }} · {{ skill.target === 'all' ? '全体' : '単体／自身' }}</small>
+            <strong>{{ skill.name }}</strong>
+            <p>{{ skill.description }}</p>
+          </div>
+          <button class="small-button" :disabled="skillPoints <= 0" @click="learnSelectedSkill(skill)">習得</button>
+        </div>
+        <p v-if="!visibleUnlearned.length" class="help-text">該当する未習得の曲はありません。</p>
+      </div>
+    </div>
         <button class="primary-button next-floor" :disabled="equippedSkillIds.length === 0" @click="goToNextFloor">{{ rewardTier }} の成長報酬で、次の階層へ →</button>
         <p v-if="statPoints || skillPoints" class="help-text">未使用の {{ statPoints }}pt・習得権 {{ skillPoints }}曲分は次の休憩所へ持ち越せます。</p>
       </section>
