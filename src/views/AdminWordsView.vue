@@ -4,6 +4,7 @@ import WordCard from '../words/WordCard.vue'
 import { adminApi, AdminApiError, type AdminWord, type WordStatus } from '../words/adminApi'
 import { resizeImage } from '../words/imageResize'
 import { commentToHtml } from '../words/commentFormat'
+import { ZOOM_MAX, ZOOM_MIN } from '../words/artImage'
 import {
   SOURCE_KIND_LABELS, TEMPLATE_LABELS, sourceLine,
   type BubbleShape, type BubbleTail, type SourceKind, type WordEntry, type WordTemplate
@@ -51,6 +52,7 @@ const blankForm = (): Form => ({
   template: 'bubble',
   options: {
     fontScale: 1,
+    zoom: 1,
     focus: { x: 50, y: 40 },
     bubble: { x: 6, y: 6, width: 30, height: 30, shape: 'round', tail: 'bottom-right' }
   },
@@ -175,26 +177,50 @@ function setVertical(value: boolean) {
   form.options!.vertical = value
 }
 
-// 吹き出しをドラッグで動かす
+// プレビューのドラッグ：吹き出しの上なら吹き出しを、画像の上なら画像の見せる位置を動かす
 const previewBox = ref<HTMLElement | null>(null)
-let drag: { startX: number; startY: number; x: number; y: number; w: number; h: number; id: number } | null = null
+let drag: { kind: 'bubble' | 'image'; startX: number; startY: number; x: number; y: number; w: number; h: number; id: number } | null = null
 
 function onPreviewPointerDown(e: PointerEvent) {
-  if (!usesBubble.value) return
-  const bubbleEl = (e.target as HTMLElement).closest('.bubble-box') as HTMLElement | null
-  const parent = bubbleEl?.offsetParent as HTMLElement | null
-  if (!bubbleEl || !parent) return
-  const rect = parent.getBoundingClientRect()
-  const b = form.options!.bubble!
-  drag = { startX: e.clientX, startY: e.clientY, x: b.x, y: b.y, w: rect.width, h: rect.height, id: e.pointerId }
+  const target = e.target as HTMLElement
+  const bubbleEl = usesBubble.value ? (target.closest('.bubble-box') as HTMLElement | null) : null
+  const bubbleParent = bubbleEl?.offsetParent as HTMLElement | null
+  if (bubbleEl && bubbleParent) {
+    const rect = bubbleParent.getBoundingClientRect()
+    const b = form.options!.bubble!
+    drag = { kind: 'bubble', startX: e.clientX, startY: e.clientY, x: b.x, y: b.y, w: rect.width, h: rect.height, id: e.pointerId }
+  } else if (target.tagName === 'IMG') {
+    // 拡大中の画像そのものの大きさではなく、枠（拡大前の大きさ）を基準にする
+    const rect = (target.parentElement ?? target).getBoundingClientRect()
+    const f = form.options!.focus!
+    drag = { kind: 'image', startX: e.clientX, startY: e.clientY, x: f.x, y: f.y, w: rect.width, h: rect.height, id: e.pointerId }
+  } else {
+    return
+  }
   previewBox.value?.setPointerCapture(e.pointerId)
   e.preventDefault()
 }
 function onPreviewPointerMove(e: PointerEvent) {
   if (!drag || e.pointerId !== drag.id) return
-  const b = form.options!.bubble!
-  b.x = Math.round(Math.max(-5, Math.min(90, drag.x + (e.clientX - drag.startX) / drag.w * 100)) * 10) / 10
-  b.y = Math.round(Math.max(-5, Math.min(90, drag.y + (e.clientY - drag.startY) / drag.h * 100)) * 10) / 10
+  const dx = (e.clientX - drag.startX) / drag.w * 100
+  const dy = (e.clientY - drag.startY) / drag.h * 100
+  if (drag.kind === 'bubble') {
+    const b = form.options!.bubble!
+    b.x = Math.round(Math.max(-5, Math.min(90, drag.x + dx)) * 10) / 10
+    b.y = Math.round(Math.max(-5, Math.min(90, drag.y + dy)) * 10) / 10
+  } else {
+    // 画像をつかんで動かす向きと、中心点の動く向きは逆になる。
+    // 拡大率 z のとき、中心点を 1% 動かすと画像は (z - 1)% 動くので、その分で割って指の動きにそろえる
+    const f = form.options!.focus!
+    const k = 1 / Math.max(0.5, (form.options!.zoom ?? 1) - 1)
+    f.x = Math.round(Math.max(0, Math.min(100, drag.x - dx * k)))
+    f.y = Math.round(Math.max(0, Math.min(100, drag.y - dy * k)))
+  }
+}
+
+function resetImageView() {
+  form.options!.zoom = 1
+  form.options!.focus = { x: 50, y: 50 }
 }
 function onPreviewPointerUp(e: PointerEvent) {
   if (drag && e.pointerId === drag.id) drag = null
@@ -443,7 +469,7 @@ watch(() => form.template, () => { replayKey.value++ })
             </div>
             <div class="preview-tools">
               <button class="ghost" @click="replayKey++">▶ アニメーションを再生</button>
-              <span v-if="usesBubble" class="hint">吹き出しはドラッグで動かせます</span>
+              <span class="hint">{{ usesBubble ? '吹き出し・画像はドラッグで動かせます' : '画像はドラッグで動かせます' }}</span>
             </div>
 
             <fieldset class="block">
@@ -518,16 +544,21 @@ watch(() => form.template, () => { replayKey.value++ })
                 <span>画像の説明 <small>公開に必要。読み上げや画像が出ないときに使われます</small></span>
                 <input v-model="form.imageAlt" maxlength="300" placeholder="例：夕暮れの海辺で、エリカが向日葵を差し出している">
               </label>
+              <label class="field">
+                <span>拡大 ×{{ (form.options!.zoom ?? 1).toFixed(2) }} <small>大きくすると、位置のスライダーで見せる場所を選べます</small></span>
+                <input v-model.number="form.options!.zoom" type="range" :min="ZOOM_MIN" :max="ZOOM_MAX" step="0.05">
+              </label>
               <div class="row">
                 <label class="field grow">
-                  <span>見せる位置（横） {{ form.options!.focus!.x }}%</span>
+                  <span>見せる位置（横） {{ form.options!.focus!.x }}% <small>0 = 左</small></span>
                   <input v-model.number="form.options!.focus!.x" type="range" min="0" max="100">
                 </label>
                 <label class="field grow">
-                  <span>見せる位置（縦） {{ form.options!.focus!.y }}%</span>
+                  <span>見せる位置（縦） {{ form.options!.focus!.y }}% <small>0 = 上</small></span>
                   <input v-model.number="form.options!.focus!.y" type="range" min="0" max="100">
                 </label>
               </div>
+              <button type="button" class="ghost small" @click="resetImageView">位置と拡大を元に戻す</button>
             </fieldset>
 
             <fieldset class="block">
@@ -539,7 +570,7 @@ watch(() => form.template, () => { replayKey.value++ })
                 </label>
                 <label class="field grow">
                   <span>文字の大きさ ×{{ (form.options!.fontScale ?? 1).toFixed(2) }}</span>
-                  <input v-model.number="form.options!.fontScale" type="range" min="0.6" max="1.6" step="0.05">
+                  <input v-model.number="form.options!.fontScale" type="range" min="0.3" max="2" step="0.05">
                 </label>
               </div>
               <label v-if="canVertical" class="check">
@@ -778,6 +809,9 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .preview { border-radius: 12px; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5); }
 .preview.draggable :deep(.bubble-box) { cursor: grab; touch-action: none; }
 .preview.draggable :deep(.bubble-box:active) { cursor: grabbing; }
+/* 画像もドラッグで見せる位置を動かせる（iPad で指で動かしてもページがスクロールしないように） */
+.preview :deep(img) { cursor: grab; touch-action: none; -webkit-user-drag: none; user-select: none; }
+.preview :deep(img:active) { cursor: grabbing; }
 .preview-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 10px 0 4px; }
 .block {
   border: 0;

@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import '@fontsource/shippori-mincho/500.css'
 import '@fontsource/shippori-mincho/700.css'
 import { type WordEntry } from '../types'
+import { artImageStyle } from '../artImage'
 import { fitFontSize, stableNumber } from '../fitText'
 
 // テンプレート6：文庫本のページ。長めの言葉（〜250字ほど）向け。
@@ -10,7 +11,8 @@ import { fitFontSize, stableNumber } from '../fitText'
 const props = defineProps<{ entry: WordEntry; animate?: boolean }>()
 
 const o = computed(() => props.entry.options ?? {})
-const focus = computed(() => `${o.value.focus?.x ?? 50}% ${o.value.focus?.y ?? 50}%`)
+// 画像の位置と拡大率（管理ページのスライダーで決める）
+const imageStyle = computed(() => artImageStyle(o.value, 50))
 const vertical = computed(() => o.value.vertical ?? true)
 
 // 本文の枠（cqw）。下の CSS の .body の大きさと合わせること
@@ -52,7 +54,9 @@ const folio = computed(() => stableNumber(props.entry.id, 12, 286))
     </div>
 
     <figure class="plate">
-      <img :src="entry.image" :alt="entry.imageAlt" :style="{ objectPosition: focus }" loading="lazy" decoding="async">
+      <span class="photo">
+        <img :src="entry.image" :alt="entry.imageAlt" :style="imageStyle" loading="lazy" decoding="async">
+      </span>
     </figure>
 
     <footer class="folio">
@@ -145,6 +149,12 @@ const folio = computed(() => stableNumber(props.entry.id, 12, 286))
   background: #fbf8f0;
   border: 0.25cqw solid rgba(60, 45, 30, 0.45);
   box-shadow: 0 0 0 0.8cqw #f4eedf, 0 0 0 1cqw rgba(60, 45, 30, 0.25);
+}
+.photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 .plate img {
   display: block;

@@ -29,7 +29,7 @@ const TEMPLATES: Record<WordTemplate, Component> = {
 const component = computed(() => TEMPLATES[props.template ?? props.entry.template] ?? WordBubble)
 const scale = computed(() => {
   const n = Number(props.entry.options?.fontScale)
-  return Number.isFinite(n) && n > 0 ? Math.min(2, Math.max(0.5, n)) : 1
+  return Number.isFinite(n) && n > 0 ? Math.min(2, Math.max(0.3, n)) : 1
 })
 </script>
 

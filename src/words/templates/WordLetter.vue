@@ -3,12 +3,14 @@ import { computed } from 'vue'
 import '@fontsource/shippori-mincho/500.css'
 import '@fontsource/shippori-mincho/700.css'
 import { type WordEntry } from '../types'
+import { artImageStyle } from '../artImage'
 
 // テンプレート5：便箋。和紙に縦書きの明朝体、ポラロイド写真とはんこ。
 const props = defineProps<{ entry: WordEntry; animate?: boolean }>()
 
 const o = computed(() => props.entry.options ?? {})
-const focus = computed(() => `${o.value.focus?.x ?? 50}% ${o.value.focus?.y ?? 50}%`)
+// 画像の位置と拡大率（管理ページのスライダーで決める）
+const imageStyle = computed(() => artImageStyle(o.value, 50))
 </script>
 
 <template>
@@ -24,7 +26,9 @@ const focus = computed(() => `${o.value.focus?.x ?? 50}% ${o.value.focus?.y ?? 5
 
     <figure class="polaroid">
       <span class="tape" aria-hidden="true"></span>
-      <img :src="entry.image" :alt="entry.imageAlt" :style="{ objectPosition: focus }" loading="lazy" decoding="async">
+      <span class="photo">
+        <img :src="entry.image" :alt="entry.imageAlt" :style="imageStyle" loading="lazy" decoding="async">
+      </span>
       <figcaption>エリカより</figcaption>
     </figure>
 
@@ -100,6 +104,10 @@ const focus = computed(() => `${o.value.focus?.x ?? 50}% ${o.value.focus?.y ?? 5
   box-shadow: 0 1.2cqw 2.8cqw rgba(60, 40, 20, 0.28), 0 0 0 0.2cqw rgba(0, 0, 0, 0.04);
   transform: rotate(-5deg);
   z-index: 2;
+}
+.photo {
+  display: block;
+  overflow: hidden;
 }
 .polaroid img {
   display: block;

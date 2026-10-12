@@ -25,15 +25,17 @@ export interface WordOptions {
   accent?: string
   /** 縦書きにするか（吹き出し・漫画・文庫本で使う） */
   vertical?: boolean
-  /** 画像のどこを中心に見せるか（object-position の %） */
+  /** 画像のどこを中心に見せるか（%）。拡大したときは、この点を中心に大きくなる */
   focus?: { x: number; y: number }
+  /** 画像の拡大率（1 = 枠いっぱい。1〜4） */
+  zoom?: number
   /** 吹き出し・漫画テンプレートの吹き出し */
   bubble?: BubbleOptions
   /** 歌詞カードの曲名（未指定なら出典の作品名） */
   songTitle?: string
   /** ゲーム窓の名前欄（未指定なら「エリカ」） */
   speakerName?: string
-  /** 言葉の文字の大きさ（1 が標準。0.7〜1.4 くらい） */
+  /** 言葉の文字の大きさ（1 が標準。0.3〜2） */
   fontScale?: number
 }
 

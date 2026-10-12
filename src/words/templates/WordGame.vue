@@ -2,12 +2,14 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import '@fontsource/dotgothic16/400.css'
 import { sourceLine, type WordEntry } from '../types'
+import { artImageStyle } from '../artImage'
 
 // テンプレート3：ゲームのテキスト窓。画面下のウィンドウに1文字ずつ表示する。
 const props = defineProps<{ entry: WordEntry; animate?: boolean }>()
 
 const o = computed(() => props.entry.options ?? {})
-const focus = computed(() => `${o.value.focus?.x ?? 50}% ${o.value.focus?.y ?? 30}%`)
+// 画像の位置と拡大率（管理ページのスライダーで決める）
+const imageStyle = computed(() => artImageStyle(o.value, 30))
 const chars = computed(() => [...props.entry.quote])
 
 const shown = ref(chars.value.length)
@@ -49,7 +51,7 @@ const done = computed(() => shown.value >= chars.value.length)
 
 <template>
   <div class="tpl-game" :style="{ '--accent': o.accent ?? '#7dd3fc' }" @click="skip">
-    <img class="art" :src="entry.image" :alt="entry.imageAlt" :style="{ objectPosition: focus }" loading="lazy" decoding="async">
+    <img class="art" :src="entry.image" :alt="entry.imageAlt" :style="imageStyle" loading="lazy" decoding="async">
     <div class="scan" aria-hidden="true"></div>
     <p class="hud">QUOTE · {{ entry.source.title }}</p>
     <div class="window">

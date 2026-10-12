@@ -3,13 +3,15 @@ import { computed } from 'vue'
 import '@fontsource/zen-kurenaido/400.css'
 import '@fontsource/shippori-mincho/600.css'
 import { type WordEntry } from '../types'
+import { artImageStyle } from '../artImage'
 import { fitFontSize } from '../fitText'
 
 // テンプレート4：歌詞カード。紙のカードにジャケット写真とレコード、手書き風の歌詞を1行ずつ。
 const props = defineProps<{ entry: WordEntry; animate?: boolean }>()
 
 const o = computed(() => props.entry.options ?? {})
-const focus = computed(() => `${o.value.focus?.x ?? 50}% ${o.value.focus?.y ?? 50}%`)
+// 画像の位置と拡大率（管理ページのスライダーで決める）
+const imageStyle = computed(() => artImageStyle(o.value, 50))
 const lines = computed(() => props.entry.quote.split('\n'))
 const title = computed(() => o.value.songTitle ?? props.entry.source.title)
 // 歌詞の行数・長さに合わせて文字の大きさを決める（標準は 5cqw。長い行が多いと小さくなる）
@@ -23,7 +25,7 @@ const fontSize = computed(() => fitFontSize(props.entry.quote, {
     <div class="sleeve">
       <div class="record" aria-hidden="true"><span class="label"></span></div>
       <div class="jacket">
-        <img :src="entry.image" :alt="entry.imageAlt" :style="{ objectPosition: focus }" loading="lazy" decoding="async">
+        <img :src="entry.image" :alt="entry.imageAlt" :style="imageStyle" loading="lazy" decoding="async">
       </div>
       <p class="memo" aria-hidden="true">♪ エリカのお気に入り</p>
     </div>

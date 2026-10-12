@@ -4,6 +4,7 @@ import '@fontsource/dela-gothic-one/400.css'
 import '@fontsource/shippori-mincho/700.css'
 import BubbleBox from '../BubbleBox.vue'
 import { type WordEntry } from '../types'
+import { artImageStyle } from '../artImage'
 
 // テンプレート2：漫画のコマ。白黒の大ゴマに集中線、縦書きの叫び吹き出し、下にナレーション枠。
 const props = defineProps<{ entry: WordEntry; animate?: boolean }>()
@@ -11,13 +12,14 @@ const props = defineProps<{ entry: WordEntry; animate?: boolean }>()
 const o = computed(() => props.entry.options ?? {})
 const vertical = computed(() => o.value.vertical ?? true)
 const bubble = computed(() => o.value.bubble ?? { x: 8, y: 8, height: 44, shape: 'shout' as const, tail: 'none' as const })
-const focus = computed(() => `${o.value.focus?.x ?? 50}% ${o.value.focus?.y ?? 50}%`)
+// 画像の位置と拡大率（管理ページのスライダーで決める）
+const imageStyle = computed(() => artImageStyle(o.value, 50))
 </script>
 
 <template>
   <div class="tpl-manga" :class="{ animate }">
     <div class="mg-panel mg-main">
-      <img class="art" :src="entry.image" :alt="entry.imageAlt" :style="{ objectPosition: focus }" loading="lazy" decoding="async">
+      <img class="art" :src="entry.image" :alt="entry.imageAlt" :style="imageStyle" loading="lazy" decoding="async">
       <div class="tone" aria-hidden="true"></div>
       <div class="speed" aria-hidden="true"></div>
       <BubbleBox :bubble="bubble" :vertical="vertical" class="slam">
