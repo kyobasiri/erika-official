@@ -49,10 +49,28 @@ jobs:
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
         run: python report_gen.py --mode public
 
-      # 5. 生成されたファイル（MarkdownやJSON）をGitHubに自動保存
+      # 5. 生成されたファイルだけを GitHub に保存する
+      #    `git add .` だと、途中で失敗して残った音声・動画（public/assets/audio/ の wav・mp4・srt）や
+      #    __pycache__ まで commit されてしまう。Cloudflare Pages は1ファイル25MiBまでなので、
+      #    大きな mp4 が入るとデプロイが失敗する。そのため、追加するパスを明示する。
       - name: Commit and Push changes
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add .
-          git diff --quiet && git diff --staged --quiet || (git commit -m "エリカが本日のパブリック用日報と音声を自動生成しました" && git push)
+
+          # report_gen.py の出力先
+          #   public/reports/        : 日報(.md) と YouTube ID(.txt)
+          #   public/assets/*.json   : 日報一覧 (reports.json / public_reports.json)
+          #   public/assets/images/  : アイキャッチ画像
+          # 音声・動画(public/assets/audio/)は YouTube 投稿後に削除される一時ファイルなのでコミットしない
+          git add public/reports/ public/assets/reports.json public/assets/public_reports.json public/assets/images/
+
+          if git diff --staged --quiet; then
+            echo "変更はありません"
+            exit 0
+          fi
+
+          git commit -m "エリカが本日のパブリック用日報と音声を自動生成しました"
+          # 実行中に別のワークフローが push していても失敗しないよう、最新を取り込んでから push
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push

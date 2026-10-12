@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import StaticPageLayout from '../components/StaticPageLayout.vue'
 import WordCard from '../words/WordCard.vue'
+import { commentToHtml } from '../words/commentFormat'
 import {
   SOURCE_KIND_LABELS, TEMPLATE_LABELS, sourceLine,
   type SourceKind, type WordEntry, type WordTemplate
@@ -56,6 +57,8 @@ const visibleWords = computed(() =>
 // --- 詳細表示（?id= と同期） ---
 const selectedId = computed(() => (typeof route.query.id === 'string' ? route.query.id : ''))
 const selected = computed(() => words.value.find(w => w.id === selectedId.value) ?? null)
+// ひとことは Markdown（改行・■見出し・太字など）を、無害化した HTML にして表示する
+const commentHtml = computed(() => commentToHtml(selected.value?.comment))
 const selectedIndex = computed(() => visibleWords.value.findIndex(w => w.id === selectedId.value))
 const compareMode = ref(false)
 const templates = Object.keys(TEMPLATE_LABELS) as WordTemplate[]
@@ -169,9 +172,10 @@ onBeforeUnmount(() => {
               <span v-if="selected.source.detail">{{ selected.source.detail }}</span>
             </p>
 
-            <div v-if="selected.comment" class="comment">
+            <div v-if="commentHtml" class="comment">
               <p class="comment-label">エリカのひとこと</p>
-              <p>{{ selected.comment }}</p>
+              <!-- commentHtml は DOMPurify で無害化済み -->
+              <div class="comment-body" v-html="commentHtml"></div>
             </div>
 
             <p v-if="selected.tags?.length" class="tags">
@@ -387,10 +391,88 @@ onBeforeUnmount(() => {
   color: var(--accent);
   margin: 0 0 6px;
 }
-.comment p:last-child {
-  margin: 0;
-  line-height: 2;
+.comment-body {
   font-size: 15px;
+  line-height: 2;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.comment-body :deep(p) {
+  margin: 0 0 1em;
+}
+.comment-body :deep(> :last-child) {
+  margin-bottom: 0;
+}
+.comment-body :deep(h1),
+.comment-body :deep(h2),
+.comment-body :deep(h3),
+.comment-body :deep(h4) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 1.6em 0 0.5em;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.6;
+  color: #fff;
+}
+.comment-body :deep(h1::before),
+.comment-body :deep(h2::before),
+.comment-body :deep(h3::before),
+.comment-body :deep(h4::before) {
+  content: '';
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.comment-body :deep(> h1:first-child),
+.comment-body :deep(> h2:first-child),
+.comment-body :deep(> h3:first-child),
+.comment-body :deep(> h4:first-child) {
+  margin-top: 0;
+}
+/* # 1つの見出しは、ひとまわり大きく */
+.comment-body :deep(h1) {
+  font-size: 17px;
+}
+.comment-body :deep(h1::before) {
+  width: 10px;
+  height: 10px;
+}
+.comment-body :deep(strong) {
+  color: #fff;
+  font-weight: 800;
+  background: linear-gradient(transparent 62%, rgba(243, 164, 59, 0.35) 62%);
+}
+.comment-body :deep(ul),
+.comment-body :deep(ol) {
+  margin: 0 0 1em;
+  padding-left: 1.4em;
+}
+.comment-body :deep(ul) { list-style: disc; }
+.comment-body :deep(ol) { list-style: decimal; }
+.comment-body :deep(li) { margin: 0.2em 0; }
+.comment-body :deep(li::marker) { color: var(--accent); }
+.comment-body :deep(blockquote) {
+  margin: 0 0 1em;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #e4e4e7;
+  font-family: 'Shippori Mincho', serif;
+}
+.comment-body :deep(blockquote p) { margin: 0; }
+.comment-body :deep(a) {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.comment-body :deep(hr) {
+  border: 0;
+  border-top: 1px dashed var(--line);
+  margin: 1.4em 0;
 }
 .tags {
   display: flex;
@@ -427,7 +509,7 @@ onBeforeUnmount(() => {
 }
 .compare {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
   margin-top: 28px;
   padding-top: 24px;

@@ -3,71 +3,89 @@ name: Generate JSON and Deploy
 on:
   push:
     branches:
-      - main # mainブランチにPushされたら常に実行するように変更
+      - main # mainブランチにPushされたら常に実行
+  # 日報系のワークフローが commit したあとにもデプロイする。
+  # （ワークフロー内の push は GITHUB_TOKEN で行われるため、上の push では起動しない。
+  #   これが無いと、自動生成された日報は次に手動で push するまで公開されない）
+  workflow_run:
+    workflows:
+      - エリカの自動日報生成
+      - エリカの公開用ニュース自動生成 (Public)
+      - エリカのToDo自動タスク生成 (ToDo)
+    types: [completed]
   workflow_dispatch:
 
 permissions:
   contents: write
   deployments: write # デプロイ処理のために追加
 
+# 同時に2つ動いたときは、あとから来たほうを待たせる（push やデプロイがぶつからないように）
+concurrency:
+  group: deploy-erika-official
+  cancel-in-progress: false
+
 jobs:
   build-and-deploy:
+    # 日報系のワークフローが失敗したときは、デプロイしない
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: main # workflow_run から起動したときも、日報が commit された最新の main を使う
 
-      # --- 1. PythonでJSON生成（既存の処理） ---
+      # --- 1. PythonでJSON生成 ---
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.x'
 
       - name: Install dependencies
         run: |
-          sudo apt-get update
           python -m pip install --upgrade pip
           pip install google-cloud-vision openai python-dotenv
 
       - name: Generate JSON
         env:
+          # gallery_gen.py が使うのはこれだけ（不要な秘密情報は渡さない）
           SAKURA_API_KEY: ${{ secrets.SAKURA_API_KEY }}
-          GOOGLE_TTS_API_KEY: ${{ secrets.GOOGLE_TTS_API_KEY }} 
-          YOUTUBE_TOKEN: ${{ secrets.YOUTUBE_TOKEN }} 
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
-          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
-          TASKS_TOKEN: ${{ secrets.TASKS_TOKEN }}
-          GCP_VISION_CREDENTIALS_TOKEN: ${{ secrets.GCP_VISION_CREDENTIALS }}
         run: python gallery_gen.py
 
-      # --- 2. 生成されたJSONをGitHubに保存（既存の処理） ---
+      # --- 2. 生成されたJSONをGitHubに保存 ---
       - name: Commit and Push if changed
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add public/assets/gallery.json public/assets/articles.json public/assets/featured.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: auto-generate json data" && git push)
 
-      # --- 3. Viteビルド（ここから追加） ---
+          if git diff --staged --quiet; then
+            echo "JSONの変更はありません"
+            exit 0
+          fi
+
+          git commit -m "chore: auto-generate json data"
+          # 実行中に別のワークフローが push していても失敗しないよう、最新を取り込んでから push
+          git pull --rebase origin main
+          git push origin HEAD:main
+
+      # --- 3. Viteビルド ---
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22' # Node 20 は 2026年4月でサポート終了
+          cache: 'npm'
 
       - name: Install Node Dependencies
-        run: npm install
+        run: npm ci # package-lock.json どおりの版を入れる
 
       - name: Build Vite App
         run: npm run build
 
-# --- 4. Cloudflare Pagesへデプロイ ---
+      # --- 4. Cloudflare Pagesへデプロイ ---
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=erika-official
+          command: pages deploy dist --project-name=erika-official --branch=main

@@ -1,4 +1,4 @@
-import { marked } from 'marked'
+import { markdownToSafeHtml } from '../utils/safeContent'
 
 // 記事の Markdown を、見せ方ごとの「ブロック」に分ける。
 // 書き方はこれまでどおり（[[1.webp]]、URL を1行で書く、Listening: など）で、変換はここで行う。
@@ -90,7 +90,8 @@ export function parseArticle(
     const flushText = () => {
         const text = textBuffer.join('\n').trim()
         textBuffer = []
-        if (text) blocks.push({ type: 'markdown', html: marked.parse(text, { breaks: true, gfm: true, async: false }) as string })
+        // HTML は DOMPurify で無害化してから v-html に渡す
+        if (text) blocks.push({ type: 'markdown', html: markdownToSafeHtml(text, { breaks: true }) })
     }
     const flushImages = () => {
         if (imageGroup.length === 1) blocks.push({ type: 'image', image: imageGroup[0]! })

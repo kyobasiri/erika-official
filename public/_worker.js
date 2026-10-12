@@ -21,6 +21,9 @@ const DEFAULT_AVATAR_LIMIT_PER_IP_HOUR = 15; // 1つのIPあたり 1時間に生
 const DEFAULT_AVATAR_LIMIT_PER_DAY = 300;    // サイト全体で 1日(JST)に生成できる枚数
 const MAX_PROMPT_LENGTH = 2048;              // flux-1-schnell のプロンプト上限
 const RATE_LIMIT_KEY_PREFIX = 'ratelimit:avatar:';
+// 生成したアバター画像のファイル名。/api/avatars/ ではこの形のものだけを配信する
+// （以前はバケット内のどのファイルでも返せてしまっていた）
+const AVATAR_FILE_PATTERN = /^avatar-\d{10,16}-[a-z0-9]*\.jpeg$/;
 
 // ==========================================
 // ラビリンスのランキング: ありえないスコアを弾くための上限
@@ -28,6 +31,12 @@ const RATE_LIMIT_KEY_PREFIX = 'ratelimit:avatar:';
 const MAX_RANKING_FLOOR = 999;
 const MAX_SCORE_PER_FLOOR = 35000;
 const MAX_CLEAR_BONUS = 10000;
+// ランキングは D1 に1件ずつ保存する（KV の「読む→書く」だと同時登録で片方が消えるため）
+const RANKING_TOP_LIMIT = 50;                 // 返す件数
+const RANKING_KEEP_LIMIT = 200;               // 上位この件数は残し、それ以外は1日たったら削除
+const DEFAULT_RANKING_LIMIT_PER_IP_HOUR = 20; // 1つのIPあたり 1時間に登録できる回数
+const DEFAULT_AVATAR_URL = '/assets/images/icon.png';
+const LEGACY_RANKING_KEY = 'labyrinth_ranking';
 
 function readLimit(value, fallback) {
     const n = Number.parseInt(value, 10);
@@ -35,8 +44,9 @@ function readLimit(value, fallback) {
 }
 
 // IPアドレスはそのまま保存せず、ハッシュ化した先頭だけをキーに使う
-async function hashIp(ip) {
-    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ip));
+// （環境変数 IP_HASH_SALT を設定すると、ハッシュから IP を逆算しにくくなる）
+async function hashIp(ip, salt = '') {
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(salt + ip));
     return [...new Uint8Array(digest)]
         .slice(0, 12)
         .map((b) => b.toString(16).padStart(2, '0'))
@@ -62,11 +72,16 @@ async function readCounter(kv, key) {
 //          PUT  /api/admin/words/<id>         更新
 //          DELETE /api/admin/words/<id>       削除（画像も削除）
 //          POST /api/admin/words/<id>/image   画像のアップロード（本文に画像そのもの）
+//   連携:  GET  /api/ingest/words/ping         接続テスト
+//          POST /api/ingest/words             新規作成。id があって登録済みなら更新（Google フォーム・スプレッドシートから）
+//          POST /api/ingest/words/<id>/image  画像のアップロード
 //   管理APIは Cloudflare Access で保護し、ここでも Access の JWT を検証する（失敗したら拒否）。
+//   連携APIは、Apps Script から送られるトークン（Authorization: Bearer ...）を検証する。
 //   必要な設定: D1 バインディング DB、R2 バインディング R2_BUCKET、
 //              環境変数 ACCESS_TEAM_DOMAIN（例: yourteam.cloudflareaccess.com）、ACCESS_AUD、ADMIN_EMAILS（任意）
+//              連携を使うときはシークレット WORDS_INGEST_TOKEN（32文字以上）
 // ==========================================
-const WORD_TEMPLATES = ['bubble', 'manga', 'game', 'lyric', 'letter'];
+const WORD_TEMPLATES = ['bubble', 'manga', 'game', 'lyric', 'letter', 'bunko'];
 const WORD_KINDS = ['manga', 'anime', 'game', 'song', 'movie', 'book', 'other'];
 const WORD_ID_PATTERN = /^[a-z0-9][a-z0-9-]{1,62}$/;
 const WORD_IMAGE_KEY_PATTERN = /^[a-z0-9][a-z0-9-]{1,80}\.(webp|jpg|png)$/;
@@ -245,6 +260,127 @@ async function readJsonBody(request) {
     try { return JSON.parse(text); } catch { throw Object.assign(new Error('JSON の形式が正しくありません。'), { status: 400 }); }
 }
 
+// --- 作成・更新・画像保存（管理ページとフォーム連携で共通） ---
+async function insertWord(env, body, now) {
+    const { value, errors } = sanitizeWordInput(body);
+    if (errors.length) return wordsJson({ error: errors.join(' ') }, 400);
+    const wordId = WORD_ID_PATTERN.test(body.id || '') ? body.id : newWordId();
+    const exists = await env.DB.prepare('SELECT 1 FROM words WHERE id = ?').bind(wordId).first();
+    if (exists) return wordsJson({ error: 'そのIDはすでに使われています。' }, 409);
+    await env.DB.prepare(
+        `INSERT INTO words (id, status, quote, speaker, source_title, source_author, source_kind, source_detail, source_url,
+           image_url, image_key, image_alt, template, options, comment, tags, spoiler, sort_order, created_at, updated_at, published_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(wordId, value.status, value.quote, value.speaker, value.source_title, value.source_author, value.source_kind,
+        value.source_detail, value.source_url, value.image_url, value.image_alt, value.template, value.options, value.comment,
+        value.tags, value.spoiler, value.sort_order, now, now, value.status === 'published' ? now : null).run();
+    const row = await env.DB.prepare('SELECT * FROM words WHERE id = ?').bind(wordId).first();
+    return wordsJson({ word: rowToEntry(row, true) }, 201);
+}
+
+// keepMissing: フォーム連携用。送られてこなかった項目（テンプレート・種類・見た目の調整・並び順・画像・画像の説明）は、
+//              管理ページで調整した値を消さないよう、いまの値をそのまま使う
+async function updateWord(env, current, body, now, { keepMissing = false } = {}) {
+    if (keepMissing) {
+        body = { ...body };
+        if (!body.options || typeof body.options !== 'object' || Array.isArray(body.options)) body.options = parseJson(current.options, {});
+        if (!Number.isSafeInteger(body.sortOrder)) body.sortOrder = current.sort_order;
+        if (typeof body.image !== 'string' || !body.image) body.image = current.image_url || '';
+        if (typeof body.imageAlt !== 'string' || !body.imageAlt.trim()) body.imageAlt = current.image_alt || '';
+        if (!WORD_TEMPLATES.includes(body.template)) body.template = current.template;
+        // 項目そのものが送られてこなかった（undefined）ときは、いまの値のまま。空文字が来たら空にする
+        if (body.speaker === undefined) body.speaker = current.speaker || '';
+        if (body.comment === undefined) body.comment = current.comment || '';
+        if (body.tags === undefined) body.tags = parseJson(current.tags, []);
+        if (body.spoiler === undefined) body.spoiler = !!current.spoiler;
+        if (body.status === undefined) body.status = current.status;
+        const source = body.source && typeof body.source === 'object' ? { ...body.source } : {};
+        if (!WORD_KINDS.includes(source.kind)) source.kind = current.source_kind;
+        if (source.title === undefined) source.title = current.source_title;
+        if (source.author === undefined) source.author = current.source_author || '';
+        if (source.detail === undefined) source.detail = current.source_detail || '';
+        if (source.url === undefined) source.url = current.source_url || '';
+        body.source = source;
+    }
+    const { value, errors } = sanitizeWordInput(body);
+    if (errors.length) return wordsJson({ error: errors.join(' ') }, 400);
+    // 画像はアップロードAPIで変える。ここでは既存の画像を保つ（静的画像の指定だけは許可）
+    const imageUrl = current.image_key ? current.image_url : value.image_url;
+    if (value.status === 'published' && !imageUrl) return wordsJson({ error: '公開するには画像が必要です。' }, 400);
+    const publishedAt = value.status === 'published' ? (current.published_at || now) : current.published_at;
+    await env.DB.prepare(
+        `UPDATE words SET status = ?, quote = ?, speaker = ?, source_title = ?, source_author = ?, source_kind = ?, source_detail = ?,
+           source_url = ?, image_url = ?, image_alt = ?, template = ?, options = ?, comment = ?, tags = ?, spoiler = ?, sort_order = ?,
+           updated_at = ?, published_at = ? WHERE id = ?`
+    ).bind(value.status, value.quote, value.speaker, value.source_title, value.source_author, value.source_kind, value.source_detail,
+        value.source_url, imageUrl, value.image_alt, value.template, value.options, value.comment, value.tags, value.spoiler,
+        value.sort_order, now, publishedAt, current.id).run();
+    const row = await env.DB.prepare('SELECT * FROM words WHERE id = ?').bind(current.id).first();
+    return wordsJson({ word: rowToEntry(row, true) });
+}
+
+async function storeWordImage(request, env, ctx, current, now) {
+    if (!env.R2_BUCKET) return wordsJson({ error: 'R2 が設定されていません。' }, 503);
+    const type = (request.headers.get('Content-Type') || '').split(';')[0].trim().toLowerCase();
+    const ext = WORD_IMAGE_TYPES[type];
+    if (!ext) return wordsJson({ error: 'WebP・JPEG・PNG の画像を送ってください。' }, 415);
+    const declared = Number(request.headers.get('Content-Length') || 0);
+    if (declared > MAX_WORD_IMAGE_BYTES) return wordsJson({ error: '画像が大きすぎます（6MBまで）。' }, 413);
+    const data = await request.arrayBuffer();
+    if (!data.byteLength || data.byteLength > MAX_WORD_IMAGE_BYTES) return wordsJson({ error: '画像が大きすぎるか、空です（6MBまで）。' }, 413);
+
+    const key = `${current.id}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}.${ext}`;
+    await env.R2_BUCKET.put(WORD_IMAGE_PREFIX + key, data, { httpMetadata: { contentType: type } });
+    await env.DB.prepare('UPDATE words SET image_url = ?, image_key = ?, updated_at = ? WHERE id = ?')
+        .bind(`/api/words-images/${key}`, key, now, current.id).run();
+    if (current.image_key && current.image_key !== key) ctx.waitUntil(env.R2_BUCKET.delete(WORD_IMAGE_PREFIX + current.image_key));
+    const row = await env.DB.prepare('SELECT * FROM words WHERE id = ?').bind(current.id).first();
+    return wordsJson({ word: rowToEntry(row, true) });
+}
+
+// --- フォーム連携（Apps Script）用のトークン検証 ---
+async function verifyIngestToken(request, env) {
+    const expected = env.WORDS_INGEST_TOKEN || '';
+    if (expected.length < 32) {
+        return { ok: false, status: 503, error: '連携用のトークン（WORDS_INGEST_TOKEN）が設定されていません。32文字以上で設定してください。' };
+    }
+    const match = (request.headers.get('Authorization') || '').match(/^Bearer\s+(.+)$/i);
+    const encoder = new TextEncoder();
+    const given = encoder.encode(match ? match[1].trim() : '');
+    const wanted = encoder.encode(expected);
+    // 長さが同じときだけ、一定時間で比較する（文字ごとの比較時間の差からトークンを推測されないように）
+    if (given.byteLength !== wanted.byteLength || !crypto.subtle.timingSafeEqual(given, wanted)) {
+        return { ok: false, status: 401, error: 'トークンが正しくありません。' };
+    }
+    return { ok: true };
+}
+
+async function handleIngest(request, env, ctx, path, now) {
+    const auth = await verifyIngestToken(request, env);
+    if (!auth.ok) return wordsJson({ error: auth.error }, auth.status);
+    if (!env.DB) return wordsJson({ error: 'D1（DB）が設定されていません。' }, 503);
+
+    const rest = path.slice('/api/ingest/words'.length); // '' | '/ping' | '/<id>/image'
+    if (rest === '/ping') return wordsJson({ ok: true }, 200, { 'Cache-Control': 'no-store' });
+
+    if (rest === '' || rest === '/') {
+        if (request.method !== 'POST') return wordsJson({ error: 'Method Not Allowed' }, 405);
+        const body = await readJsonBody(request);
+        if (!body || typeof body !== 'object' || Array.isArray(body)) return wordsJson({ error: '送信データが不正です。' }, 400);
+        const current = WORD_ID_PATTERN.test(body.id || '')
+            ? await env.DB.prepare('SELECT * FROM words WHERE id = ?').bind(body.id).first()
+            : null;
+        return current ? updateWord(env, current, body, now, { keepMissing: true }) : insertWord(env, body, now);
+    }
+
+    const [, id = '', sub = ''] = rest.split('/');
+    if (sub !== 'image' || !WORD_ID_PATTERN.test(id)) return wordsJson({ error: 'Not Found' }, 404);
+    if (request.method !== 'POST') return wordsJson({ error: 'Method Not Allowed' }, 405);
+    const current = await env.DB.prepare('SELECT * FROM words WHERE id = ?').bind(id).first();
+    if (!current) return wordsJson({ error: '言葉が見つかりません。' }, 404);
+    return storeWordImage(request, env, ctx, current, now);
+}
+
 async function handleWordsApi(request, env, ctx, url) {
     const path = url.pathname;
     const method = request.method;
@@ -276,6 +412,11 @@ async function handleWordsApi(request, env, ctx, url) {
             return wordsJson(results.map((r) => rowToEntry(r)), 200, { 'Cache-Control': 'public, max-age=60', 'Access-Control-Allow-Origin': '*' });
         }
 
+        // ---- フォーム連携（Apps Script から。Access ではなくトークンで守る） ----
+        if (path === '/api/ingest/words' || path.startsWith('/api/ingest/words/')) {
+            return handleIngest(request, env, ctx, path, new Date().toISOString());
+        }
+
         // ---- 管理 ----
         if (!path.startsWith('/api/admin/words')) return wordsJson({ error: 'Not Found' }, 404);
 
@@ -298,21 +439,7 @@ async function handleWordsApi(request, env, ctx, url) {
                 return wordsJson({ words: results.map((r) => rowToEntry(r, true)), email: auth.email }, 200, { 'Cache-Control': 'no-store' });
             }
             if (method === 'POST') {
-                const body = await readJsonBody(request);
-                const { value, errors } = sanitizeWordInput(body);
-                if (errors.length) return wordsJson({ error: errors.join(' ') }, 400);
-                const wordId = WORD_ID_PATTERN.test(body.id || '') ? body.id : newWordId();
-                const exists = await env.DB.prepare('SELECT 1 FROM words WHERE id = ?').bind(wordId).first();
-                if (exists) return wordsJson({ error: 'そのIDはすでに使われています。' }, 409);
-                await env.DB.prepare(
-                    `INSERT INTO words (id, status, quote, speaker, source_title, source_author, source_kind, source_detail, source_url,
-                       image_url, image_key, image_alt, template, options, comment, tags, spoiler, sort_order, created_at, updated_at, published_at)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-                ).bind(wordId, value.status, value.quote, value.speaker, value.source_title, value.source_author, value.source_kind,
-                    value.source_detail, value.source_url, value.image_url, value.image_alt, value.template, value.options, value.comment,
-                    value.tags, value.spoiler, value.sort_order, now, now, value.status === 'published' ? now : null).run();
-                const row = await env.DB.prepare('SELECT * FROM words WHERE id = ?').bind(wordId).first();
-                return wordsJson({ word: rowToEntry(row, true) }, 201);
+                return insertWord(env, await readJsonBody(request), now);
             }
             return wordsJson({ error: 'Method Not Allowed' }, 405);
         }
@@ -324,42 +451,12 @@ async function handleWordsApi(request, env, ctx, url) {
         // 画像のアップロード
         if (sub === 'image') {
             if (method !== 'POST') return wordsJson({ error: 'Method Not Allowed' }, 405);
-            if (!env.R2_BUCKET) return wordsJson({ error: 'R2 が設定されていません。' }, 503);
-            const type = (request.headers.get('Content-Type') || '').split(';')[0].trim();
-            const ext = WORD_IMAGE_TYPES[type];
-            if (!ext) return wordsJson({ error: 'WebP・JPEG・PNG の画像を送ってください。' }, 415);
-            const declared = Number(request.headers.get('Content-Length') || 0);
-            if (declared > MAX_WORD_IMAGE_BYTES) return wordsJson({ error: '画像が大きすぎます（6MBまで）。' }, 413);
-            const data = await request.arrayBuffer();
-            if (!data.byteLength || data.byteLength > MAX_WORD_IMAGE_BYTES) return wordsJson({ error: '画像が大きすぎるか、空です（6MBまで）。' }, 413);
-
-            const key = `${id}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}.${ext}`;
-            await env.R2_BUCKET.put(WORD_IMAGE_PREFIX + key, data, { httpMetadata: { contentType: type } });
-            await env.DB.prepare('UPDATE words SET image_url = ?, image_key = ?, updated_at = ? WHERE id = ?')
-                .bind(`/api/words-images/${key}`, key, now, id).run();
-            if (current.image_key && current.image_key !== key) ctx.waitUntil(env.R2_BUCKET.delete(WORD_IMAGE_PREFIX + current.image_key));
-            const row = await env.DB.prepare('SELECT * FROM words WHERE id = ?').bind(id).first();
-            return wordsJson({ word: rowToEntry(row, true) });
+            return storeWordImage(request, env, ctx, current, now);
         }
         if (sub) return wordsJson({ error: 'Not Found' }, 404);
 
         if (method === 'PUT') {
-            const body = await readJsonBody(request);
-            const { value, errors } = sanitizeWordInput(body);
-            if (errors.length) return wordsJson({ error: errors.join(' ') }, 400);
-            // 画像はアップロードAPIで変える。ここでは既存の画像を保つ（静的画像の指定だけは許可）
-            const imageUrl = current.image_key ? current.image_url : value.image_url;
-            if (value.status === 'published' && !imageUrl) return wordsJson({ error: '公開するには画像が必要です。' }, 400);
-            const publishedAt = value.status === 'published' ? (current.published_at || now) : current.published_at;
-            await env.DB.prepare(
-                `UPDATE words SET status = ?, quote = ?, speaker = ?, source_title = ?, source_author = ?, source_kind = ?, source_detail = ?,
-                   source_url = ?, image_url = ?, image_alt = ?, template = ?, options = ?, comment = ?, tags = ?, spoiler = ?, sort_order = ?,
-                   updated_at = ?, published_at = ? WHERE id = ?`
-            ).bind(value.status, value.quote, value.speaker, value.source_title, value.source_author, value.source_kind, value.source_detail,
-                value.source_url, imageUrl, value.image_alt, value.template, value.options, value.comment, value.tags, value.spoiler,
-                value.sort_order, now, publishedAt, id).run();
-            const row = await env.DB.prepare('SELECT * FROM words WHERE id = ?').bind(id).first();
-            return wordsJson({ word: rowToEntry(row, true) });
+            return updateWord(env, current, await readJsonBody(request), now);
         }
 
         if (method === 'DELETE') {
@@ -376,6 +473,151 @@ async function handleWordsApi(request, env, ctx, url) {
     }
 }
 
+// ==========================================
+// ラビリンスのランキング（D1）
+//   GET  /api/ranking   上位50件
+//   POST /api/ranking   スコアを登録（1件 = 1行の INSERT なので、同時に登録されても消えない）
+// テーブルは migrations/0003_labyrinth_ranking.sql で作る。
+// ==========================================
+
+// アバターURLは「自サイトの生成アバター」か「既定のアイコン」だけを受け付け、相対パスにそろえて保存する
+function normalizeRankingAvatar(value, origin) {
+    if (typeof value !== 'string' || !value) return DEFAULT_AVATAR_URL;
+    let pathname;
+    try {
+        const parsed = new URL(value, origin);
+        if (parsed.origin !== origin || parsed.search || parsed.hash) return DEFAULT_AVATAR_URL;
+        pathname = parsed.pathname;
+    } catch {
+        return DEFAULT_AVATAR_URL;
+    }
+    if (pathname === DEFAULT_AVATAR_URL) return DEFAULT_AVATAR_URL;
+    const prefix = '/api/avatars/';
+    if (pathname.startsWith(prefix) && AVATAR_FILE_PATTERN.test(pathname.slice(prefix.length))) return pathname;
+    return DEFAULT_AVATAR_URL;
+}
+
+// 以前 KV に保存していたランキングを、テーブルが空のときに1回だけ取り込む
+async function importLegacyRanking(env, origin) {
+    if (!env.KV_BINDING) return;
+    const row = await env.DB.prepare('SELECT COUNT(*) AS n FROM labyrinth_ranking').first();
+    if (row && row.n > 0) return;
+    const stored = await env.KV_BINDING.get(LEGACY_RANKING_KEY);
+    if (!stored) return;
+    let legacy;
+    try { legacy = JSON.parse(stored); } catch { return; }
+    if (!Array.isArray(legacy) || !legacy.length) return;
+    const statements = legacy.slice(0, RANKING_TOP_LIMIT)
+        .filter((e) => e && Number.isSafeInteger(e.score) && Number.isSafeInteger(e.floor))
+        .map((e, i) => env.DB.prepare(
+            `INSERT OR IGNORE INTO labyrinth_ranking (id, name, score, floor, avatar_url, ip_hash, created_at)
+             VALUES (?, ?, ?, ?, ?, NULL, ?)`
+        ).bind(
+            `legacy-${i}`,
+            typeof e.name === 'string' ? e.name.slice(0, 40) : '名無しの冒険者',
+            e.score, e.floor,
+            normalizeRankingAvatar(e.avatarUrl, origin),
+            typeof e.date === 'string' ? e.date : new Date().toISOString(),
+        ));
+    // id を固定しているので、同時に2回走っても二重には入らない
+    if (statements.length) await env.DB.batch(statements);
+}
+
+async function handleRanking(request, env, url, corsHeaders) {
+    const jsonHeaders = {
+        ...corsHeaders,
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': 'no-store',
+    };
+    const jsonResponse = (data, status = 200, extra = {}) =>
+        new Response(JSON.stringify(data), { status, headers: { ...jsonHeaders, ...extra } });
+
+    if (!['GET', 'POST'].includes(request.method)) {
+        return jsonResponse({ error: 'Method Not Allowed' }, 405, { Allow: 'GET, POST, OPTIONS' });
+    }
+    if (!env.DB) return jsonResponse({ error: 'D1（DB）が設定されていません。' }, 500);
+
+    try {
+        await importLegacyRanking(env, url.origin);
+
+        if (request.method === 'GET') {
+            const { results } = await env.DB.prepare(
+                `SELECT name, score, floor, avatar_url, created_at FROM labyrinth_ranking
+                 ORDER BY score DESC, created_at ASC LIMIT ?`
+            ).bind(RANKING_TOP_LIMIT).all();
+            return jsonResponse(results.map((r) => ({
+                name: r.name, score: r.score, floor: r.floor, avatarUrl: r.avatar_url, date: r.created_at,
+            })));
+        }
+
+        // ---- POST ----
+        // 自サイトのページからの登録のみ（curl 等での偽装は可能なので、本命は下の回数制限）
+        if (request.headers.get('Origin') !== url.origin) {
+            return jsonResponse({ error: '外部サイトからは登録できません。' }, 403);
+        }
+
+        let body;
+        try {
+            body = await request.json();
+        } catch {
+            return jsonResponse({ error: 'JSON形式で送信してください。' }, 400);
+        }
+        if (!body || typeof body !== 'object' || Array.isArray(body)) {
+            return jsonResponse({ error: '送信データが不正です。' }, 400);
+        }
+        if (!Number.isSafeInteger(body.score) || body.score < 0 || !Number.isSafeInteger(body.floor) || body.floor < 1) {
+            return jsonResponse({ error: 'スコアまたは階層が不正です。' }, 400);
+        }
+        // スコアはブラウザ側で計算しているため、明らかにありえない値だけ弾く。
+        // 1階層あたりの上限の目安:
+        //   階層 1000 + コイン(イベント最大約45マス×200) + 残り時間(回復・延長・スロット込みで約2300秒×10)
+        //   ≒ 33000 → 余裕を見て 35000。これに最大クリアボーナス 10000 を足す。
+        if (body.floor > MAX_RANKING_FLOOR || body.score > body.floor * MAX_SCORE_PER_FLOOR + MAX_CLEAR_BONUS) {
+            return jsonResponse({ error: 'スコアが範囲外のため登録できません。' }, 400);
+        }
+
+        // --- 回数制限：同じIPから1時間に一定回数まで ---
+        const now = new Date();
+        const nowIso = now.toISOString();
+        const hourAgo = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
+        const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+        const ipHash = await hashIp(ip, env.IP_HASH_SALT || '');
+        const limit = readLimit(env.RANKING_LIMIT_PER_IP_HOUR, DEFAULT_RANKING_LIMIT_PER_IP_HOUR);
+        const recent = await env.DB.prepare(
+            'SELECT COUNT(*) AS n FROM labyrinth_ranking WHERE ip_hash = ? AND created_at > ?'
+        ).bind(ipHash, hourAgo).first();
+        if (recent && recent.n >= limit) {
+            return jsonResponse({ error: '登録の回数が上限に達しました。しばらく時間をおいてから再度お試しください。' }, 429, { 'Retry-After': '3600' });
+        }
+
+        const name = typeof body.name === 'string' ? body.name.trim().slice(0, 40) || '名無しの冒険者' : '名無しの冒険者';
+        const avatarUrl = normalizeRankingAvatar(body.avatarUrl, url.origin);
+        const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+
+        await env.DB.batch([
+            env.DB.prepare(
+                `INSERT INTO labyrinth_ranking (id, name, score, floor, avatar_url, ip_hash, created_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`
+            ).bind(crypto.randomUUID(), name, body.score, body.floor, avatarUrl, ipHash, nowIso),
+            // 後片付け：1日たったものは、上位200件以外を削除し、残すものも IP のハッシュを消す
+            env.DB.prepare(
+                `DELETE FROM labyrinth_ranking WHERE created_at < ? AND id NOT IN
+                   (SELECT id FROM labyrinth_ranking ORDER BY score DESC, created_at ASC LIMIT ?)`
+            ).bind(dayAgo, RANKING_KEEP_LIMIT),
+            env.DB.prepare(
+                'UPDATE labyrinth_ranking SET ip_hash = NULL WHERE created_at < ? AND ip_hash IS NOT NULL'
+            ).bind(dayAgo),
+        ]);
+
+        return jsonResponse({ success: true });
+    } catch (error) {
+        console.error('Ranking API Error:', error);
+        return jsonResponse({
+            error: request.method === 'GET' ? 'ランキングの取得に失敗しました。' : 'スコアの保存に失敗しました。',
+        }, 500);
+    }
+}
+
 export default {
     async fetch(request, env, ctx) {
         const url = new URL(request.url);
@@ -387,7 +629,7 @@ export default {
         };
 
         // 0. 好きな言葉の API（管理用には CORS を付けないので、OPTIONS より先に振り分ける）
-        if (path === '/api/words' || path.startsWith('/api/words-images/') || path.startsWith('/api/admin/')) {
+        if (path === '/api/words' || path.startsWith('/api/words-images/') || path.startsWith('/api/admin/') || path.startsWith('/api/ingest/')) {
             return handleWordsApi(request, env, ctx, url);
         }
 
@@ -433,7 +675,7 @@ export default {
                 const perDayLimit = readLimit(env.AVATAR_LIMIT_PER_DAY, DEFAULT_AVATAR_LIMIT_PER_DAY);
                 const stamp = jstStamp();
                 const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-                const ipKey = `${RATE_LIMIT_KEY_PREFIX}ip:${await hashIp(ip)}:${stamp}`;
+                const ipKey = `${RATE_LIMIT_KEY_PREFIX}ip:${await hashIp(ip, env.IP_HASH_SALT || '')}:${stamp}`;
                 const dayKey = `${RATE_LIMIT_KEY_PREFIX}day:${stamp.slice(0, 10)}`;
 
                 const [ipCount, dayCount] = await Promise.all([
@@ -446,6 +688,13 @@ export default {
                 if (ipCount >= perIpLimit) {
                     return errorResponse(429, '画像生成の回数が上限に達しました。1時間ほど時間をおいてから再度お試しください。', { 'Retry-After': '3600' });
                 }
+
+                // AI を呼ぶ「前」に数える。NSFW などで失敗した呼び出しも AI の利用枠は使うので、
+                // 成功した分だけ数えると、失敗するプロンプトを送り続けることで無制限に呼べてしまう。
+                await Promise.all([
+                    env.KV_BINDING.put(ipKey, String(ipCount + 1), { expirationTtl: 2 * 60 * 60 }),
+                    env.KV_BINDING.put(dayKey, String(dayCount + 1), { expirationTtl: 2 * 24 * 60 * 60 }),
+                ]);
 
                 const imageResponse = await env.AI.run(
                     '@cf/black-forest-labs/flux-1-schnell',
@@ -462,17 +711,11 @@ export default {
                     imgData = imageResponse; // 生データの場合はそのまま扱う
                 }
 
-                const fileName = `avatar-${Date.now()}-${Math.random().toString(36).substring(7)}.jpeg`;
+                const fileName = `avatar-${Date.now()}-${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}.jpeg`;
 
                 await env.R2_BUCKET.put(fileName, imgData, {
                     httpMetadata: { contentType: 'image/jpeg' },
                 });
-
-                // R2 に保存できた分だけ数える (NSFW 等で失敗した試行は数えない)
-                ctx.waitUntil(Promise.all([
-                    env.KV_BINDING.put(ipKey, String(ipCount + 1), { expirationTtl: 2 * 60 * 60 }),
-                    env.KV_BINDING.put(dayKey, String(dayCount + 1), { expirationTtl: 2 * 24 * 60 * 60 }),
-                ]));
 
                 const avatarUrl = `${url.origin}/api/avatars/${fileName}`;
                 return new Response(JSON.stringify({ avatarUrl }), { headers: jsonHeaders });
@@ -481,7 +724,11 @@ export default {
             // 2. R2画像の配信
             if (path.startsWith('/api/avatars/') && request.method === 'GET') {
                 if (!env.R2_BUCKET) throw new Error("R2 バケットのバインディングが設定されていません。");
-                const fileName = path.replace('/api/avatars/', '');
+                const fileName = path.slice('/api/avatars/'.length);
+                // 生成したアバター以外（words/ の画像など）は返さない
+                if (!AVATAR_FILE_PATTERN.test(fileName)) {
+                    return new Response('Image Not Found', { status: 404, headers: corsHeaders });
+                }
                 const object = await env.R2_BUCKET.get(fileName);
 
                 if (!object) return new Response('Image Not Found', { status: 404, headers: corsHeaders });
@@ -489,6 +736,8 @@ export default {
                 const headers = new Headers(corsHeaders);
                 object.writeHttpMetadata(headers);
                 headers.set('etag', object.httpEtag);
+                // ファイル名は毎回新しく作るので、長くキャッシュしてよい
+                headers.set('Cache-Control', 'public, max-age=31536000, immutable');
                 return new Response(object.body, { headers });
             }
 
@@ -556,136 +805,10 @@ export default {
 
             // 5. ランキングAPI
             if (path === '/api/ranking') {
-                const jsonHeaders = {
-                    ...corsHeaders,
-                    'Content-Type': 'application/json; charset=utf-8',
-                    'Cache-Control': 'no-store',
-                };
-
-                const jsonResponse = (data, status = 200) =>
-                    new Response(JSON.stringify(data), {
-                        status,
-                        headers: jsonHeaders,
-                    });
-
-                if (!['GET', 'POST'].includes(request.method)) {
-                    return new Response(
-                        JSON.stringify({ error: 'Method Not Allowed' }),
-                        {
-                            status: 405,
-                            headers: {
-                                ...jsonHeaders,
-                                Allow: 'GET, POST, OPTIONS',
-                            },
-                        }
-                    );
-                }
-
-                if (!env.KV_BINDING) {
-                    return jsonResponse({
-                        error: 'KV_BINDING が設定されていません。',
-                    }, 500);
-                }
-
-                const rankingKey = 'labyrinth_ranking';
-
-                try {
-                    // POSTの入力は、保存データを変更する前に確認する。
-                    let newEntry = null;
-
-                    if (request.method === 'POST') {
-                        let body;
-
-                        try {
-                            body = await request.json();
-                        } catch {
-                            return jsonResponse({
-                                error: 'JSON形式で送信してください。',
-                            }, 400);
-                        }
-
-                        if (!body || typeof body !== 'object' || Array.isArray(body)) {
-                            return jsonResponse({
-                                error: '送信データが不正です。',
-                            }, 400);
-                        }
-
-                        if (
-                            !Number.isSafeInteger(body.score) ||
-                            body.score < 0 ||
-                            !Number.isSafeInteger(body.floor) ||
-                            body.floor < 1
-                        ) {
-                            return jsonResponse({
-                                error: 'スコアまたは階層が不正です。',
-                            }, 400);
-                        }
-
-                        // スコアはブラウザ側で計算しているため、明らかにありえない値だけ弾く。
-                        // 1階層あたりの上限の目安:
-                        //   階層 1000 + コイン(イベント最大約45マス×200) + 残り時間(回復・延長・スロット込みで約2300秒×10)
-                        //   ≒ 33000 → 余裕を見て 35000。これに最大クリアボーナス 10000 を足す。
-                        if (
-                            body.floor > MAX_RANKING_FLOOR ||
-                            body.score > body.floor * MAX_SCORE_PER_FLOOR + MAX_CLEAR_BONUS
-                        ) {
-                            return jsonResponse({
-                                error: 'スコアが範囲外のため登録できません。',
-                            }, 400);
-                        }
-
-                        newEntry = {
-                            name:
-                                typeof body.name === 'string'
-                                    ? body.name.trim().slice(0, 40) || '名無しの冒険者'
-                                    : '名無しの冒険者',
-                            score: body.score,
-                            floor: body.floor,
-                            avatarUrl:
-                                typeof body.avatarUrl === 'string' && body.avatarUrl
-                                    ? body.avatarUrl
-                                    : '/assets/images/icon.png',
-                            date: new Date().toISOString(),
-                        };
-                    }
-
-                    const stored = await env.KV_BINDING.get(rankingKey);
-                    const rankings = stored ? JSON.parse(stored) : [];
-
-                    if (!Array.isArray(rankings)) {
-                        throw new Error('保存済みランキングが配列ではありません。');
-                    }
-
-                    if (newEntry) {
-                        rankings.push(newEntry);
-                    }
-
-                    rankings.sort((a, b) => b.score - a.score);
-                    const topRankings = rankings.slice(0, 50);
-
-                    if (request.method === 'GET') {
-                        return jsonResponse(topRankings);
-                    }
-
-                    await env.KV_BINDING.put(
-                        rankingKey,
-                        JSON.stringify(topRankings)
-                    );
-
-                    return jsonResponse({ success: true });
-                } catch (error) {
-                    console.error('Ranking API Error:', error);
-
-                    return jsonResponse({
-                        error:
-                            request.method === 'GET'
-                                ? 'ランキングの取得に失敗しました。'
-                                : 'スコアの保存に失敗しました。',
-                    }, 500);
-                }
+                return handleRanking(request, env, url, corsHeaders);
             }
 
-            // 5. 静的ファイルのフォールバック
+            // 6. 静的ファイルのフォールバック
             return env.ASSETS.fetch(request);
 
         } catch (error) {

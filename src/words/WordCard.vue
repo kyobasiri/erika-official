@@ -5,6 +5,7 @@ import WordManga from './templates/WordManga.vue'
 import WordGame from './templates/WordGame.vue'
 import WordLyric from './templates/WordLyric.vue'
 import WordLetter from './templates/WordLetter.vue'
+import WordBunko from './templates/WordBunko.vue'
 import type { WordEntry, WordTemplate } from './types'
 
 // 言葉1件を、指定のテンプレートで描く。
@@ -21,7 +22,8 @@ const TEMPLATES: Record<WordTemplate, Component> = {
   manga: WordManga,
   game: WordGame,
   lyric: WordLyric,
-  letter: WordLetter
+  letter: WordLetter,
+  bunko: WordBunko
 }
 
 const component = computed(() => TEMPLATES[props.template ?? props.entry.template] ?? WordBubble)

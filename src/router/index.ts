@@ -48,7 +48,9 @@ const routes: Array<RouteRecordRaw> = [
   { path: '/labyrinth', name: 'labyrinth', component: LabyrinthView },
   { path: '/words', name: 'words', component: WordsView },
   // 管理ページは自分しか使わないので、必要になったときだけ読み込む
-  { path: '/admin/words', name: 'admin-words', component: () => import('../views/AdminWordsView.vue') }
+  { path: '/admin/words', name: 'admin-words', component: () => import('../views/AdminWordsView.vue') },
+  // どのルートにも当てはまらないURL（必ず一番最後に置く）
+  { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('../views/NotFoundView.vue') }
 ]
 
 const router = createRouter({

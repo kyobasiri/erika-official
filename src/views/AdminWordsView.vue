@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import WordCard from '../words/WordCard.vue'
 import { adminApi, AdminApiError, type AdminWord, type WordStatus } from '../words/adminApi'
 import { resizeImage } from '../words/imageResize'
+import { commentToHtml } from '../words/commentFormat'
 import {
   SOURCE_KIND_LABELS, TEMPLATE_LABELS, sourceLine,
   type BubbleShape, type BubbleTail, type SourceKind, type WordEntry, type WordTemplate
@@ -161,10 +162,14 @@ const previewEntry = computed<WordEntry>(() => {
   } as WordEntry
 })
 
+// ひとことのプレビュー（公開ページと同じ変換）
+const showCommentPreview = ref(false)
+const commentPreviewHtml = computed(() => commentToHtml(form.comment))
+
 const usesBubble = computed(() => form.template === 'bubble' || form.template === 'manga')
-// 縦書きを切り替えられるのは吹き出しと漫画（便箋は常に縦書き、ゲーム窓と歌詞カードは横書き）
-const canVertical = computed(() => form.template === 'bubble' || form.template === 'manga')
-const isVertical = computed(() => form.options!.vertical ?? form.template === 'manga')
+// 縦書きを切り替えられるのは吹き出し・漫画・文庫本（便箋は常に縦書き、ゲーム窓と歌詞カードは横書き）
+const canVertical = computed(() => ['bubble', 'manga', 'bunko'].includes(form.template))
+const isVertical = computed(() => form.options!.vertical ?? (form.template === 'manga' || form.template === 'bunko'))
 
 function setVertical(value: boolean) {
   form.options!.vertical = value
@@ -583,8 +588,21 @@ watch(() => form.template, () => { replayKey.value++ })
               <legend>エリカのひとこと</legend>
               <label class="field">
                 <span>なぜこの言葉が好きか <small>ページの主役になる文章です</small></span>
-                <textarea v-model="form.comment" rows="6" maxlength="4000"></textarea>
+                <textarea v-model="form.comment" rows="10" maxlength="4000"></textarea>
               </label>
+              <details class="format-help">
+                <summary>書き方（改行・見出し・太字など）</summary>
+                <ul>
+                  <li>改行はそのまま改行になります。空行を入れると段落が分かれます</li>
+                  <li><code>■ 見出し</code> の行は小見出しになります（□ ◆ も可）。<code># 見出し</code>（少し大きめ）、<code>## 見出し</code> も使えます</li>
+                  <li><code>**太字**</code>、<code>- 箇条書き</code>、<code>&gt; 引用</code>、<code>[文字](https://…)</code> が使えます</li>
+                </ul>
+              </details>
+              <button type="button" class="ghost small" :aria-expanded="showCommentPreview" @click="showCommentPreview = !showCommentPreview">
+                {{ showCommentPreview ? 'プレビューを閉じる' : '公開ページでの見え方を確認する' }}
+              </button>
+              <!-- commentPreviewHtml は DOMPurify で無害化済み -->
+              <div v-if="showCommentPreview" class="comment-preview" v-html="commentPreviewHtml || '<p>（まだ書かれていません）</p>'"></div>
             </fieldset>
 
             <fieldset class="block">
@@ -768,7 +786,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   padding: 14px 0 6px;
 }
 .block legend { font-size: 13px; font-weight: 800; color: var(--accent); padding: 0 8px 0 0; }
-.template-picker { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.template-picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .template-picker button { display: grid; gap: 4px; text-align: center; font-size: 11px; color: var(--muted); border-radius: 10px; padding: 3px; border: 2px solid transparent; }
 .template-picker button.chosen { border-color: var(--accent); color: #fff; font-weight: 700; }
 .field { display: grid; gap: 5px; margin-bottom: 12px; font-size: 13px; }
@@ -836,4 +854,30 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   .template-picker { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .preview-col { max-width: none; }
 }
+.format-help { font-size: 12px; color: var(--muted); margin: -4px 0 10px; }
+.format-help summary { cursor: pointer; }
+.format-help ul { margin: 6px 0 0; padding-left: 1.2em; list-style: disc; line-height: 1.9; }
+.format-help code { background: #0f1013; border: 1px solid #3f3f46; border-radius: 4px; padding: 0 4px; font-size: 11px; }
+.ghost.small { font-size: 12px; padding: 5px 10px; }
+.comment-preview {
+  margin-top: 10px;
+  padding: 14px 16px;
+  background: #1d1f25;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 10px 10px 0;
+  font-size: 14px;
+  line-height: 2;
+  overflow-wrap: anywhere;
+}
+.comment-preview :deep(p) { margin: 0 0 1em; }
+.comment-preview :deep(> :last-child) { margin-bottom: 0; }
+.comment-preview :deep(h1), .comment-preview :deep(h2), .comment-preview :deep(h3), .comment-preview :deep(h4) { margin: 1.4em 0 0.4em; font-size: 14px; font-weight: 800; color: #fff; }
+.comment-preview :deep(h1) { font-size: 16px; }
+.comment-preview :deep(:is(h1, h2, h3, h4)::before) { content: '■ '; color: var(--accent); }
+.comment-preview :deep(> :is(h1, h2, h3, h4):first-child) { margin-top: 0; }
+.comment-preview :deep(strong) { color: #fff; }
+.comment-preview :deep(ul) { list-style: disc; padding-left: 1.4em; margin: 0 0 1em; }
+.comment-preview :deep(ol) { list-style: decimal; padding-left: 1.4em; margin: 0 0 1em; }
+.comment-preview :deep(blockquote) { margin: 0 0 1em; padding: 8px 12px; background: rgba(255, 255, 255, 0.04); border-radius: 8px; }
+.comment-preview :deep(a) { color: var(--accent); text-decoration: underline; }
 </style>

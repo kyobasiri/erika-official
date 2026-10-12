@@ -1,7 +1,7 @@
 // 「好きな言葉」ページのデータ型。
 // いまは public/assets/words.json から読むが、将来は管理ページ（D1）から同じ形で返す。
 
-export type WordTemplate = 'bubble' | 'manga' | 'game' | 'lyric' | 'letter'
+export type WordTemplate = 'bubble' | 'manga' | 'game' | 'lyric' | 'letter' | 'bunko'
 
 export type SourceKind = 'manga' | 'anime' | 'game' | 'song' | 'movie' | 'book' | 'other'
 
@@ -23,7 +23,7 @@ export interface BubbleOptions {
 export interface WordOptions {
   /** アクセント色（テンプレートごとの差し色） */
   accent?: string
-  /** 縦書きにするか */
+  /** 縦書きにするか（吹き出し・漫画・文庫本で使う） */
   vertical?: boolean
   /** 画像のどこを中心に見せるか（object-position の %） */
   focus?: { x: number; y: number }
@@ -80,7 +80,8 @@ export const TEMPLATE_LABELS: Record<WordTemplate, string> = {
   manga: '漫画のコマ',
   game: 'ゲームの窓',
   lyric: '歌詞カード',
-  letter: '便箋'
+  letter: '便箋',
+  bunko: '文庫本'
 }
 
 export const sourceLine = (entry: WordEntry) => {

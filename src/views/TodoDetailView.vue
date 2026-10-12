@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { marked } from 'marked'
+import { fetchStaticText, isReportId, isYoutubeId, reportMarkdownToSafeHtml, staticFileExists } from '../utils/safeContent'
 
 interface ReportRef {
   filename: string
@@ -11,23 +11,16 @@ interface ReportRef {
 
 const route = useRoute()
 const reportId = ref('')
-const compiledMarkdown = ref('<p class="text-zinc-400 animate-pulse">読み込み中...</p>')
+const loading = ref(true)
+const errorMessage = ref('')
+// 無害化（DOMPurify）済みの HTML だけを入れる
+const compiledMarkdown = ref('')
 
 const prevReport = ref<ReportRef | null>(null)
 const nextReport = ref<ReportRef | null>(null)
 
 const youtubeId = ref<string | null>(null)
 const audioUrl = ref<string | null>(null)
-
-const parseMarkdown = async (text: string) => {
-  const xLinkRegex = /^[ \t]*https?:\/\/(?:x\.com|twitter\.com)\/([a-zA-Z0-9_]+\/status\/\d+)[^\s<]*[ \t]*$/gm
-  text = text.replace(xLinkRegex, '\n\n<div class="flex justify-center my-6"><blockquote class="twitter-tweet" data-align="center"><a href="https://twitter.com/$1"></a></blockquote></div>\n\n')
-
-  const ytNormalRegex = /^[ \t]*https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)[^\s<]*[ \t]*$/gm
-  text = text.replace(ytNormalRegex, '\n\n<div class="relative pb-[56.25%] h-0 overflow-hidden w-full my-6 rounded-xl shadow-lg"><iframe src="https://www.youtube.com/embed/$1" class="absolute top-0 left-0 w-full h-full border-none" allowfullscreen></iframe></div>\n\n')
-
-  return await marked.parse(text)
-}
 
 const loadTwitterWidget = () => {
   if (!document.getElementById('twitter-wjs')) {
@@ -45,69 +38,66 @@ const loadTwitterWidget = () => {
 }
 
 const fetchReportData = async () => {
-  const id = route.query.id as string
-  if (!id || !id.includes('-task-report')) {
-    compiledMarkdown.value = '<p class="text-red-500 font-bold">指定された日誌は存在しないか、非公開に設定されています。</p>'
-    return
-  }
+  const id = typeof route.query.id === 'string' ? route.query.id : ''
 
   reportId.value = id
-  compiledMarkdown.value = '<p class="text-zinc-400 animate-pulse">読み込み中...</p>'
+  loading.value = true
+  errorMessage.value = ''
+  compiledMarkdown.value = ''
   prevReport.value = null
   nextReport.value = null
   youtubeId.value = null
   audioUrl.value = null
 
-  // YouTube ID取得
-  try {
-    const ytRes = await fetch(`/reports/${id}-youtube.txt`)
-    if (ytRes.ok) youtubeId.value = (await ytRes.text()).trim()
-  } catch (e) {}
+  if (!isReportId(id) || !id.includes('-task-report')) {
+    errorMessage.value = '指定された日誌は存在しないか、非公開に設定されています。'
+    loading.value = false
+    return
+  }
 
-  // 音声取得
-  const potentialAudioPath = `/assets/audio/${id}.wav`
-  try {
-    const audioRes = await fetch(potentialAudioPath, { method: 'HEAD' })
-    if (audioRes.ok) audioUrl.value = potentialAudioPath
-  } catch (e) {}
+  // YouTube ID・音声・一覧・本文をまとめて取得
+  const [ytText, hasAudio, reportsText, mdText] = await Promise.all([
+    fetchStaticText(`/reports/${id}-youtube.txt`),
+    staticFileExists(`/assets/audio/${id}.wav`, 'audio/'),
+    fetchStaticText(`/assets/public_reports.json?t=${Date.now()}`),
+    fetchStaticText(`/reports/${id}.md`),
+  ])
+  if (id !== reportId.value) return // 読み込み中に別の日誌へ移動した
 
-  // 前後の日誌を取得
-  try {
-    const reportsRes = await fetch(`/assets/public_reports.json?t=${new Date().getTime()}`)
-    if (reportsRes.ok) {
-      const allReports: ReportRef[] = await reportsRes.json()
+  // YouTube ID（11文字の英数字だけを受け付ける）
+  const ytId = ytText?.trim() ?? ''
+  if (isYoutubeId(ytId)) youtubeId.value = ytId
+
+  // 音声（本当に音声ファイルが返ってくるときだけ表示）
+  if (hasAudio) audioUrl.value = `/assets/audio/${id}.wav`
+
+  // 前後の日誌
+  if (reportsText) {
+    try {
+      const allReports: ReportRef[] = JSON.parse(reportsText)
       const reports = allReports.filter(r => r.filename.includes('-task-report'))
       const currentIndex = reports.findIndex(r => r.filename.replace('.md', '') === id)
-      
       if (currentIndex !== -1) {
-        if (currentIndex < reports.length - 1) prevReport.value = reports[currentIndex + 1]
-        if (currentIndex > 0) nextReport.value = reports[currentIndex - 1]
+        prevReport.value = reports[currentIndex + 1] ?? null
+        nextReport.value = reports[currentIndex - 1] ?? null
       }
+    } catch (e) {
+      console.error('List parse failed', e)
     }
-  } catch (e) {
-    console.error("List fetch failed", e)
   }
 
-  // Markdown取得
-  try {
-    const response = await fetch(`/reports/${id}.md`)
-    if (!response.ok) throw new Error('Not found')
-    let text = await response.text()
-
-    if (text.trim().toLowerCase().startsWith('<!doctype html>') || text.trim().toLowerCase().startsWith('<html')) {
-      throw new Error('Markdownファイルが見つからず、index.htmlが返却されました。')
-    }
-
-    text = text.replace(/\r/g, '')
-    compiledMarkdown.value = await parseMarkdown(text)
-
-    nextTick(() => {
-      loadTwitterWidget()
-    })
-  } catch (error: any) {
-    console.error(error)
-    compiledMarkdown.value = `<p class="text-red-400 font-bold">記事の読み込みに失敗しました。</p>`
+  // 本文
+  if (!mdText) {
+    errorMessage.value = '記事の読み込みに失敗しました。'
+    loading.value = false
+    return
   }
+  compiledMarkdown.value = reportMarkdownToSafeHtml(mdText.replace(/\r/g, ''))
+  loading.value = false
+
+  nextTick(() => {
+    loadTwitterWidget()
+  })
 }
 
 onMounted(() => {
@@ -143,7 +133,10 @@ watch(
 
       <!-- 記事本文エリア -->
       <div class="bg-black/60 backdrop-blur-md rounded-2xl p-6 md:p-10 border border-white/10 shadow-2xl mb-12">
-        <div class="markdown-body" v-html="compiledMarkdown"></div>
+        <p v-if="loading" class="text-zinc-400 animate-pulse">読み込み中...</p>
+        <p v-else-if="errorMessage" class="text-red-400 font-bold">{{ errorMessage }}</p>
+        <!-- compiledMarkdown は DOMPurify で無害化済み -->
+        <div v-else class="markdown-body" v-html="compiledMarkdown"></div>
       </div>
 
       <!-- ページネーション -->

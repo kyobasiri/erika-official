@@ -4,6 +4,7 @@ import LiteYouTube from '../components/LiteYouTube.vue'
 import ImageLightbox from '../components/ImageLightbox.vue'
 import WordCard from '../words/WordCard.vue'
 import { SOURCE_KIND_LABELS, type WordEntry } from '../words/types'
+import { commentToPlainText } from '../words/commentFormat'
 import { articleDateLabel, splitArticleTitle, summarizeArticle, type ArticleSummary } from '../articles/articleSummary'
 
 // トップページ：エリカ →（流れる画像）→ 最新記事 → 今日の言葉 → 遊ぶ → 最新の動画 → フッター
@@ -438,7 +439,8 @@ onBeforeUnmount(() => {
             <p v-if="word.speaker || word.source.author" class="word-speaker">
               {{ word.speaker || word.source.author }}
             </p>
-            <p v-if="word.comment" class="word-comment">{{ word.comment }}</p>
+            <!-- ひとことは Markdown なので、記号を外した文章を抜粋として見せる -->
+            <p v-if="word.comment" class="word-comment">{{ commentToPlainText(word.comment) }}</p>
 
             <div class="word-actions">
               <button v-if="words.length > 1" type="button" class="button button-secondary" @click="pickWord">

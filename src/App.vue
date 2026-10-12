@@ -16,6 +16,6 @@ import Header from './components/Header.vue';
 body {
   margin: 0;
   font-family: sans-serif;
-  background-color: #f8f9fa;
+  background-color: bg-zinc-950;
 }
 </style>

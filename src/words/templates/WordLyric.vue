@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import '@fontsource/zen-kurenaido/400.css'
 import '@fontsource/shippori-mincho/600.css'
 import { type WordEntry } from '../types'
+import { fitFontSize } from '../fitText'
 
 // テンプレート4：歌詞カード。紙のカードにジャケット写真とレコード、手書き風の歌詞を1行ずつ。
 const props = defineProps<{ entry: WordEntry; animate?: boolean }>()
@@ -11,15 +12,20 @@ const o = computed(() => props.entry.options ?? {})
 const focus = computed(() => `${o.value.focus?.x ?? 50}% ${o.value.focus?.y ?? 50}%`)
 const lines = computed(() => props.entry.quote.split('\n'))
 const title = computed(() => o.value.songTitle ?? props.entry.source.title)
+// 歌詞の行数・長さに合わせて文字の大きさを決める（標準は 5cqw。長い行が多いと小さくなる）
+const fontSize = computed(() => fitFontSize(props.entry.quote, {
+  inline: 84, block: 34, lineHeight: 1.75, tracking: 0.08, max: 5, min: 2.6
+}))
 </script>
 
 <template>
-  <div class="tpl-lyric" :class="{ animate }" :style="{ '--accent': o.accent ?? '#c2410c' }">
+  <div class="tpl-lyric" :class="{ animate }" :style="{ '--accent': o.accent ?? '#c2410c', '--fit': `${fontSize}cqw` }">
     <div class="sleeve">
       <div class="record" aria-hidden="true"><span class="label"></span></div>
       <div class="jacket">
         <img :src="entry.image" :alt="entry.imageAlt" :style="{ objectPosition: focus }" loading="lazy" decoding="async">
       </div>
+      <p class="memo" aria-hidden="true">♪ エリカのお気に入り</p>
     </div>
 
     <div class="sheet">
@@ -32,7 +38,6 @@ const title = computed(() => o.value.songTitle ?? props.entry.source.title)
         <span>{{ entry.source.author }}</span>
         <span v-if="entry.source.detail">{{ entry.source.detail }}</span>
       </p>
-      <p class="memo" aria-hidden="true">♪ エリカのお気に入り</p>
     </div>
   </div>
 </template>
@@ -111,8 +116,9 @@ const title = computed(() => o.value.songTitle ?? props.entry.source.title)
 .track {
   margin: 0 0 2.4cqw;
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 2.4cqw;
+  gap: 1cqw 2.4cqw;
   font-family: 'Shippori Mincho', serif;
   font-weight: 600;
   font-size: 5.4cqw;
@@ -130,7 +136,7 @@ const title = computed(() => o.value.songTitle ?? props.entry.source.title)
 .lyrics p {
   margin: 0;
   font-family: 'Zen Kurenaido', sans-serif;
-  font-size: calc(5cqw * var(--word-scale, 1));
+  font-size: calc(var(--fit, 5cqw) * var(--word-scale, 1));
   line-height: 1.75;
   letter-spacing: 0.08em;
 }
@@ -148,10 +154,13 @@ const title = computed(() => o.value.songTitle ?? props.entry.source.title)
   letter-spacing: 0.12em;
   color: #6b5641;
 }
+/* 曲名と重ならないよう、ジャケットの右下・レコードの下の余白に置く */
 .memo {
   position: absolute;
-  right: 8%;
-  top: 1cqw;
+  right: 4%;
+  bottom: 0.6cqw;
+  z-index: 3;
+  white-space: nowrap;
   margin: 0;
   font-family: 'Zen Kurenaido', sans-serif;
   font-size: 3.2cqw;
