@@ -15,7 +15,7 @@ SAKURA_MODEL = "preview/gemma-4-31B-it"
 GALLERY_DIR = 'public/assets/images/gallery'
 # 崩れていた既存の説明文を作り直す件数の上限（1回の実行あたり）。
 # 一度に全部やるとデプロイが長く止まるので、push のたびに少しずつ直す。新しい画像はこの上限に含めない。
-MAX_REGENERATE_PER_RUN = int(os.environ.get('GALLERY_MAX_REGENERATE', '200'))
+MAX_REGENERATE_PER_RUN = int(os.environ.get('GALLERY_MAX_REGENERATE', '100'))
 GALLERY_OUTPUT = 'public/assets/gallery.json'
 ALT_CACHE_FILE = 'alt_cache.json' # これはそのままでもOK
 ARTICLES_DIR = 'public/articles'
