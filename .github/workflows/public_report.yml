@@ -72,5 +72,5 @@ jobs:
 
           git commit -m "エリカが本日のパブリック用日報と音声を自動生成しました"
           # 実行中に別のワークフローが push していても失敗しないよう、最新を取り込んでから push
-          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
           git push
