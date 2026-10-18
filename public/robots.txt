@@ -1,0 +1,9 @@
+# 検索エンジン向けの設定
+# 管理ページと、管理用・連携用の API は検索結果に出さない。
+# （/api/words などの公開 API は、検索エンジンがページを表示するときに使うので止めない）
+User-agent: *
+Disallow: /admin/
+Disallow: /api/admin/
+Disallow: /api/ingest/
+
+Sitemap: https://erika.erikakataru.com/sitemap.xml

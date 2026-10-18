@@ -618,6 +618,75 @@ async function handleRanking(request, env, url, corsHeaders) {
     }
 }
 
+// ==========================================
+// サイトマップ（GET /sitemap.xml）
+//   検索エンジンに「このサイトにはこういうページがあります」と伝える一覧。
+//   固定のページに加えて、記事（articles.json）と観測日誌（public_reports.json）を毎回ここで組み立てる。
+//   → 記事や日誌が増えても、sitemap.xml を手で書き直す必要がない。
+//   （/reports と /report-detail は検索に載せる想定ではないので入れない）
+// ==========================================
+const SITEMAP_ORIGIN = 'https://erika.erikakataru.com';
+const SITEMAP_STATIC_PATHS = [
+    '/', '/concept', '/blog', '/gallery', '/words', '/todo',
+    '/gear', '/spec', '/beat', '/rpg', '/game', '/labyrinth',
+    '/about', '/privacy', '/contact',
+];
+// 記事ID（20261016 など）・日誌ID（20261012-task-report など）として正しい形だけを載せる
+const SITEMAP_ARTICLE_ID = /^\d{8}(?:-[a-z0-9-]+)?$/;
+const SITEMAP_REPORT_ID = /^\d{8}(?:-[a-z]+)*-report$/;
+
+function xmlEscape(value) {
+    return String(value).replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
+}
+
+// 「20261016」→「2026-10-16」（最終更新日として使う）
+function idToDate(id) {
+    const m = /^(\d{4})(\d{2})(\d{2})/.exec(id);
+    return m ? `${m[1]}-${m[2]}-${m[3]}` : '';
+}
+
+// 静的ファイル（public/assets/*.json）を読む。無い・壊れているときは空の配列
+async function readAssetJson(env, request, path) {
+    try {
+        const res = await env.ASSETS.fetch(new Request(new URL(path, request.url)));
+        if (!res.ok) return [];
+        const data = await res.json();
+        return Array.isArray(data) ? data : [];
+    } catch {
+        return [];
+    }
+}
+
+async function handleSitemap(request, env) {
+    const [articles, reports] = await Promise.all([
+        readAssetJson(env, request, '/assets/articles.json'),
+        readAssetJson(env, request, '/assets/public_reports.json'),
+    ]);
+
+    const urls = SITEMAP_STATIC_PATHS.map((path) => ({ loc: SITEMAP_ORIGIN + path, lastmod: '' }));
+    for (const article of articles) {
+        const id = article && typeof article.id === 'string' ? article.id : '';
+        if (SITEMAP_ARTICLE_ID.test(id)) urls.push({ loc: `${SITEMAP_ORIGIN}/article?id=${id}`, lastmod: idToDate(id) });
+    }
+    for (const report of reports) {
+        const id = report && typeof report.filename === 'string' ? report.filename.replace(/\.md$/, '') : '';
+        if (SITEMAP_REPORT_ID.test(id)) urls.push({ loc: `${SITEMAP_ORIGIN}/todo-detail?id=${id}`, lastmod: idToDate(id) });
+    }
+
+    const body = '<?xml version="1.0" encoding="UTF-8"?>\n'
+        + '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + urls.map((u) => `  <url><loc>${xmlEscape(u.loc)}</loc>${u.lastmod ? `<lastmod>${u.lastmod}</lastmod>` : ''}</url>`).join('\n')
+        + '\n</urlset>\n';
+
+    return new Response(request.method === 'HEAD' ? null : body, {
+        headers: {
+            'Content-Type': 'application/xml; charset=utf-8',
+            // 1時間はキャッシュしてよい（記事は1日に数本しか増えない）
+            'Cache-Control': 'public, max-age=3600',
+        },
+    });
+}
+
 export default {
     async fetch(request, env, ctx) {
         const url = new URL(request.url);
@@ -631,6 +700,11 @@ export default {
         // 0. 好きな言葉の API（管理用には CORS を付けないので、OPTIONS より先に振り分ける）
         if (path === '/api/words' || path.startsWith('/api/words-images/') || path.startsWith('/api/admin/') || path.startsWith('/api/ingest/')) {
             return handleWordsApi(request, env, ctx, url);
+        }
+
+        // サイトマップ（検索エンジン向け）
+        if (path === '/sitemap.xml' && (request.method === 'GET' || request.method === 'HEAD')) {
+            return handleSitemap(request, env);
         }
 
         if (request.method === 'OPTIONS') {
