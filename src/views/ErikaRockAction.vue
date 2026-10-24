@@ -5,7 +5,7 @@
       <!-- エリカHP & チャージ状態 -->
       <div class="flex items-center gap-3 bg-slate-900/85 px-4 py-2 rounded-lg border border-slate-700 backdrop-blur-sm">
         <div>
-          <div class="flex justify-between items-center">
+          <div class="flex justify-between items-center gap-4">
             <span class="text-xs font-extrabold text-pink-400 tracking-wider">ERIKA</span>
             <span class="text-xs font-mono text-slate-300">SCORE: {{ score }}</span>
           </div>
@@ -80,14 +80,27 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 
-// ★ Cloud Run の URL（.env の VITE_API_URL またはここに直接記述）
+// ★ ご自身の Cloud Run の URL を設定してください
 const API_BASE = import.meta.env.VITE_API_URL || 'https://erika-action-api-xxxxxxxxxx-an.a.run.app'
+
+// ==========================================
+// 物理・速度パラメータ設定（ここでいつでも微調整可能！）
+// ==========================================
+const PHYSICS = {
+  MOVE_ACCEL: 0.45,       // 左右の加速度（従来の約2/3）
+  MOVE_MAX_SPEED: 3.6,    // 左右の最高速度（従来の5.5 → 3.6へ2/3倍に減速）
+  FRICTION: 0.82,         // 足を止めた時の滑りにくさ
+  JUMP_VELOCITY: -4.8,    // ジャンプ初速（従来の-13.5 → -4.8へ約1/3倍に減速！）
+  GRAVITY: 0.075,         // 重力（ジャンプ速度1/3でも同じ高さまでふんわり飛べるよう約1/9に調整）
+  SLIDE_SPEED: 7.2,       // スライディング速度（従来の2/3）
+  BOUNCE_VELOCITY: -4.4,  // 敵を踏んだ時の跳ね返り速度（1/3倍）
+}
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const playerHp = ref(100)
 const score = ref(0)
 const chargeLevel = ref(0)
-const apiStatus = ref<'WAKING UP...' | 'ONLINE' | 'FALLBACK'>('WAKING UP...')
+const apiStatus = ref<'WAKING UP...' | 'ONLINE' | 'LOCAL FALLBACK'>('WAKING UP...')
 const isLoadingStage = ref(false)
 const currentStage = ref(1)
 const gameResult = ref<'CLEAR' | 'GAMEOVER' | null>(null)
@@ -97,14 +110,12 @@ const cutin = reactive({ visible: false, quote: '', source: '' })
 // スプライト画像の管理（エリカ6枚 ＋ 敵7枚）
 const sprites: Record<string, HTMLImageElement> = {}
 const spritePaths: Record<string, string> = {
-  // エリカ用スプライト
   idle: '/sprites/idle.png',
   run1: '/sprites/run1.png',
   run2: '/sprites/run2.png',
   shoot: '/sprites/shoot.png',
   jump: '/sprites/jump.png',
   jumpShoot: '/sprites/jump_shoot.png',
-  // 敵キャラ7体用スプライト
   soot: '/sprites/enemies/soot.png',
   lime: '/sprites/enemies/lime.png',
   jelly: '/sprites/enemies/jelly.png',
@@ -125,7 +136,6 @@ const loadAllSprites = async () => {
   )
 }
 
-// キャンセル可能な非同期タイマー関数
 const waitAsync = (ms: number, signal?: AbortSignal) => new Promise<void>((resolve, reject) => {
   const timer = setTimeout(resolve, ms)
   signal?.addEventListener('abort', () => {
@@ -134,7 +144,6 @@ const waitAsync = (ms: number, signal?: AbortSignal) => new Promise<void>((resol
   })
 })
 
-// --- プレイヤー（エリカ）の状態 ---
 const GROUND_Y = 370
 const player = {
   x: 120,
@@ -145,13 +154,12 @@ const player = {
   onGround: true,
   shootPoseTimer: 0,
   isSliding: false,
-  invincibleTimer: 0, // 被弾後の無敵時間
+  invincibleTimer: 0,
   scaleX: 1,
   scaleY: 1,
   runAnimTimer: 0
 }
 
-// --- 弾・残像・敵・ボスの管理 ---
 interface Bullet { x: number; y: number; vx: number; radius: number; damage: number; color: string; piercing?: boolean; isEnemy?: boolean }
 interface Enemy {
   id: string; type: string; name: string
@@ -173,24 +181,49 @@ const boss = reactive({
   abortController: null as AbortController | null
 })
 
-// --- 1. Cloud Run のスリープをタイトル表示時に非同期で起こす ---
+// 万が一APIがブロック・オフラインの時でも7体の敵を生成するローカルフォールバック
+const buildFallbackStageData = (stageNum: number) => {
+  const catalog = [
+    { type: 'soot', name: '煤玉モンスター', hp: 10, speed: 1.4, score: 100, stompable: true },
+    { type: 'lime', name: 'ライム豆っこ', hp: 10, speed: 2.0, score: 150, stompable: true },
+    { type: 'jelly', name: '桃色ゼリー', hp: 15, speed: 1.3, score: 200, stompable: true },
+    { type: 'note_ghost', name: '音符のおばけ', hp: 15, speed: 1.6, score: 250, stompable: true },
+    { type: 'turtle', name: 'ずんぐりカメ', hp: 35, speed: 0.8, score: 300, stompable: true, armored: true },
+    { type: 'mole', name: '鉱夫モグラ', hp: 20, speed: 0.0, score: 350, stompable: false, helmet: true },
+    { type: 'hedgehog', name: '赤いハリネズミ', hp: 25, speed: 4.2, score: 400, stompable: false, spiky: true },
+  ]
+  const waves = Array.from({ length: 7 }, (_, i) => ({
+    id: `local_enemy_${i}`,
+    spawn_delay_ms: 800 + i * 2600,
+    ...catalog[i % catalog.length]
+  }))
+  return {
+    stage: stageNum,
+    enemy_waves: waves,
+    boss: {
+      boss_name: `SHADOW ERIKA // STAGE ${stageNum}`,
+      hp: 120 + stageNum * 30,
+      cutin_quote: { quote: '手探りでもただ前に進むしかない。いずれなんとかなるだろってな。', source: '『シャーマンキング』麻倉葉' }
+    }
+  }
+}
+
 const wakeUpCloudRunAsync = async () => {
   try {
     const res = await fetch(`${API_BASE}/api/health`)
     if (res.ok) apiStatus.value = 'ONLINE'
+    else apiStatus.value = 'LOCAL FALLBACK'
   } catch {
-    apiStatus.value = 'FALLBACK'
+    apiStatus.value = 'LOCAL FALLBACK'
   }
 }
 
-// --- 2. Cloud Run からステージデータを取得してゲーム開始！ ---
 const startStageFromCloudRun = async (stageNum: number) => {
   isLoadingStage.value = true
   gameResult.value = null
   currentStage.value = stageNum
   playerHp.value = 100
 
-  // 既存の非同期タスクをすべて安全にキャンセル
   stageAbortController?.abort()
   enemies.forEach(e => e.abortController.abort())
   enemies.length = 0
@@ -204,34 +237,29 @@ const startStageFromCloudRun = async (stageNum: number) => {
   let stageData: any
   try {
     const res = await fetch(`${API_BASE}/api/stage-start?stage=${stageNum}`)
+    if (!res.ok) throw new Error('API Error')
     stageData = await res.json()
     apiStatus.value = 'ONLINE'
   } catch {
-    apiStatus.value = 'FALLBACK'
+    // CORSエラーやオフライン時は自動的にローカルデータを使って敵を出す！
+    apiStatus.value = 'LOCAL FALLBACK'
+    stageData = buildFallbackStageData(stageNum)
   } finally {
     isLoadingStage.value = false
   }
 
-  if (!stageData) return
-
-  // 敵ウェーブを非同期で並列スケジュールし、すべての敵が出現＆撃破されたらボス戦へ！
   try {
     const wavePromises = stageData.enemy_waves.map((wave: any) => spawnEnemyWaveAsync(wave, stageSignal))
     await Promise.all(wavePromises)
 
-    // 残っている敵が全滅するまで非同期ポーリング待機
     while (enemies.length > 0) {
       await waitAsync(500, stageSignal)
     }
 
-    // 敵全滅後、ボス登場カットイン演出へ！
     await startBossBattleAsync(stageData.boss, stageSignal)
-  } catch {
-    // ステージ中断時
-  }
+  } catch {}
 }
 
-// --- 3. 7体の敵それぞれのスポーンと独立した非同期AIコルーチン ---
 const spawnEnemyWaveAsync = async (wave: any, stageSignal: AbortSignal) => {
   await waitAsync(wave.spawn_delay_ms, stageSignal)
 
@@ -239,13 +267,13 @@ const spawnEnemyWaveAsync = async (wave: any, stageSignal: AbortSignal) => {
   stageSignal.addEventListener('abort', () => enemyAbort.abort())
 
   const isFlying = wave.type === 'note_ghost'
-  const startY = isFlying ? 250 : GROUND_Y
+  const startY = isFlying ? 240 : GROUND_Y
 
   const enemy: Enemy = {
     id: wave.id,
     type: wave.type,
     name: wave.name,
-    x: wave.type === 'mole' ? 520 + Math.random() * 180 : 830,
+    x: wave.type === 'mole' ? 500 + Math.random() * 180 : 830,
     y: startY,
     baseY: startY,
     vx: -wave.speed,
@@ -261,49 +289,42 @@ const spawnEnemyWaveAsync = async (wave: any, stageSignal: AbortSignal) => {
   }
   enemies.push(enemy)
 
-  // ★ 敵キャラ別の非同期行動パターン実行
   const { signal } = enemyAbort
   try {
     if (enemy.type === 'hedgehog') {
-      // 【赤いハリネズミ】接近 → 0.6秒震えて溜める → 高速ダッシュ！
       while (enemy.hp > 0) {
-        enemy.vx = -2.2
-        await waitAsync(1300, signal)
+        enemy.vx = -1.5
+        await waitAsync(1400, signal)
         enemy.vx = 0
         enemy.isCharging = true
-        await waitAsync(600, signal)
+        await waitAsync(650, signal)
         enemy.isCharging = false
-        enemy.vx = -9.5 // 猛突進！
-        await waitAsync(800, signal)
+        enemy.vx = -5.5 // ダッシュ速度もマイルドに調整
+        await waitAsync(900, signal)
       }
     } else if (enemy.type === 'mole') {
-      // 【鉱夫モグラ】土に潜る（ヘルメット無敵）⇔ 顔を出して石礫ショット
       while (enemy.hp > 0) {
         enemy.isHidden = true
-        await waitAsync(1500, signal)
+        await waitAsync(1600, signal)
         enemy.isHidden = false
-        bullets.push({ x: enemy.x - 24, y: enemy.y - 28, vx: -6.5, radius: 8, damage: 12, color: '#f59e0b', isEnemy: true })
-        await waitAsync(1300, signal)
+        bullets.push({ x: enemy.x - 24, y: enemy.y - 28, vx: -4.2, radius: 8, damage: 12, color: '#f59e0b', isEnemy: true })
+        await waitAsync(1500, signal)
       }
     } else if (enemy.type === 'jelly') {
-      // 【桃色ゼリー】リズムよく大ジャンプを繰り返す
       while (enemy.hp > 0) {
-        if (enemy.y >= GROUND_Y) enemy.vy = -11
-        await waitAsync(1100, signal)
+        // ゼリーのジャンプ速度も1/3に合わせて調整
+        if (enemy.y >= GROUND_Y) enemy.vy = -3.8
+        await waitAsync(1800, signal)
       }
     } else if (enemy.type === 'note_ghost') {
-      // 【音符のおばけ】空中から音符弾を撃ってくる
       while (enemy.hp > 0) {
-        await waitAsync(1800, signal)
-        bullets.push({ x: enemy.x - 20, y: enemy.y - 30, vx: -5.5, radius: 9, damage: 10, color: '#c084fc', isEnemy: true })
+        await waitAsync(2200, signal)
+        bullets.push({ x: enemy.x - 20, y: enemy.y - 30, vx: -3.8, radius: 9, damage: 10, color: '#c084fc', isEnemy: true })
       }
     }
-  } catch {
-    // 撃破時に自動キャンセル
-  }
+  } catch {}
 }
 
-// --- 4. ボス戦の非同期シーケンス ---
 const startBossBattleAsync = async (bossData: any, stageSignal: AbortSignal) => {
   cutin.quote = bossData.cutin_quote.quote
   cutin.source = bossData.cutin_quote.source
@@ -325,24 +346,23 @@ const startBossBattleAsync = async (bossData: any, stageSignal: AbortSignal) => 
   try {
     while (boss.active && boss.hp > 0) {
       boss.state = 'IDLE'
-      await waitAsync(1100, signal)
+      await waitAsync(1300, signal)
 
       boss.state = 'CHARGING'
-      await waitAsync(700, signal)
+      await waitAsync(800, signal)
 
       boss.state = 'ATTACK'
       for (let i = 0; i < 3; i++) {
-        bullets.push({ x: boss.x - 35, y: boss.y - 35 - i * 18, vx: -9.5, radius: 11, damage: 15, color: '#f43f5e', isEnemy: true })
-        await waitAsync(200, signal)
+        bullets.push({ x: boss.x - 35, y: boss.y - 35 - i * 18, vx: -5.8, radius: 11, damage: 15, color: '#f43f5e', isEnemy: true })
+        await waitAsync(260, signal)
       }
 
-      boss.vy = -12.5
-      await waitAsync(1000, signal)
+      boss.vy = -4.2 // ボスのジャンプもゆったりに調整
+      await waitAsync(1600, signal)
     }
   } catch {}
 }
 
-// --- 5. ロックマン風：非同期チャージショット＆スライディング ---
 let chargeAbort: AbortController | null = null
 
 const startChargeAsync = async () => {
@@ -362,28 +382,26 @@ const fireGuitarWave = (level: number) => {
   const offsetY = -38
 
   if (level === 0) {
-    bullets.push({ x: player.x + offsetX, y: player.y + offsetY, vx: player.facing * 10, radius: 6, damage: 10, color: '#f472b6' })
+    bullets.push({ x: player.x + offsetX, y: player.y + offsetY, vx: player.facing * 7.5, radius: 6, damage: 10, color: '#f472b6' })
   } else if (level === 1) {
-    bullets.push({ x: player.x + offsetX, y: player.y + offsetY, vx: player.facing * 13, radius: 14, damage: 25, color: '#38bdf8' })
+    bullets.push({ x: player.x + offsetX, y: player.y + offsetY, vx: player.facing * 9.5, radius: 14, damage: 25, color: '#38bdf8' })
   } else {
-    // フルチャージ：カメの甲羅やモグラも貫通する特大サウンドブラスター！
-    bullets.push({ x: player.x + offsetX, y: player.y + offsetY, vx: player.facing * 16, radius: 24, damage: 45, color: '#facc15', piercing: true })
-    player.vx = -player.facing * 3.5
+    bullets.push({ x: player.x + offsetX, y: player.y + offsetY, vx: player.facing * 12, radius: 24, damage: 45, color: '#facc15', piercing: true })
+    player.vx = -player.facing * 2.5
   }
 }
 
 const startSlideAsync = async () => {
   if (!player.onGround || player.isSliding) return
   player.isSliding = true
-  player.vx = player.facing * 11
+  player.vx = player.facing * PHYSICS.SLIDE_SPEED
   try {
-    await waitAsync(300)
+    await waitAsync(320)
   } finally {
     player.isSliding = false
   }
 }
 
-// --- 6. キーボード操作 ---
 const keys = new Set<string>()
 const onKeyDown = (e: KeyboardEvent) => {
   if (['ArrowLeft', 'ArrowRight', 'Space', 'KeyZ', 'KeyX', 'KeyC'].includes(e.code)) e.preventDefault()
@@ -391,9 +409,9 @@ const onKeyDown = (e: KeyboardEvent) => {
   keys.add(e.code)
 
   if ((e.code === 'Space' || e.code === 'KeyZ') && player.onGround) {
-    player.vy = -13.5
+    player.vy = PHYSICS.JUMP_VELOCITY
     player.onGround = false
-    player.scaleX = 0.82; player.scaleY = 1.22
+    player.scaleX = 0.85; player.scaleY = 1.18
   }
   if (e.code === 'KeyX') {
     fireGuitarWave(0)
@@ -404,7 +422,8 @@ const onKeyDown = (e: KeyboardEvent) => {
 
 const onKeyUp = (e: KeyboardEvent) => {
   keys.delete(e.code)
-  if ((e.code === 'Space' || e.code === 'KeyZ') && player.vy < -4) player.vy *= 0.45
+  // ジャンプボタンを早く離した時の小ジャンプ減衰
+  if ((e.code === 'Space' || e.code === 'KeyZ') && player.vy < -1.5) player.vy *= 0.45
   if (e.code === 'KeyX') {
     if (chargeLevel.value > 0) {
       const lv = chargeLevel.value
@@ -417,51 +436,64 @@ const onKeyUp = (e: KeyboardEvent) => {
   }
 }
 
-// --- 7. メインループ (60FPS 物理＆描画) ---
 let animFrameId = 0
+let lastFrameTime = performance.now()
 
 const getPlayerSpriteKey = () => {
   if (!player.onGround) return player.shootPoseTimer > 0 ? 'jumpShoot' : 'jump'
   if (player.shootPoseTimer > 0) return 'shoot'
-  if (Math.abs(player.vx) > 0.6) return Math.floor(player.runAnimTimer / 7) % 2 === 0 ? 'run1' : 'run2'
+  if (Math.abs(player.vx) > 0.4) return Math.floor(player.runAnimTimer / 9) % 2 === 0 ? 'run1' : 'run2'
   return 'idle'
 }
 
 const damagePlayer = (amount: number) => {
   if (player.invincibleTimer > 0 || gameResult.value) return
   playerHp.value = Math.max(0, playerHp.value - amount)
-  player.invincibleTimer = 45 // 約0.75秒の無敵時間
-  player.vy = -6
+  player.invincibleTimer = 50
+  player.vy = -2.5
   if (playerHp.value <= 0) {
     gameResult.value = 'GAMEOVER'
     stageAbortController?.abort()
   }
 }
 
-const updateAndDraw = () => {
+const updateAndDraw = (now: number) => {
+  animFrameId = requestAnimationFrame(updateAndDraw)
+
+  // ★ 120Hz/144Hzモニターでも60FPS相当の速度を保つデルタタイム制御
+  const elapsed = now - lastFrameTime
+  if (elapsed < 15) return // 約60FPS上限に固定
+  lastFrameTime = now
+
   const canvas = canvasRef.value
   if (!canvas) return
   const ctx = canvas.getContext('2d')!
 
-  // プレイヤー移動と物理
+  // --- プレイヤー移動（左右2/3速度）＆ジャンプ物理（1/3速度） ---
   if (!player.isSliding) {
-    if (keys.has('ArrowLeft')) { player.vx = Math.max(player.vx - 0.8, -5.5); player.facing = -1 }
-    else if (keys.has('ArrowRight')) { player.vx = Math.min(player.vx + 0.8, 5.5); player.facing = 1 }
-    else { player.vx *= 0.82 }
+    if (keys.has('ArrowLeft')) {
+      player.vx = Math.max(player.vx - PHYSICS.MOVE_ACCEL, -PHYSICS.MOVE_MAX_SPEED)
+      player.facing = -1
+    } else if (keys.has('ArrowRight')) {
+      player.vx = Math.min(player.vx + PHYSICS.MOVE_ACCEL, PHYSICS.MOVE_MAX_SPEED)
+      player.facing = 1
+    } else {
+      player.vx *= PHYSICS.FRICTION
+    }
   }
   player.x = Math.max(40, Math.min(760, player.x + player.vx))
-  player.vy += 0.65
+  player.vy += PHYSICS.GRAVITY
   player.y += player.vy
 
   if (player.y >= GROUND_Y) {
-    if (!player.onGround) { player.scaleX = 1.2; player.scaleY = 0.8 }
+    if (!player.onGround) { player.scaleX = 1.18; player.scaleY = 0.82 }
     player.y = GROUND_Y; player.vy = 0; player.onGround = true
   }
-  player.scaleX += (1 - player.scaleX) * 0.2
-  player.scaleY += (1 - player.scaleY) * 0.2
+  player.scaleX += (1 - player.scaleX) * 0.18
+  player.scaleY += (1 - player.scaleY) * 0.18
   if (player.shootPoseTimer > 0) player.shootPoseTimer--
   if (player.invincibleTimer > 0) player.invincibleTimer--
-  if (Math.abs(player.vx) > 0.6) player.runAnimTimer++
+  if (Math.abs(player.vx) > 0.4) player.runAnimTimer++
 
   if (player.isSliding || chargeLevel.value === 2) {
     afterimages.push({ x: player.x, y: player.y, facing: player.facing, alpha: 0.4, spriteKey: getPlayerSpriteKey() })
@@ -496,7 +528,7 @@ const updateAndDraw = () => {
     ctx.restore()
   }
 
-  // エリカ描画（無敵時間中は点滅）
+  // エリカ描画
   if (player.invincibleTimer % 4 < 2) {
     const slideY = player.isSliding ? 0.72 : player.scaleY
     drawSprite(ctx, sprites[getPlayerSpriteKey()], player.x, player.y, player.facing, 96, player.scaleX, slideY, 1.0, false)
@@ -508,35 +540,28 @@ const updateAndDraw = () => {
     if (!e.isStunned) e.x += e.vx
 
     if (e.type === 'note_ghost') {
-      // 音符のおばけ：サイン波でふわふわ浮遊
-      e.y = e.baseY + Math.sin(Date.now() * 0.006 + i) * 32
+      e.y = e.baseY + Math.sin(Date.now() * 0.004 + i) * 32
     } else if (e.type !== 'mole') {
-      e.vy += 0.55
+      e.vy += PHYSICS.GRAVITY
       e.y = Math.min(GROUND_Y, e.y + e.vy)
       if (e.y >= GROUND_Y) e.vy = 0
     }
 
-    // 敵スプライト描画（元の絵が左向きなので scaleX=1 でそのまま左を向く）
     const shakeX = e.isCharging ? (Math.random() - 0.5) * 8 : 0
-    const moleScaleY = e.isHidden ? 0.45 : 1.0 // モグラが潜っている時は低くする
+    const moleScaleY = e.isHidden ? 0.45 : 1.0
     const stunFlipY = e.isStunned ? -0.8 : moleScaleY
     drawSprite(ctx, sprites[e.type], e.x + shakeX, e.y, 1, 76, 1, stunFlipY, 1.0, false)
 
     // プレイヤーとの接触判定（マリオ踏み vs トゲ・体当たり）
     if (Math.abs(player.x - e.x) < 38 && Math.abs(player.y - e.y) < 42) {
-      if (player.vy > 0 && player.y < e.y - 14) {
-        // 上から踏んだ！
+      if (player.vy > 0 && player.y < e.y - 12) {
         if (e.spiky) {
-          // 赤いハリネズミはトゲがあるので踏むとダメージ！
           damagePlayer(15)
         } else if (e.stompable) {
-          // 豆っこ・煤玉・ゼリー・音符・カメを踏んで大ジャンプ！
-          player.vy = -12.5
-          player.scaleX = 1.25; player.scaleY = 0.75
+          player.vy = PHYSICS.BOUNCE_VELOCITY
+          player.scaleX = 1.22; player.scaleY = 0.78
           e.hp -= 20
-          if (e.type === 'turtle' && e.hp > 0) {
-            e.isStunned = true // カメは踏むとひっくり返って停止
-          }
+          if (e.type === 'turtle' && e.hp > 0) e.isStunned = true
           if (e.hp <= 0) {
             score.value += e.score
             e.abortController.abort()
@@ -549,7 +574,6 @@ const updateAndDraw = () => {
       }
     }
 
-    // 左端へ通り過ぎたら消去
     if (e.x < -80) {
       e.abortController.abort()
       enemies.splice(i, 1)
@@ -558,7 +582,7 @@ const updateAndDraw = () => {
 
   // --- ボスの更新＆描画 ---
   if (boss.active) {
-    boss.vy += 0.5
+    boss.vy += PHYSICS.GRAVITY
     boss.y = Math.min(GROUND_Y, boss.y + boss.vy)
     if (boss.y >= GROUND_Y) boss.vy = 0
     drawSprite(ctx, sprites['shoot'], boss.x, boss.y, -1, 108, 1, 1, 0.95, true)
@@ -578,24 +602,20 @@ const updateAndDraw = () => {
     ctx.restore()
 
     if (b.isEnemy) {
-      // 敵の弾 → エリカへのヒット判定
       if (Math.abs(b.x - player.x) < 24 && Math.abs(b.y - (player.y - 36)) < 32) {
         damagePlayer(b.damage)
         bullets.splice(i, 1)
         continue
       }
     } else {
-      // エリカのギターショット → ザコ敵へのヒット判定
       let hit = false
       for (let j = enemies.length - 1; j >= 0; j--) {
         const e = enemies[j]
         if (Math.abs(b.x - e.x) < 34 && Math.abs(b.y - (e.y - 32)) < 36) {
-          // 潜っているモグラはフルチャージ貫通弾以外を弾く！
           if (e.isHidden && !b.piercing) {
-            b.vx = -b.vx * 0.8; b.y -= 5 // キン！と弾かれる演出
+            b.vx = -b.vx * 0.8; b.y -= 4
             break
           }
-          // カメの甲羅は通常弾のダメージを半減
           const dmg = (e.armored && !b.piercing && !e.isStunned) ? Math.ceil(b.damage * 0.4) : b.damage
           e.hp -= dmg
           hit = true
@@ -609,7 +629,6 @@ const updateAndDraw = () => {
       }
       if (hit && !b.piercing) { bullets.splice(i, 1); continue }
 
-      // ボスへのヒット判定
       if (boss.active && Math.abs(b.x - boss.x) < 40 && Math.abs(b.y - (boss.y - 45)) < 48) {
         boss.hp = Math.max(0, boss.hp - b.damage)
         if (!b.piercing) bullets.splice(i, 1)
@@ -625,8 +644,6 @@ const updateAndDraw = () => {
 
     if (b.x < -60 || b.x > canvas.width + 60) bullets.splice(i, 1)
   }
-
-  animFrameId = requestAnimationFrame(updateAndDraw)
 }
 
 const drawSprite = (
@@ -649,11 +666,13 @@ const drawSprite = (
 }
 
 onMounted(async () => {
-  // 画面表示と同時にスプライト読み込みとCloud RunのWake-upを並列実行！
   await Promise.all([loadAllSprites(), wakeUpCloudRunAsync()])
   window.addEventListener('keydown', onKeyDown)
   window.addEventListener('keyup', onKeyUp)
+  lastFrameTime = performance.now()
   animFrameId = requestAnimationFrame(updateAndDraw)
+  // ★ 画面を開いたら自動でステージ1の敵ウェーブを開始！
+  startStageFromCloudRun(1)
 })
 
 onUnmounted(() => {
