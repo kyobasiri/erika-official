@@ -81,11 +81,7 @@
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 
 // ★ Cloud Run の URL（.env の VITE_API_URL またはここに直接記述）
-const API_BASE = import.meta.env.VITE_API_URL?.replace(/\/+$/, '')
-
-if (!API_BASE) {
-  throw new Error('VITE_API_URL が設定されていません')
-}
+const API_BASE = import.meta.env.VITE_API_URL || 'https://erika-action-api-xxxxxxxxxx-an.a.run.app'
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const playerHp = ref(100)
