@@ -43,6 +43,7 @@ const routes: Array<RouteRecordRaw> = [
   { path: '/rpg', name: 'rpg', component: () => import('../views/RpgView.vue'), meta: { title: 'エリカ討伐戦' } },
   { path: '/beat', name: 'beat', component: () => import('../views/BeatView.vue'), meta: { title: 'ERIKA BEAT' } },
   { path: '/labyrinth', name: 'labyrinth', component: () => import('../views/LabyrinthView.vue'), meta: { title: 'エリカの迷宮' } },
+  { path: '/rock-action', name: 'rock-action', component: () => import('../views/ErikaRockAction.vue'), meta: { title: 'ERIKA ROCK ACTION' } },
   // 規約・お問い合わせ
   { path: '/privacy', name: 'privacy', component: () => import('../views/PrivacyView.vue'), meta: { title: 'プライバシーポリシー' } },
   { path: '/contact', name: 'contact', component: () => import('../views/ContactView.vue'), meta: { title: 'お問い合わせ' } },
