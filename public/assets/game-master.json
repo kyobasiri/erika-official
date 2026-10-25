@@ -97,48 +97,88 @@
             "id": "knight",
             "name": "BLACK KNIGHT ERIKA",
             "sprite": "/sprites/bosses/boss_knight.png",
-            "baseHp": 1200,
-            "scale": 1.25,
+            "baseHp": 960,
+            "scale": 1.2,
             "pattern": "KNIGHT"
         },
         {
             "id": "concierge",
             "name": "KEY MASTER ERIKA",
             "sprite": "/sprites/bosses/boss_concierge.png",
-            "baseHp": 1100,
-            "scale": 1.25,
+            "baseHp": 880,
+            "scale": 1.2,
             "pattern": "CONCIERGE"
         },
         {
             "id": "yukata",
             "name": "SUNFLOWER YUKATA",
             "sprite": "/sprites/bosses/boss_yukata.png",
-            "baseHp": 1150,
-            "scale": 1.25,
+            "baseHp": 920,
+            "scale": 1.2,
             "pattern": "YUKATA"
+        },
+        {
+            "id": "ivory",
+            "name": "IVORY COMMANDER",
+            "sprite": "/sprites/bosses/boss_ivory.png",
+            "baseHp": 950,
+            "scale": 1.2,
+            "pattern": "IVORY"
+        },
+        {
+            "id": "tea",
+            "name": "MINT TEA MASTER",
+            "sprite": "/sprites/bosses/boss_tea.png",
+            "baseHp": 980,
+            "scale": 1.2,
+            "pattern": "TEA"
         },
         {
             "id": "kimono",
             "name": "GRIMOIRE KIMONO",
             "sprite": "/sprites/bosses/boss_kimono.png",
-            "baseHp": 1250,
-            "scale": 1.25,
+            "baseHp": 1000,
+            "scale": 1.2,
             "pattern": "KIMONO"
+        },
+        {
+            "id": "flower",
+            "name": "FLORA PRINCESS",
+            "sprite": "/sprites/bosses/boss_flower.png",
+            "baseHp": 1040,
+            "scale": 1.2,
+            "pattern": "FLOWER"
+        },
+        {
+            "id": "camellia",
+            "name": "CAMELLIA SHRINE",
+            "sprite": "/sprites/bosses/boss_camellia.png",
+            "baseHp": 1060,
+            "scale": 1.2,
+            "pattern": "CAMELLIA"
         },
         {
             "id": "dress",
             "name": "NAVY DRESS DIVA",
             "sprite": "/sprites/bosses/boss_dress.png",
-            "baseHp": 1350,
-            "scale": 1.28,
+            "baseHp": 1080,
+            "scale": 1.2,
             "pattern": "DRESS"
+        },
+        {
+            "id": "gothic",
+            "name": "BLACK ROSE GOTHIC",
+            "sprite": "/sprites/bosses/boss_gothic.png",
+            "baseHp": 1150,
+            "scale": 1.2,
+            "pattern": "GOTHIC"
         },
         {
             "id": "queen",
             "name": "PEARL THRONE QUEEN",
             "sprite": "/sprites/bosses/boss_queen.png",
-            "baseHp": 1600,
-            "scale": 1.35,
+            "baseHp": 1280,
+            "scale": 1.25,
             "pattern": "QUEEN"
         }
     ],
@@ -153,7 +193,7 @@
             ],
             "groundColor": "#1e1b4b",
             "lineColor": "#ec4899",
-            "scrollSpeed": 1.4
+            "scrollSpeed": 1.45
         },
         {
             "stage": 2,
@@ -177,7 +217,7 @@
             ],
             "groundColor": "#270909",
             "lineColor": "#f97316",
-            "scrollSpeed": 1.9
+            "scrollSpeed": 1.85
         }
     ]
 }
