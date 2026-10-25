@@ -22,6 +22,7 @@ const gameItems = [
   { to: '/rpg', label: 'RPG Battle', note: 'ブラウザRPG・エリカ討伐戦', mobileNote: 'エリカ討伐戦', highlight: false },
   { to: '/game', label: 'Memory Game', note: 'AIアート神経衰弱', mobileNote: '神経衰弱', highlight: false },
   { to: '/labyrinth', label: 'Labyrinth Escape', note: '迷宮からの脱出ゲーム', mobileNote: 'ダンジョン', highlight: false },
+  { to: '/rock-action', label: 'ERIKA Rock Action', note: 'アクションゲーム・エリカでエリカを倒せ！', mobileNote: 'エリカでエリカを倒せ！', highlight: false },
 ]
 
 // スマホ用メニューの開閉状態

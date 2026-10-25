@@ -22,6 +22,7 @@ interface Video {
 
 const games = [
   { to: '/labyrinth', title: 'エリカの迷宮', category: 'DUNGEON', description: '一歩ずつ、未知の奥へ。', accent: '#a78bfa' },
+  { to: '/rock-action', title: 'ERIKA Rock Action', category: 'ACTION', description: '迫りくるギミックと12人のエリカに挑む横スクロールアクション。', accent: '#22d3ee' },
   { to: '/beat', title: 'ERIKA BEAT', category: 'RHYTHM', description: '音楽に合わせて、リズムを刻む。', accent: '#22d3ee' },
   { to: '/rpg', title: 'エリカ討伐戦', category: 'RPG', description: '楽曲を力に変えて挑む。', accent: '#fb923c' },
   { to: '/game', title: 'Memory Game', category: 'CARD', description: '同じ絵柄を見つけよう。', accent: '#f472b6' },
@@ -1061,8 +1062,8 @@ onBeforeUnmount(() => {
 /* ---------- 遊ぶ ---------- */
 .games-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .game-tile {
