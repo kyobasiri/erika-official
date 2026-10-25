@@ -467,6 +467,9 @@ let stageAbortController: AbortController | null = null
 let screenShakeTimer = 0
 
 // ボス状態（被弾タイマー・倒れ状態・発光消滅フラッシュ・12体目ステンドグラス盾ステート付き）
+// ★ 盾の状態を表す型（型チェックで使い回すため名前を付けて定義）
+type ShieldState = 'INTACT' | 'CRACKED' | 'UNARMED'
+
 const boss = reactive({
   active: false, id: 'knight', name: '', spriteKey: 'boss_knight',
   x: 640, y: GROUND_Y, vx: 0, vy: 0,
@@ -475,12 +478,18 @@ const boss = reactive({
   isDefeated: false,   // ★ボスが倒れた姿を表示中かどうか
   flashAlpha: 0,       // ★ピカッと光って消える閃光アルファ値
   hasShield: false,    // ★12体目ラスボスのステンドグラス盾フラグ
-  shieldState: 'INTACT' as 'INTACT' | 'CRACKED' | 'UNARMED',
+  shieldState: 'INTACT' as ShieldState,
   shieldHp: 500,
   maxShieldHp: 500,
   isFloating: false, warningLaserY: null as number | null, warningSpikeX: null as number | null,
   abortController: null as AbortController | null
 })
+
+// ★ 盾の「現在の」状態を取得する関数
+// await の待ち時間中に別処理（applyDamageToBoss）が盾を割ることがあるため、
+// 直接 boss.shieldState を比較するとTypeScriptが「さっきUNARMEDではないと確認済み」と
+// 誤って型を絞り込んでしまう。関数経由で読むことで毎回最新の値として扱わせる。
+const getShieldState = (): ShieldState => boss.shieldState
 
 const bgStars = Array.from({ length: 38 }, () => ({
   x: Math.random() * 800, y: Math.random() * 300, size: Math.random() * 2.2 + 1, speed: Math.random() * 0.3 + 0.1
@@ -854,13 +863,13 @@ const startBossBattleAsync = async (bossData: any, stageSignal: AbortSignal) => 
         if (boss.shieldState !== 'UNARMED') {
           // 【盾を構えている状態】ダメージが通らない代わりに、攻撃の手は緩やか（避けやすい大粒のひまわり弾）
           for (let w = 0; w < 3; w++) {
-            if (boss.shieldState === 'UNARMED') break // 途中で盾が割られたら即座に攻撃フェーズへ移行！
+            if (getShieldState() === 'UNARMED') break // 途中で盾が割られたら即座に攻撃フェーズへ移行！
             fireAimedShot(boss.x - 75, boss.y - 160, 3.8, '#facc15', '🌻', -0.18, 15)
             fireAimedShot(boss.x - 75, boss.y - 160, 3.8, '#fbbf24', '🌻', 0.18, 15)
             await waitAsync(950, signal)
           }
           // 一定時間経過でも自ら盾をしまって本気攻撃フェーズへ移行
-          const prevShieldState = boss.shieldState
+          const prevShieldState: ShieldState = getShieldState()
           boss.shieldState = 'UNARMED'
           floatingTexts.push({ x: boss.x - 40, y: boss.y - 220, text: 'SHIELD DOWN!! CHANCE!', color: '#38bdf8', alpha: 1.0 })
 
