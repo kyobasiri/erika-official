@@ -3,29 +3,31 @@
     <!-- ==================================================== -->
     <!-- 上部独立ダッシュボードUI -->
     <!-- ==================================================== -->
-    <div class="bg-slate-900 border-b border-slate-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-4">
-      <div class="flex items-center gap-4">
-        <div class="bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 text-center min-w-[76px]">
-          <div class="text-[10px] font-mono text-slate-400">STAGE</div>
+    <div class="bg-slate-900 border-b border-slate-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 text-center min-w-[82px]">
+          <div class="text-[10px] font-mono text-slate-400">
+            {{ loopCount > 1 ? `LOOP ${loopCount}` : 'STAGE' }}
+          </div>
           <div class="text-lg font-black text-pink-400 leading-none">{{ currentStage }}</div>
         </div>
 
         <div>
           <div class="flex items-center gap-3 mb-1">
             <span class="text-xs font-extrabold text-white tracking-wider">ERIKA</span>
-            <div class="flex items-center gap-0.5 text-rose-500 text-sm" title="残機">
+            <div class="flex items-center gap-0.5 text-rose-500 text-sm">
               <span v-for="n in lives" :key="n">♥</span>
               <span v-if="lives === 0" class="text-xs text-slate-500">LAST</span>
             </div>
-            <span class="text-xs font-mono text-slate-300 ml-2">HP {{ playerHp }}/{{ maxHp }}</span>
+            <span class="text-xs font-mono text-slate-300 ml-1">HP {{ playerHp }}/{{ maxHp }}</span>
           </div>
-          <div class="w-44 h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-700 p-0.5">
+          <div class="w-40 h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-700 p-0.5">
             <div class="h-full rounded-full bg-gradient-to-r from-pink-500 via-rose-400 to-emerald-400 transition-all duration-150"
                  :style="{ width: `${Math.min(100, (playerHp / maxHp) * 100)}%` }"></div>
           </div>
         </div>
 
-        <div class="px-3 py-1.5 rounded-lg text-xs font-mono font-bold border transition-all"
+        <div class="px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold border transition-all"
              :class="chargeLevel === 3 ? 'bg-gradient-to-r from-pink-500 via-yellow-400 to-cyan-400 text-slate-950 border-white animate-pulse' :
                      chargeLevel === 2 ? 'bg-yellow-400 text-slate-950 border-yellow-200' :
                      chargeLevel === 1 ? 'bg-cyan-400 text-slate-950 border-cyan-200' : 'bg-slate-950 text-slate-400 border-slate-800'">
@@ -33,17 +35,27 @@
         </div>
       </div>
 
-      <!-- 装備中パワーアップアイコン -->
+      <!-- 装備中パワーアップ（2段階強化表示対応） -->
       <div class="flex flex-wrap gap-1 text-[10px] font-mono">
-        <span class="px-2 py-1 rounded border" :class="upgrades.doubleShot ? 'bg-pink-950/80 border-pink-500 text-pink-300 font-bold' : 'bg-slate-950 border-slate-800 text-slate-600'">2-WAY</span>
-        <span class="px-2 py-1 rounded border" :class="upgrades.groundShot ? 'bg-amber-950/80 border-amber-500 text-amber-300 font-bold' : 'bg-slate-950 border-slate-800 text-slate-600'">GROUND</span>
-        <span class="px-2 py-1 rounded border" :class="upgrades.options > 0 ? 'bg-cyan-950/80 border-cyan-500 text-cyan-300 font-bold' : 'bg-slate-950 border-slate-800 text-slate-600'">OPT×{{ upgrades.options }}</span>
-        <span class="px-2 py-1 rounded border" :class="upgrades.barrierHp > 0 ? 'bg-blue-950/80 border-blue-400 text-blue-300 font-bold' : 'bg-slate-950 border-slate-800 text-slate-600'">SHIELD:{{ upgrades.barrierHp }}</span>
-        <span class="px-2 py-1 rounded border bg-slate-950 border-slate-800 text-emerald-400">ATK×{{ upgrades.powerMultiplier.toFixed(2) }}</span>
+        <span class="px-2 py-1 rounded border" :class="upgrades.doubleShotLv > 0 ? 'bg-pink-950/80 border-pink-500 text-pink-300 font-bold' : 'bg-slate-950 border-slate-800 text-slate-600'">
+          2-WAY Lv.{{ upgrades.doubleShotLv }}
+        </span>
+        <span class="px-2 py-1 rounded border" :class="upgrades.slashLv > 0 ? 'bg-amber-950/80 border-amber-500 text-amber-300 font-bold' : 'bg-slate-950 border-slate-800 text-slate-600'">
+          SLASH Lv.{{ upgrades.slashLv }}
+        </span>
+        <span class="px-2 py-1 rounded border" :class="upgrades.options > 0 ? 'bg-cyan-950/80 border-cyan-500 text-cyan-300 font-bold' : 'bg-slate-950 border-slate-800 text-slate-600'">
+          OPT×{{ upgrades.options }}
+        </span>
+        <span class="px-2 py-1 rounded border" :class="upgrades.barrierHp > 0 ? 'bg-blue-950/80 border-blue-400 text-blue-300 font-bold' : 'bg-slate-950 border-slate-800 text-slate-600'">
+          SHIELD:{{ upgrades.barrierHp }}
+        </span>
+        <span class="px-2 py-1 rounded border bg-slate-950 border-slate-800 text-emerald-400">
+          ATK×{{ upgrades.powerMultiplier.toFixed(2) }}
+        </span>
       </div>
 
-      <!-- スコア ＆ 進行度／ボスHP -->
-      <div class="min-w-[190px] text-right">
+      <!-- スコア ＆ 進行度／ボスHP（盾HPゲージ付き） -->
+      <div class="min-w-[195px] text-right">
         <div class="text-xs font-mono text-amber-300 font-bold mb-1">SCORE: {{ score }}</div>
         <div v-if="!boss.active">
           <div class="flex justify-between text-[10px] font-mono text-slate-400 mb-0.5">
@@ -57,12 +69,23 @@
         </div>
         <div v-else>
           <div class="flex justify-between text-[10px] font-mono text-red-400 font-bold mb-0.5">
-            <span class="truncate max-w-[120px]">{{ boss.name }}</span>
+            <span class="truncate max-w-[125px]">{{ boss.name }}</span>
             <span>{{ boss.hp }}/{{ boss.maxHp }}</span>
           </div>
           <div class="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden border border-red-900">
             <div class="h-full bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400 transition-all duration-100"
                  :style="{ width: `${(boss.hp / boss.maxHp) * 100}%` }"></div>
+          </div>
+          <!-- 12体目ラスボス専用：ステンドグラス盾の耐久ゲージ -->
+          <div v-if="boss.hasShield && boss.shieldState !== 'UNARMED'" class="mt-1">
+            <div class="flex justify-between text-[9px] font-mono text-amber-300">
+              <span>SUNFLOWER SHIELD</span>
+              <span>{{ boss.shieldHp }}/{{ boss.maxShieldHp }}</span>
+            </div>
+            <div class="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden border border-amber-600">
+              <div class="h-full bg-gradient-to-r from-amber-400 to-cyan-300 transition-all duration-100"
+                   :style="{ width: `${(boss.shieldHp / boss.maxShieldHp) * 100}%` }"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -72,11 +95,14 @@
     <!-- ゲーム画面領域（Canvas ＋ 演出オーバーレイ） -->
     <!-- ==================================================== -->
     <div class="relative">
-      <!-- ① ロックマン風：素早いステージ開始カウントダウン -->
+      <!-- ① ロックマン風：ステージ開始カウントダウン -->
       <transition name="fade">
         <div v-if="introState.active" class="absolute inset-0 flex flex-col items-center justify-center z-20 pointer-events-none bg-black/25">
-          <div class="text-pink-400 font-mono text-xs tracking-widest mb-1">MISSION START</div>
+          <div class="text-pink-400 font-mono text-xs tracking-widest mb-1">
+            {{ loopCount > 1 ? `LOOP ${loopCount} // HARD MODE` : 'MISSION START' }}
+          </div>
           <div class="text-4xl font-black text-white tracking-wider drop-shadow-lg">STAGE {{ currentStage }} // READY!</div>
+          <div class="text-xs font-mono text-cyan-300 mt-1">{{ currentTheme.themeName }}</div>
         </div>
       </transition>
 
@@ -87,18 +113,19 @@
         {{ enemies.length > 0 ? `⚠️ 残りの敵をすべて倒してください（残り ${enemies.length} 体）` : '🌫️ 右端の「白い霧」に触れてボス部屋へ進む →' }}
       </div>
 
-      <!-- ③ ボス登場カットイン演出 -->
+      <!-- ③ ボス登場時：ボスへのズームイン紹介バナー（約2秒間） -->
       <transition name="fade">
-        <div v-if="cutin.visible" class="absolute inset-0 bg-black/80 flex items-center justify-center z-20 pointer-events-none">
-          <div class="text-center p-6 border-y-2 border-pink-500 bg-slate-900/95 w-full">
-            <div class="text-pink-400 text-xs font-mono tracking-widest mb-1">WARNING // {{ cutin.bossName }}</div>
-            <div class="text-xl md:text-2xl font-bold text-white mb-2">「{{ cutin.quote }}」</div>
-            <div class="text-xs text-slate-400">— {{ cutin.source }}</div>
+        <div v-if="cutin.visible" class="absolute inset-x-0 bottom-6 flex justify-center z-20 pointer-events-none">
+          <div class="px-8 py-4 rounded-xl border-2 border-pink-500 bg-slate-950/90 shadow-2xl text-center max-w-xl w-full mx-4">
+            <div class="text-pink-400 text-xs font-mono tracking-widest mb-0.5">WARNING // BOSS ENCOUNTER</div>
+            <div class="text-2xl font-black text-yellow-300 tracking-wide mb-1">BOSS: {{ cutin.bossName }}</div>
+            <div class="text-sm font-bold text-white">「{{ cutin.quote }}」</div>
+            <div class="text-[11px] text-slate-400 mt-0.5">— {{ cutin.source }}</div>
           </div>
         </div>
       </transition>
 
-      <!-- ④ ダークソウル風：倒れた姿を見せたあとの「YOU DIED」ブラックアウト演出 -->
+      <!-- ④ ダークソウル風：「YOU DIED」ブラックアウト演出 -->
       <transition name="fade">
         <div v-if="deathOverlay.active" class="absolute inset-0 bg-black/85 flex flex-col items-center justify-center z-30 pointer-events-none">
           <div class="w-full py-6 bg-gradient-to-r from-transparent via-black to-transparent border-y border-red-900/60 text-center">
@@ -112,9 +139,9 @@
         </div>
       </transition>
 
-      <!-- ⑤ ステージ上でピース＆花火を楽しんだ後に開くクリアボーナス選択画面 -->
+      <!-- ⑤ エリカへのズームイン勝利ポーズを見せた後に開くクリアボーナス選択画面 -->
       <transition name="fade">
-        <div v-if="gameResult === 'CLEAR'" class="absolute inset-0 bg-slate-950/70 flex flex-col items-center justify-center z-20 p-4">
+        <div v-if="gameResult === 'CLEAR'" class="absolute inset-0 bg-slate-950/75 flex flex-col items-center justify-center z-20 p-4">
           <div class="flex items-center gap-5 mb-3 bg-slate-900/95 px-6 py-3 rounded-2xl border border-yellow-400/60 shadow-2xl">
             <img src="/sprites/victory.png" alt="Victory Erika" class="w-20 h-20 object-contain drop-shadow-[0_0_12px_rgba(244,114,182,0.8)]" />
             <div>
@@ -138,7 +165,7 @@
         </div>
       </transition>
 
-      <!-- ⑥ ゲームオーバー（残機ゼロ）画面 -->
+      <!-- ⑥ ゲームオーバー画面 -->
       <div v-if="gameResult === 'GAMEOVER'" class="absolute inset-0 bg-black/90 flex flex-col items-center justify-center z-30">
         <img src="/sprites/down.png" alt="Down Erika" class="w-28 h-28 object-contain mb-2 opacity-90" />
         <div class="text-5xl font-serif tracking-[0.2em] text-red-600 mb-2">YOU DIED</div>
@@ -167,7 +194,7 @@
         <span><kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-600">←</kbd> <kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-600">→</kbd> 移動</span>
         <span><kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-600">↑</kbd> / <kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-600">Z</kbd> / <kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-600">Space</kbd> ジャンプ</span>
         <span><kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-600">↓</kbd> / <kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-600">C</kbd> ダッシュ</span>
-        <span><kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-600">X</kbd> 音符ショット（長押しチャージ）</span>
+        <span><kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-600">X</kbd> 音符ショット ＆ 周囲薙ぎ払い（長押しチャージ）</span>
       </div>
       <button @click="resetFullGame" :disabled="isLoadingStage"
               class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-600 transition">
@@ -185,7 +212,6 @@ const API_BASE = import.meta.env.VITE_API_URL || 'https://erika-action-api-xxxxx
 const GROUND_Y = 408
 const CHAR_SCALE = 0.8
 
-// ボス部屋の四方壁（ボスが絶対に画面外へ出られない境界線）
 const BOSS_ARENA = {
   LEFT: 65,
   RIGHT: 735,
@@ -211,6 +237,7 @@ const score = ref(0)
 const chargeLevel = ref(0)
 const isLoadingStage = ref(false)
 const currentStage = ref(1)
+const loopCount = computed(() => Math.floor((currentStage.value - 1) / 12) + 1)
 const stageProgress = ref(0)
 const gameResult = ref<'CLEAR' | 'GAMEOVER' | null>(null)
 
@@ -219,32 +246,70 @@ const introState = reactive({ active: false, beamY: -50 })
 const fogGate = reactive({ active: false, x: 765, transitioning: false })
 const deathOverlay = reactive({ active: false, message: '' })
 
+// ★ カメラズーム制御（ボス登場時＆エリカ勝利ポーズ時にグッとズームイン！）
+const camera = reactive({
+  zoom: 1.0,
+  targetZoom: 1.0,
+  focusX: 400,
+  focusY: 225,
+  targetX: 400,
+  targetY: 225
+})
+
+// ★ 武装アップグレード（2方向ショットと周囲薙ぎ払いをそれぞれ2段階強化に対応！）
 const upgrades = reactive({
-  doubleShot: false,
-  groundShot: false,
-  options: 0,
-  barrierHp: 0,
-  powerMultiplier: 1.0,
-  maxChargeLevel: 2,
+  doubleShotLv: 0,       // 0:なし, 1:斜め45度に通常音符, 2:チャージ段階に応じた強化音符を斜め45度にも発射！
+  slashLv: 0,            // 0:なし, 1:周囲1周の剣薙ぎ払い, 2:チャージ段階に応じて巨大化＆高威力化する大回転薙ぎ払い！
+  options: 0,            // 追従スピーカー（最大2）
+  barrierHp: 0,          // バリア耐久値
+  powerMultiplier: 1.0,  // 基礎攻撃力倍率
+  maxChargeLevel: 2,     // 最大チャージ段階（3でファイナルチャージ解放）
 })
 
 const bonusChoices = computed(() => [
-  { id: 'DOUBLE',  title: '🎵 2方向デュアルショット', desc: upgrades.doubleShot ? '取得済（選ぶと攻撃力+20%）' : '前方と斜め上45度へ同時に音符弾を発射！' },
-  { id: 'GROUND',  title: '🔊 グランド・リップル弾', desc: upgrades.groundShot ? '取得済（選ぶと攻撃力+20%）' : '地面や壁の上を這う重低音レーザーを追加発射！' },
-  { id: 'OPTION',  title: `🛰️ サウンド・オプション (${upgrades.options}/2)`, desc: 'エリカの後ろを追従し、同時に音符を撃つスピーカーを追加！' },
-  { id: 'BARRIER', title: '🛡️ 音響フォースバリア', desc: '敵の弾や体当たりを3回まで無効化するシールドを展開！' },
-  { id: 'CHARGE3', title: '⚡ ファイナルチャージ解放 (Lv.3)', desc: upgrades.maxChargeLevel >= 3 ? '取得済（選ぶと攻撃力+25%）' : '壁も貫通する3段階目の極太サウンドブラスター解放！' },
-  { id: 'VITAL',   title: '💖 最大HP+30 ＆ 全回復 ＆ 1UP', desc: '最大体力を増やし、HP全回復＋残機を1つ増やす！' },
+  {
+    id: 'DOUBLE',
+    title: `🎵 2方向デュアルショット (${upgrades.doubleShotLv}/2)`,
+    desc: upgrades.doubleShotLv === 0 ? 'Lv1: 斜め上45度へ同時に通常音符弾を発射！' :
+          upgrades.doubleShotLv === 1 ? 'Lv2強化: チャージ段階に応じた強化弾を斜め上にも発射！' : '最大Lv達成（選ぶと攻撃力+20%）'
+  },
+  {
+    id: 'SLASH',
+    title: `⚔️ 円月サウンド薙ぎ払い (${upgrades.slashLv}/2)`,
+    desc: upgrades.slashLv === 0 ? 'Lv1: 体の周囲を一周する高威力の光の剣で敵と敵弾を薙ぎ払う！' :
+          upgrades.slashLv === 1 ? 'Lv2強化: チャージ状態に応じて巨大化する必殺の回転薙ぎ払い！' : '最大Lv達成（選ぶと攻撃力+20%）'
+  },
+  {
+    id: 'OPTION',
+    title: `🛰️ サウンド・オプション (${upgrades.options}/2)`,
+    desc: 'エリカの後ろを追従し、同時に音符を撃つスピーカーを追加！'
+  },
+  {
+    id: 'BARRIER',
+    title: '🛡️ 音響フォースバリア',
+    desc: '敵の弾や体当たりを3回まで無効化するシールドを展開！'
+  },
+  {
+    id: 'CHARGE3',
+    title: '⚡ ファイナルチャージ解放 (Lv.3)',
+    desc: upgrades.maxChargeLevel >= 3 ? '取得済（選ぶと攻撃力+25%）' : '壁も貫通する3段階目の極太サウンドブラスター解放！'
+  },
+  {
+    id: 'VITAL',
+    title: '💖 最大HP+30 ＆ 全回復 ＆ 1UP',
+    desc: '最大体力を増やし、HP全回復＋残機を1つ増やす！'
+  },
 ])
 
 const cutin = reactive({ visible: false, bossName: '', quote: '', source: '' })
 
-// マスタデータ（1面ボスは入門用にHP620へマイルド化、2面以降も段階的に上昇）
+// マスタデータ（全12体のボス＋全6種の背景テーマ）
 let masterData: any = {
   quotes: [
     { quote: '手探りでもただ前に進むしかない。いずれなんとかなるだろってな。', source: '『シャーマンキング』麻倉葉' },
     { quote: 'お前が信じる、お前を信じろ！', source: '『天元突破グレンラガン』カミナ' },
     { quote: '覚悟とは！！暗闇の荒野に！！進むべき道を切り開く事だッ！', source: '『ジョジョの奇妙な冒険 第5部』ジョルノ' },
+    { quote: '音楽は鳴り止まない。僕らが歩き続ける限り。', source: 'ERIKA OBSERVATION LOG' }
   ],
   enemies: [
     { type: 'soot',       name: '煤玉モンスター', sprite: '/sprites/enemies/soot.png',       hp: 22, speed: 1.3, score: 100, stompable: true,  wallAction: 'bounce' },
@@ -256,23 +321,38 @@ let masterData: any = {
     { type: 'hedgehog',   name: '赤いハリネズミ', sprite: '/sprites/enemies/hedgehog.png',   hp: 55, speed: 3.5, score: 400, stompable: false, spiky: true,   wallAction: 'jump' },
   ],
   bosses: [
-    // ★ 1面ボス（黒鎧剣士）は最初に慣れるため HP 620 にマイルド化！
-    { id: 'knight',    name: 'BLACK KNIGHT ERIKA', sprite: '/sprites/bosses/boss_knight.png',    baseHp: 620,  scale: 1.2, pattern: 'KNIGHT' },
-    { id: 'concierge', name: 'KEY MASTER ERIKA',   sprite: '/sprites/bosses/boss_concierge.png', baseHp: 780,  scale: 1.2, pattern: 'CONCIERGE' },
-    { id: 'yukata',    name: 'SUNFLOWER YUKATA',   sprite: '/sprites/bosses/boss_yukata.png',    baseHp: 850,  scale: 1.2, pattern: 'YUKATA' },
-    { id: 'ivory',     name: 'IVORY COMMANDER',    sprite: '/sprites/bosses/boss_ivory.png',     baseHp: 900,  scale: 1.2, pattern: 'IVORY' },
-    { id: 'tea',       name: 'MINT TEA MASTER',    sprite: '/sprites/bosses/boss_tea.png',       baseHp: 940,  scale: 1.2, pattern: 'TEA' },
-    { id: 'kimono',    name: 'GRIMOIRE KIMONO',    sprite: '/sprites/bosses/boss_kimono.png',    baseHp: 980,  scale: 1.2, pattern: 'KIMONO' },
-    { id: 'flower',    name: 'FLORA PRINCESS',     sprite: '/sprites/bosses/boss_flower.png',    baseHp: 1020, scale: 1.2, pattern: 'FLOWER' },
-    { id: 'camellia',  name: 'CAMELLIA SHRINE',    sprite: '/sprites/bosses/boss_camellia.png',  baseHp: 1050, scale: 1.2, pattern: 'CAMELLIA' },
-    { id: 'dress',     name: 'NAVY DRESS DIVA',    sprite: '/sprites/bosses/boss_dress.png',     baseHp: 1080, scale: 1.2, pattern: 'DRESS' },
-    { id: 'gothic',    name: 'BLACK ROSE GOTHIC',  sprite: '/sprites/bosses/boss_gothic.png',    baseHp: 1120, scale: 1.2, pattern: 'GOTHIC' },
-    { id: 'queen',     name: 'PEARL THRONE QUEEN', sprite: '/sprites/bosses/boss_queen.png',     baseHp: 1200, scale: 1.25,pattern: 'QUEEN' },
+    { id: 'knight',    name: 'BLACK KNIGHT ERIKA',    sprite: '/sprites/bosses/boss_knight.png',    baseHp: 620,  scale: 1.2, pattern: 'KNIGHT' },
+    { id: 'concierge', name: 'KEY MASTER ERIKA',      sprite: '/sprites/bosses/boss_concierge.png', baseHp: 780,  scale: 1.2, pattern: 'CONCIERGE' },
+    { id: 'yukata',    name: 'SUNFLOWER YUKATA',      sprite: '/sprites/bosses/boss_yukata.png',    baseHp: 850,  scale: 1.2, pattern: 'YUKATA' },
+    { id: 'ivory',     name: 'IVORY COMMANDER',       sprite: '/sprites/bosses/boss_ivory.png',     baseHp: 900,  scale: 1.2, pattern: 'IVORY' },
+    { id: 'tea',       name: 'MINT TEA MASTER',       sprite: '/sprites/bosses/boss_tea.png',       baseHp: 940,  scale: 1.2, pattern: 'TEA' },
+    { id: 'kimono',    name: 'GRIMOIRE KIMONO',       sprite: '/sprites/bosses/boss_kimono.png',    baseHp: 980,  scale: 1.2, pattern: 'KIMONO' },
+    { id: 'flower',    name: 'FLORA PRINCESS',        sprite: '/sprites/bosses/boss_flower.png',    baseHp: 1020, scale: 1.2, pattern: 'FLOWER' },
+    { id: 'camellia',  name: 'CAMELLIA SHRINE',       sprite: '/sprites/bosses/boss_camellia.png',  baseHp: 1050, scale: 1.2, pattern: 'CAMELLIA' },
+    { id: 'dress',     name: 'NAVY DRESS DIVA',       sprite: '/sprites/bosses/boss_dress.png',     baseHp: 1080, scale: 1.2, pattern: 'DRESS' },
+    { id: 'gothic',    name: 'BLACK ROSE GOTHIC',     sprite: '/sprites/bosses/boss_gothic.png',    baseHp: 1120, scale: 1.2, pattern: 'GOTHIC' },
+    { id: 'queen',     name: 'PEARL THRONE QUEEN',    sprite: '/sprites/bosses/boss_queen.png',     baseHp: 1200, scale: 1.25,pattern: 'QUEEN' },
+    // ★ 12体目：画面の縦を埋め尽くす巨大ラスボス「ひまわりステンドグラス・エリカ」
+    {
+      id: 'sunflower',
+      name: 'EMPRESS ERIKA // SUNFLOWER AEGIS',
+      sprite: '/sprites/bosses/boss_sunflower_shield.png',
+      spriteCracked: '/sprites/bosses/boss_sunflower_cracked.png',
+      spriteUnarmed: '/sprites/bosses/boss_sunflower_unarmed.png',
+      baseHp: 1850,
+      scale: 4.1, // 画面の縦を埋め尽くす約315pxの巨大スケール！
+      pattern: 'SUNFLOWER_FINAL',
+      isGiantFinalBoss: true
+    }
   ],
+  // ★ 背景バリエーションを全6テーマに拡充！
   stages: [
-    { stage: 1, skyGradient: ['#0f172a', '#311042', '#701a75'], groundColor: '#1e1b4b', lineColor: '#ec4899', scrollSpeed: 1.4 },
-    { stage: 2, skyGradient: ['#020617', '#0f2942', '#065f46'], groundColor: '#064e3b', lineColor: '#34d399', scrollSpeed: 1.6 },
-    { stage: 3, skyGradient: ['#180404', '#450a0a', '#7c2d12'], groundColor: '#270909', lineColor: '#f97316', scrollSpeed: 1.8 },
+    { stage: 1, themeName: 'SUNSET HIGHWAY',        skyGradient: ['#0f172a', '#311042', '#701a75'], groundColor: '#1e1b4b', lineColor: '#ec4899', scrollSpeed: 1.4,  bgStyle: 'CITY' },
+    { stage: 2, themeName: 'CYBER NEON LABYRINTH',  skyGradient: ['#020617', '#064e3b', '#047857'], groundColor: '#022c22', lineColor: '#34d399', scrollSpeed: 1.52, bgStyle: 'CYBER' },
+    { stage: 3, themeName: 'CRIMSON AMPLIFIER',     skyGradient: ['#180404', '#450a0a', '#9a3412'], groundColor: '#270909', lineColor: '#f97316', scrollSpeed: 1.62, bgStyle: 'PILLARS' },
+    { stage: 4, themeName: 'DEEP PEARL OCEAN',      skyGradient: ['#020617', '#0c4a6e', '#0284c7'], groundColor: '#082f49', lineColor: '#38bdf8', scrollSpeed: 1.72, bgStyle: 'OCEAN' },
+    { stage: 5, themeName: 'GOLDEN CATHEDRAL',      skyGradient: ['#1c1917', '#422006', '#a16207'], groundColor: '#292524', lineColor: '#facc15', scrollSpeed: 1.82, bgStyle: 'CATHEDRAL' },
+    { stage: 6, themeName: 'GOTHIC BLOOD MOON',     skyGradient: ['#090414', '#2e1065', '#4c0519'], groundColor: '#1e1b4b', lineColor: '#c084fc', scrollSpeed: 1.92, bgStyle: 'GOTHIC' },
   ]
 }
 
@@ -281,11 +361,7 @@ const loadMasterJsonAsync = async () => {
     const res = await fetch('/assets/game-master.json')
     if (res.ok) {
       const json = await res.json()
-      masterData = json
-      // 外部JSONに1面ボスがいれば入門用HP(620)を優先適用
-      if (masterData.bosses?.[0]?.id === 'knight' && masterData.bosses[0].baseHp > 700) {
-        masterData.bosses[0].baseHp = 620
-      }
+      if (json.bosses && json.bosses.length >= 12) masterData = json
     }
   } catch {}
 }
@@ -297,10 +373,17 @@ const loadAllSprites = async () => {
     shoot: '/sprites/shoot.png', jump: '/sprites/jump.png', jumpShoot: '/sprites/jump_shoot.png',
     hurt: '/sprites/hurt.png',
     victory: '/sprites/victory.png',
-    down: '/sprites/down.png', // ★新規追加：力尽きたうつ伏せエリカ画像
+    down: '/sprites/down.png',
   }
   masterData.enemies.forEach((e: any) => { paths[e.type] = e.sprite })
-  masterData.bosses.forEach((b: any) => { paths[`boss_${b.id}`] = b.sprite })
+  masterData.bosses.forEach((b: any) => {
+    paths[`boss_${b.id}`] = b.sprite
+    // 全ボスの「被弾差分(_hurt)」と「倒れ差分(_down)」を自動登録
+    paths[`boss_${b.id}_hurt`] = `/sprites/bosses/boss_${b.id}_hurt.png`
+    paths[`boss_${b.id}_down`] = `/sprites/bosses/boss_${b.id}_down.png`
+    if (b.spriteCracked) paths[`boss_${b.id}_cracked`] = b.spriteCracked
+    if (b.spriteUnarmed) paths[`boss_${b.id}_unarmed`] = b.spriteUnarmed
+  })
 
   await Promise.all(
     Object.entries(paths).map(([key, src]) => new Promise<void>((resolve) => {
@@ -322,11 +405,9 @@ const waitAsync = (ms: number, signal?: AbortSignal) => new Promise<void>((resol
 
 const player = {
   x: 130, y: GROUND_Y, vx: 0, vy: 0, facing: 1 as 1 | -1,
-  onGround: true, coyoteTimer: 0, // 足場から離れた直後もジャンプできる猶予フレーム
+  onGround: true, coyoteTimer: 0,
   shootPoseTimer: 0, hurtPoseTimer: 0, isDashing: false,
-  isDown: false,     // ★HP0で倒れている状態フラグ
-  isVictory: false,  // ★ボス撃破時にステージ上でピースしている状態フラグ
-  invincibleTimer: 0,
+  isDown: false, isVictory: false, invincibleTimer: 0,
   scaleX: 1, scaleY: 1, runAnimTimer: 0, controlLocked: false
 }
 const positionHistory: { x: number; y: number }[] = []
@@ -337,9 +418,11 @@ const obstacles = ref<Obstacle[]>([])
 const pits = ref<Pit[]>([])
 
 const currentTheme = reactive({
+  themeName: 'SUNSET HIGHWAY',
   skyGradient: ['#0f172a', '#311042', '#701a75'],
   groundColor: '#1e1b4b',
   lineColor: '#ec4899',
+  bgStyle: 'CITY',
   scrollSpeed: 1.4,
   enemyHue: 0,
   isScrolling: false,
@@ -348,7 +431,17 @@ const currentTheme = reactive({
 interface Bullet {
   x: number; y: number; vx: number; vy: number; gravity?: number
   radius: number; damage: number; color: string
-  noteSymbol: string; piercing?: boolean; isGroundCrawling?: boolean; isEnemy?: boolean
+  noteSymbol: string; piercing?: boolean; isEnemy?: boolean
+}
+// ★ 周囲を一周する剣薙ぎ払い（円月スラッシュ）エフェクト管理
+interface SlashWave {
+  radius: number
+  damage: number
+  angle: number
+  timer: number
+  maxTimer: number
+  color: string
+  hitIds: Set<string>
 }
 interface DropItem { x: number; y: number; vy: number; type: 'HEAL' | '1UP' | 'SCORE'; lifeTimer: number }
 interface FloatingText { x: number; y: number; text: string; color: string; alpha: number }
@@ -364,6 +457,7 @@ interface Enemy {
 }
 
 const bullets: Bullet[] = []
+const activeSlashes: SlashWave[] = []
 const dropItems: DropItem[] = []
 const floatingTexts: FloatingText[] = []
 const fireworks: FireworkParticle[] = []
@@ -372,19 +466,27 @@ const afterimages: { x: number; y: number; facing: number; alpha: number; sprite
 let stageAbortController: AbortController | null = null
 let screenShakeTimer = 0
 
+// ボス状態（被弾タイマー・倒れ状態・発光消滅フラッシュ・12体目ステンドグラス盾ステート付き）
 const boss = reactive({
   active: false, id: 'knight', name: '', spriteKey: 'boss_knight',
   x: 640, y: GROUND_Y, vx: 0, vy: 0,
   hp: 620, maxHp: 620, scale: 1.2, pattern: 'KNIGHT',
+  hurtTimer: 0,        // ★ボスの被弾リアクション表示タイマー
+  isDefeated: false,   // ★ボスが倒れた姿を表示中かどうか
+  flashAlpha: 0,       // ★ピカッと光って消える閃光アルファ値
+  hasShield: false,    // ★12体目ラスボスのステンドグラス盾フラグ
+  shieldState: 'INTACT' as 'INTACT' | 'CRACKED' | 'UNARMED',
+  shieldHp: 500,
+  maxShieldHp: 500,
   isFloating: false, warningLaserY: null as number | null, warningSpikeX: null as number | null,
   abortController: null as AbortController | null
 })
 
-const bgStars = Array.from({ length: 35 }, () => ({
-  x: Math.random() * 800, y: Math.random() * 300, size: Math.random() * 2 + 1, speed: Math.random() * 0.3 + 0.1
+const bgStars = Array.from({ length: 38 }, () => ({
+  x: Math.random() * 800, y: Math.random() * 300, size: Math.random() * 2.2 + 1, speed: Math.random() * 0.3 + 0.1
 }))
 const bgBuildings = Array.from({ length: 16 }, (_, i) => ({
-  x: i * 55, w: 42, h: 55 + (i * 37) % 105
+  x: i * 55, w: 42, h: 55 + (i * 37) % 115
 }))
 let bgScrollX = 0
 
@@ -401,8 +503,17 @@ const spawnFireworkBurst = (customX?: number, customY?: number) => {
 }
 
 // ====================================================
-// 右端からギミックを生み出す非同期ジェネレーター
+// ★ 2周目（STAGE 13〜）の1.3倍強化を含む難易度倍率計算
 // ====================================================
+const getDifficultyMultipliers = (stageNum: number) => {
+  const loops = Math.floor((stageNum - 1) / 12) // 0: 1周目, 1: 2周目(STAGE 13〜)...
+  // 2周目以降は今までの計算のさらに 1.3倍 強くする！
+  const loopBoost = loops > 0 ? Math.pow(1.35, loops) * 1.3 : 1.0
+  const hpMul = (1 + ((stageNum - 1) % 12) * 0.18) * loopBoost
+  const spdMul = (1 + Math.min(0.45, ((stageNum - 1) % 12) * 0.05)) * (loops > 0 ? 1.2 : 1.0)
+  return { hpMul, spdMul, loopBoost }
+}
+
 const runGimmickSpawnerAsync = async (stageSignal: AbortSignal) => {
   try {
     while (currentTheme.isScrolling && stageProgress.value < 92) {
@@ -429,9 +540,6 @@ const runGimmickSpawnerAsync = async (stageSignal: AbortSignal) => {
   } catch {}
 }
 
-// ====================================================
-// ★ ロックマン風：素早い（約1.8倍速）上空テレポート登場演出！
-// ====================================================
 const playMegamanIntroAsync = async (stageSignal: AbortSignal) => {
   introState.active = true
   introState.beamY = -60
@@ -440,8 +548,8 @@ const playMegamanIntroAsync = async (stageSignal: AbortSignal) => {
   player.isVictory = false
   player.x = 130
   player.y = -60
+  camera.targetZoom = 1.0; camera.zoom = 1.0
 
-  // 20ステップ×25ms＝約0.5秒でシュパッと爽快に降下！
   const steps = 20
   for (let i = 0; i <= steps; i++) {
     introState.beamY = (GROUND_Y * i) / steps
@@ -450,18 +558,19 @@ const playMegamanIntroAsync = async (stageSignal: AbortSignal) => {
   }
   player.y = GROUND_Y
   player.scaleX = 1.25; player.scaleY = 0.75
-  await waitAsync(850, stageSignal) // 着地後0.85秒で即プレイ開始！
+  await waitAsync(800, stageSignal)
   introState.active = false
   player.controlLocked = false
 }
 
-// ステージ開始制御（道中ステージ長さを約1.45倍に拡大してしっかり遊べるように調整）
 const startStageFromCloudRun = async (stageNum: number, fromBossGateCheckpoint = false) => {
   isLoadingStage.value = true
   gameResult.value = null
   currentStage.value = stageNum
   player.isDown = false
   player.isVictory = false
+  camera.targetZoom = 1.0; camera.zoom = 1.0
+
   if (!fromBossGateCheckpoint) {
     stageProgress.value = 0
     checkpointReachedBossGate.value = false
@@ -471,18 +580,21 @@ const startStageFromCloudRun = async (stageNum: number, fromBossGateCheckpoint =
 
   stageAbortController?.abort()
   enemies.forEach(e => e.abortController.abort())
-  enemies.length = 0; bullets.length = 0; dropItems.length = 0; fireworks.length = 0
+  enemies.length = 0; bullets.length = 0; activeSlashes.length = 0; dropItems.length = 0; fireworks.length = 0
   obstacles.value = []; pits.value = []
-  boss.active = false; boss.warningLaserY = null; boss.warningSpikeX = null
+  boss.active = false; boss.isDefeated = false; boss.flashAlpha = 0
+  boss.warningLaserY = null; boss.warningSpikeX = null
   fogGate.active = false; fogGate.transitioning = false
   boss.abortController?.abort()
 
   const stg = masterData.stages[(stageNum - 1) % masterData.stages.length]
+  currentTheme.themeName = stg.themeName
   currentTheme.skyGradient = stg.skyGradient
   currentTheme.groundColor = stg.groundColor
   currentTheme.lineColor = stg.lineColor
-  currentTheme.scrollSpeed = stg.scrollSpeed + (stageNum - 1) * 0.1
-  currentTheme.enemyHue = (stageNum - 1) * 55
+  currentTheme.bgStyle = stg.bgStyle || 'CITY'
+  currentTheme.scrollSpeed = stg.scrollSpeed + Math.min(0.6, (stageNum - 1) * 0.06)
+  currentTheme.enemyHue = (stageNum - 1) * 45
   currentTheme.isScrolling = false
 
   player.x = 130; player.y = GROUND_Y; player.vx = 0; player.vy = 0; player.facing = 1
@@ -503,10 +615,8 @@ const startStageFromCloudRun = async (stageNum: number, fromBossGateCheckpoint =
       currentTheme.isScrolling = true
       runGimmickSpawnerAsync(stageSignal)
 
-      const hpMul = 1 + (stageNum - 1) * 0.22
-      const spdMul = 1 + Math.min(0.45, (stageNum - 1) * 0.06)
+      const { hpMul, spdMul } = getDifficultyMultipliers(stageNum)
 
-      // ★ 道中の長さを従来の約1.45倍（敵14〜16ウェーブ分）に伸ばして歯ごたえと慣らし運転を確保！
       let count = 0
       while (stageProgress.value < 96) {
         const tmpl = masterData.enemies[(count + stageNum) % masterData.enemies.length]
@@ -517,7 +627,6 @@ const startStageFromCloudRun = async (stageNum: number, fromBossGateCheckpoint =
           speed: tmpl.speed * spdMul
         }, stageSignal)
 
-        // 後半は時々2体同時出現させて道中の緊張感をアップ！
         if (stageProgress.value > 45 && count % 3 === 0) {
           const subTmpl = masterData.enemies[(count + 2) % masterData.enemies.length]
           setTimeout(() => {
@@ -533,20 +642,32 @@ const startStageFromCloudRun = async (stageNum: number, fromBossGateCheckpoint =
         }
 
         count++
-        stageProgress.value = Math.min(100, stageProgress.value + 7.5) // 1回あたり+7.5%（約14回で100%）
-        await waitAsync(Math.max(1500, 2200 - stageNum * 100), stageSignal)
+        stageProgress.value = Math.min(100, stageProgress.value + 7.5)
+        await waitAsync(Math.max(1450, 2200 - (stageNum % 12) * 90), stageSignal)
       }
     }
 
+    // ====================================================
+    // ★ ボス部屋前（白い霧）到達！
+    // 落とし穴に落ちた敵や画面外に行った敵が「残り敵」として判定されないよう即座にクリーンアップ！
+    // ====================================================
     stageProgress.value = 100
     currentTheme.isScrolling = false
+    pits.value = [] // 霧の前で敵やエリカが穴に落ちないよう穴を塞ぐ
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      const e = enemies[i]
+      if (e.x < 15 || e.x > 785 || e.y > GROUND_Y + 8) {
+        e.abortController.abort()
+        enemies.splice(i, 1)
+      }
+    }
     checkpointReachedBossGate.value = true
     fogGate.active = true
     fogGate.x = 765
   } catch {}
 }
 
-// 白い霧に触れた時のボス部屋スクロール遷移
+// 白い霧に触れた時のスクロール＆ボス登場遷移
 const enterFogGateTransitionAsync = async () => {
   if (fogGate.transitioning || boss.active) return
   fogGate.transitioning = true
@@ -555,16 +676,16 @@ const enterFogGateTransitionAsync = async () => {
 
   const stageSignal = stageAbortController!.signal
   try {
-    for (let i = 0; i < 45; i++) {
-      obstacles.value.forEach(o => { o.x -= 12 })
-      pits.value.forEach(p => { p.x -= 12 })
+    for (let i = 0; i < 42; i++) {
+      obstacles.value.forEach(o => { o.x -= 13 })
+      pits.value.forEach(p => { p.x -= 13 })
       player.x = Math.max(120, player.x - 13)
       bgScrollX = (bgScrollX + 8) % 55
       await waitAsync(20, stageSignal)
     }
     obstacles.value = [
-      { x: 230, y: GROUND_Y - 75, w: 95, h: 14, type: 'platform' },
-      { x: 470, y: GROUND_Y - 75, w: 95, h: 14, type: 'platform' }
+      { x: 220, y: GROUND_Y - 75, w: 95, h: 14, type: 'platform' },
+      { x: 460, y: GROUND_Y - 75, w: 95, h: 14, type: 'platform' }
     ]
     pits.value = []
     fogGate.active = false
@@ -572,10 +693,15 @@ const enterFogGateTransitionAsync = async () => {
 
     const bossTmpl = masterData.bosses[(currentStage.value - 1) % masterData.bosses.length]
     const quoteObj = masterData.quotes[(currentStage.value - 1) % masterData.quotes.length]
+    const { loopBoost } = getDifficultyMultipliers(currentStage.value)
+
+    const calculatedHp = currentStage.value === 1
+      ? bossTmpl.baseHp
+      : Math.round(bossTmpl.baseHp * (1 + ((currentStage.value - 1) % 12) * 0.12) * loopBoost)
 
     await startBossBattleAsync({
       ...bossTmpl,
-      hp: currentStage.value === 1 ? bossTmpl.baseHp : Math.round(bossTmpl.baseHp * (1 + (currentStage.value - 1) * 0.18)),
+      hp: calculatedHp,
       cutin_quote: quoteObj
     }, stageSignal)
   } catch {} finally {
@@ -592,7 +718,7 @@ const spawnSingleEnemy = (wave: any, stageSignal: AbortSignal) => {
 
   const enemy: Enemy = {
     id: wave.id, type: wave.type, name: wave.name,
-    x: 830, y: startY, baseY: startY,
+    x: 825, y: startY, baseY: startY,
     vx: -wave.speed, vy: 0,
     hp: wave.hp, maxHp: wave.hp, score: wave.score,
     stompable: wave.stompable, spiky: wave.spiky, armored: wave.armored, helmet: wave.helmet,
@@ -644,7 +770,7 @@ const spawnSingleEnemy = (wave: any, stageSignal: AbortSignal) => {
 }
 
 // ====================================================
-// ★ ボス戦AI（画面外脱走防止 ＆ 1面ボスマイルド調整 ＆ 救援ハート補給）
+// ★ ボス戦：登場時の2秒間ズームイン紹介 ＆ 12体目巨大ひまわりラスボスAI
 // ====================================================
 const fireAimedShot = (fromX: number, fromY: number, speed: number, color: string, symbol = '♪', spreadRad = 0, dmg = 14) => {
   const dx = player.x - fromX
@@ -658,14 +784,6 @@ const fireAimedShot = (fromX: number, fromY: number, speed: number, color: strin
 }
 
 const startBossBattleAsync = async (bossData: any, stageSignal: AbortSignal) => {
-  cutin.bossName = `${bossData.name} // STAGE ${currentStage.value}`
-  cutin.quote = bossData.cutin_quote.quote
-  cutin.source = bossData.cutin_quote.source
-  cutin.visible = true
-  await waitAsync(2200, stageSignal)
-  cutin.visible = false
-  player.controlLocked = false
-
   boss.id = bossData.id
   boss.name = bossData.name
   boss.spriteKey = `boss_${bossData.id}`
@@ -673,42 +791,101 @@ const startBossBattleAsync = async (bossData: any, stageSignal: AbortSignal) => 
   boss.hp = bossData.hp
   boss.scale = bossData.scale
   boss.pattern = bossData.pattern
-  boss.x = 640; boss.y = GROUND_Y; boss.vx = 0; boss.vy = 0
+  boss.x = bossData.isGiantFinalBoss ? 630 : 640
+  boss.y = GROUND_Y
+  boss.vx = 0; boss.vy = 0
+  boss.hurtTimer = 0; boss.isDefeated = false; boss.flashAlpha = 0
   boss.isFloating = false; boss.warningLaserY = null; boss.warningSpikeX = null
+
+  // 12体目ラスボス（ひまわりステンドグラス盾）の初期化
+  if (bossData.isGiantFinalBoss) {
+    boss.hasShield = true
+    boss.shieldState = 'INTACT'
+    boss.maxShieldHp = Math.round(bossData.hp * 0.45) // 盾の耐久度は本体の約半分！
+    boss.shieldHp = boss.maxShieldHp
+  } else {
+    boss.hasShield = false
+    boss.shieldState = 'UNARMED'
+  }
+
   boss.active = true
+  player.controlLocked = true
+
+  // ★ ボス登場時：ボスにカメラをズームイン（約2.2秒間）して「BOSS: ボス名」を紹介！
+  camera.targetX = boss.x
+  camera.targetY = bossData.isGiantFinalBoss ? GROUND_Y - 140 : GROUND_Y - 45
+  camera.targetZoom = bossData.isGiantFinalBoss ? 1.35 : 1.85
+  cutin.bossName = bossData.name
+  cutin.quote = bossData.cutin_quote.quote
+  cutin.source = bossData.cutin_quote.source
+  cutin.visible = true
+
+  await waitAsync(2200, stageSignal)
+
+  // カメラを元の全体視点へ戻してバトル開始！
+  cutin.visible = false
+  camera.targetZoom = 1.0
+  camera.targetX = 400
+  camera.targetY = 225
+  player.controlLocked = false
 
   boss.abortController = new AbortController()
   stageSignal.addEventListener('abort', () => boss.abortController?.abort())
   const { signal } = boss.abortController
 
-  // ボス戦中に12秒ごとに回復ハートが上から1つ降ってくる救援ギミック
+  // 12秒ごとの救援回復ハート補給
   ;(async () => {
     try {
-      while (boss.active && boss.hp > 0) {
+      while (boss.active && boss.hp > 0 && !boss.isDefeated) {
         await waitAsync(12000, signal)
-        if (boss.active && playerHp.value < maxHp.value) {
-          dropItems.push({ x: 200 + Math.random() * 400, y: 80, vy: 0.5, type: 'HEAL', lifeTimer: 600 })
+        if (boss.active && !boss.isDefeated && playerHp.value < maxHp.value) {
+          dropItems.push({ x: 180 + Math.random() * 340, y: 80, vy: 0.5, type: 'HEAL', lifeTimer: 600 })
         }
       }
     } catch {}
   })()
 
   try {
-    while (boss.active && boss.hp > 0) {
-      if (boss.pattern === 'KNIGHT') {
-        // ★ 1面ボス（黒鎧剣士）：初見でも見切って楽しく勝てるよう弾速・突進速度をマイルド化し隙も増やす！
+    while (boss.active && boss.hp > 0 && !boss.isDefeated) {
+      if (boss.pattern === 'SUNFLOWER_FINAL') {
+        // ====================================================
+        // ★ 12体目ラスボス：巨大ひまわりステンドグラス・エリカ専用AI
+        // ====================================================
+        if (boss.shieldState !== 'UNARMED') {
+          // 【盾を構えている状態】ダメージが通らない代わりに、攻撃の手は緩やか（避けやすい大粒のひまわり弾）
+          for (let w = 0; w < 3; w++) {
+            if (boss.shieldState === 'UNARMED') break // 途中で盾が割られたら即座に攻撃フェーズへ移行！
+            fireAimedShot(boss.x - 75, boss.y - 160, 3.8, '#facc15', '🌻', -0.18, 15)
+            fireAimedShot(boss.x - 75, boss.y - 160, 3.8, '#fbbf24', '🌻', 0.18, 15)
+            await waitAsync(950, signal)
+          }
+          // 一定時間経過でも自ら盾をしまって本気攻撃フェーズへ移行
+          const prevShieldState = boss.shieldState
+          boss.shieldState = 'UNARMED'
+          floatingTexts.push({ x: boss.x - 40, y: boss.y - 220, text: 'SHIELD DOWN!! CHANCE!', color: '#38bdf8', alpha: 1.0 })
+
+          // 【盾を構えていない状態】ダメージが通るチャンスだが、攻撃が苛烈（ただし避ける隙間あり）！
+          await executeSunflowerFierceAttackAsync(signal)
+
+          // まだ盾が残っていれば再び盾を構える
+          if (boss.shieldHp > 0) {
+            boss.shieldState = prevShieldState
+          }
+        } else {
+          // 盾が完全に破壊された後は常時本体にダメージが通り、苛烈な攻撃と小休止を繰り返す
+          await executeSunflowerFierceAttackAsync(signal)
+          await waitAsync(1100, signal) // しっかり反撃できる息継ぎの隙
+        }
+
+      } else if (boss.pattern === 'KNIGHT') {
         boss.vx = 0
-        bullets.push({ x: boss.x - 24, y: GROUND_Y - 10, vx: -4.2, vy: 0, radius: 10, damage: 12, color: '#ef4444', noteSymbol: '⚔', isGroundCrawling: true, isEnemy: true })
+        bullets.push({ x: boss.x - 24, y: GROUND_Y - 10, vx: -4.2, vy: 0, radius: 10, damage: 12, color: '#ef4444', noteSymbol: '⚔', isEnemy: true })
         await waitAsync(550, signal)
         fireAimedShot(boss.x - 20, boss.y - 36, 4.0, '#f87171', '♪', 0, 12)
         await waitAsync(650, signal)
-
-        // ジャンプ突進（画面内中央付近までに留める）
-        boss.vy = -3.8
-        boss.vx = player.x < boss.x ? -4.2 : 4.2
+        boss.vy = -3.8; boss.vx = player.x < boss.x ? -4.2 : 4.2
         await waitAsync(800, signal)
-        boss.vx = 0
-        await waitAsync(1100, signal) // 攻撃チャンスの大きな隙！
+        boss.vx = 0; await waitAsync(1100, signal)
 
       } else if (boss.pattern === 'CONCIERGE') {
         const warpSpots = [640, 220, 440, 560]
@@ -721,7 +898,6 @@ const startBossBattleAsync = async (bossData: any, stageSignal: AbortSignal) => 
         await waitAsync(1000, signal)
 
       } else if (boss.pattern === 'YUKATA') {
-        // ★ ひまわり浴衣エリカ：必ず地面に着地してからジャンプし、アリーナ中央へ戻るよう修正！
         boss.vx = boss.x > 400 ? -2.4 : 2.4
         if (boss.y >= GROUND_Y - 2) boss.vy = -4.5
         await waitAsync(600, signal)
@@ -738,8 +914,7 @@ const startBossBattleAsync = async (bossData: any, stageSignal: AbortSignal) => 
         }
         if (boss.y >= GROUND_Y - 2) boss.vy = -4.0
         boss.vx = boss.x < 400 ? 4.0 : -4.0
-        await waitAsync(850, signal); boss.vx = 0
-        await waitAsync(600, signal)
+        await waitAsync(850, signal); boss.vx = 0; await waitAsync(600, signal)
 
       } else if (boss.pattern === 'TEA') {
         for (let i = 0; i < 3; i++) {
@@ -829,8 +1004,8 @@ const startBossBattleAsync = async (bossData: any, stageSignal: AbortSignal) => 
         await waitAsync(600, signal)
         boss.isFloating = false; boss.vx = 0; boss.vy = 5.5
         await waitAsync(600, signal)
-        bullets.push({ x: boss.x - 18, y: GROUND_Y - 10, vx: -5.2, vy: 0, radius: 11, damage: 15, color: '#60a5fa', noteSymbol: '🌊', isGroundCrawling: true, isEnemy: true })
-        bullets.push({ x: boss.x + 18, y: GROUND_Y - 10, vx: 5.2, vy: 0, radius: 11, damage: 15, color: '#60a5fa', noteSymbol: '🌊', isGroundCrawling: true, isEnemy: true })
+        bullets.push({ x: boss.x - 18, y: GROUND_Y - 10, vx: -5.2, vy: 0, radius: 11, damage: 15, color: '#60a5fa', noteSymbol: '🌊', isEnemy: true })
+        bullets.push({ x: boss.x + 18, y: GROUND_Y - 10, vx: 5.2, vy: 0, radius: 11, damage: 15, color: '#60a5fa', noteSymbol: '🌊', isEnemy: true })
         await waitAsync(1000, signal)
 
       } else {
@@ -853,30 +1028,78 @@ const startBossBattleAsync = async (bossData: any, stageSignal: AbortSignal) => 
   } catch {}
 }
 
-// ★ ボス撃破時：ステージ上のエリカもピースポーズ（victory.png）をとり、花火が上がってからクリア画面へ！
-const triggerStageClearSequenceAsync = async () => {
-  if (player.isVictory || gameResult.value) return
-  boss.active = false
+// 12体目ラスボス（盾なし時）の苛烈かつ避けられる攻撃シーケンス
+const executeSunflowerFierceAttackAsync = async (signal: AbortSignal) => {
+  // 1. 扇状の5方向サンフラワー弾幕×2波（空中床と地上を使い分けて避けられる隙間あり）
+  for (let wave = 0; wave < 2; wave++) {
+    for (let a = -2; a <= 2; a++) {
+      fireAimedShot(boss.x - 45, boss.y - 185, 4.8, '#f59e0b', '🌻', a * 0.24 + wave * 0.12, 16)
+    }
+    await waitAsync(520, signal)
+  }
+  // 2. 空から降り注ぐソーラーフレア（等間隔なので間に入って避けられる！）
+  for (let i = 0; i < 4; i++) {
+    bullets.push({
+      x: 110 + i * 135, y: 30,
+      vx: 0, vy: 3.4,
+      radius: 12, damage: 16, color: '#fde047', noteSymbol: '☀', isEnemy: true
+    })
+  }
+  await waitAsync(750, signal)
+  // 3. 予兆付きソーラービーム
+  const laserY = player.y > GROUND_Y - 40 ? GROUND_Y - 24 : GROUND_Y - 95
+  boss.warningLaserY = laserY
+  await waitAsync(650, signal)
   boss.warningLaserY = null
-  boss.warningSpikeX = null
+  for (let k = 0; k < 7; k++) {
+    bullets.push({ x: boss.x - 50, y: laserY, vx: -10.5, vy: 0, radius: 14, damage: 20, color: '#facc15', noteSymbol: '★', isEnemy: true })
+    await waitAsync(55, signal)
+  }
+  await waitAsync(900, signal)
+}
+
+// ====================================================
+// ★ ボス撃破演出：
+// ① ボスが倒れた画像（_down.png）になる → ② ピカッと光って消滅 → ③ エリカにズームインしてピース勝利ポーズ！
+// ====================================================
+const triggerStageClearSequenceAsync = async () => {
+  if (boss.isDefeated || player.isVictory || gameResult.value) return
+  boss.isDefeated = true
+  boss.vx = 0; boss.vy = 0
+  boss.warningLaserY = null; boss.warningSpikeX = null
   boss.abortController?.abort()
   enemies.forEach(e => e.abortController.abort())
   enemies.length = 0
   bullets.length = 0
 
-  score.value += 2000 * currentStage.value
-  player.isVictory = true // ステージ上のエリカを victory.png（ピースポーズ）に切り替え！
+  // ステップ1：ボスが倒れた姿（_down.png）を1.3秒間見せる！
+  screenShakeTimer = 14
+  await waitAsync(1300)
+
+  // ステップ2：ボスがピカッと白く発光して消滅する！
+  for (let i = 1; i <= 10; i++) {
+    boss.flashAlpha = i / 10
+    await waitAsync(40)
+  }
+  spawnFireworkBurst(boss.x, boss.y - 45)
+  boss.active = false
+  boss.flashAlpha = 0
+
+  // ステップ3：プレイヤーのエリカにカメラをズームインして勝利ピースポーズを見せる！
+  score.value += 2500 * currentStage.value
+  player.isVictory = true
   player.vx = 0
   player.hurtPoseTimer = 0
+  camera.targetX = player.x
+  camera.targetY = player.y - 35
+  camera.targetZoom = 1.85
 
-  // ボスがいた場所で大爆発花火＋上空で祝福の花火を連続打ち上げ
-  spawnFireworkBurst(boss.x, boss.y - 40)
   for (let f = 1; f <= 6; f++) {
-    setTimeout(() => spawnFireworkBurst(), f * 300)
+    setTimeout(() => spawnFireworkBurst(player.x + (Math.random() - 0.5) * 220, player.y - 60 - Math.random() * 80), f * 280)
   }
 
-  // 1.8秒間ステージ上でピースしているエリカと花火をしっかり見せてからボーナス選択画面を開く！
-  await waitAsync(1800)
+  await waitAsync(2100)
+  camera.targetZoom = 1.0
   gameResult.value = 'CLEAR'
 }
 
@@ -891,11 +1114,11 @@ const onEnemyDefeated = (e: Enemy) => {
 
 const selectBonusAndNextStage = (choiceId: string) => {
   if (choiceId === 'DOUBLE') {
-    if (upgrades.doubleShot) upgrades.powerMultiplier += 0.2
-    upgrades.doubleShot = true
-  } else if (choiceId === 'GROUND') {
-    if (upgrades.groundShot) upgrades.powerMultiplier += 0.2
-    upgrades.groundShot = true
+    if (upgrades.doubleShotLv < 2) upgrades.doubleShotLv++
+    else upgrades.powerMultiplier += 0.2
+  } else if (choiceId === 'SLASH') {
+    if (upgrades.slashLv < 2) upgrades.slashLv++
+    else upgrades.powerMultiplier += 0.2
   } else if (choiceId === 'OPTION') {
     if (upgrades.options < 2) upgrades.options++
     else upgrades.powerMultiplier += 0.2
@@ -921,7 +1144,7 @@ const retryFromCheckpoint = () => {
 
 const resetFullGame = () => {
   score.value = 0; lives.value = 3; maxHp.value = 100; playerHp.value = 100
-  upgrades.doubleShot = false; upgrades.groundShot = false; upgrades.options = 0
+  upgrades.doubleShotLv = 0; upgrades.slashLv = 0; upgrades.options = 0
   upgrades.barrierHp = 0; upgrades.powerMultiplier = 1.0; upgrades.maxChargeLevel = 2
   startStageFromCloudRun(1, false)
 }
@@ -942,6 +1165,9 @@ const startChargeAsync = async () => {
   } catch {}
 }
 
+// ====================================================
+// ★ 2段階強化対応の「2方向ショット」＆「周囲1周の剣薙ぎ払い（円月スラッシュ）」
+// ====================================================
 const fireFromPosition = (originX: number, originY: number, level: number, isOption = false) => {
   const pMul = (isOption ? 0.6 : 1.0) * upgrades.powerMultiplier
   const dir = player.facing
@@ -954,22 +1180,37 @@ const fireFromPosition = (originX: number, originY: number, level: number, isOpt
   ]
   const cfg = baseConfigs[level] || baseConfigs[0]
 
+  // 1. 正面ショット
   bullets.push({
     x: originX, y: originY, vx: dir * cfg.speed, vy: 0,
     radius: cfg.radius, damage: Math.round(cfg.dmg * pMul), color: cfg.color, noteSymbol: cfg.symbol, piercing: cfg.pierce
   })
 
-  if (upgrades.doubleShot) {
+  // 2. 斜め上45度ショット（Lv.1は通常音符弾、Lv.2なら現在のチャージ状態の強化弾をそのまま上にも発射！）
+  if (upgrades.doubleShotLv > 0) {
+    const upCfg = upgrades.doubleShotLv >= 2 ? cfg : baseConfigs[0]
     bullets.push({
-      x: originX, y: originY - 5, vx: dir * (cfg.speed * 0.8), vy: -cfg.speed * 0.55,
-      radius: Math.max(7, cfg.radius * 0.8), damage: Math.round(cfg.dmg * 0.75 * pMul), color: '#fb7185', noteSymbol: '♪', piercing: cfg.pierce
+      x: originX, y: originY - 5,
+      vx: dir * (upCfg.speed * 0.75), vy: -upCfg.speed * 0.65,
+      radius: upCfg.radius, damage: Math.round(upCfg.dmg * pMul),
+      color: upCfg.color, noteSymbol: upCfg.symbol, piercing: upCfg.pierce
     })
   }
 
-  if (upgrades.groundShot && !isOption) {
-    bullets.push({
-      x: originX, y: originY + 10, vx: dir * 6.5, vy: 2.5,
-      radius: 9, damage: Math.round(16 * pMul), color: '#fbbf24', noteSymbol: '━♪', isGroundCrawling: true
+  // 3. 体の周囲を一周する剣薙ぎ払い（Lv.1は通常回転斬り、Lv.2はチャージ段階に応じて巨大化＆超威力化！）
+  if (upgrades.slashLv > 0 && !isOption) {
+    const effectiveLv = upgrades.slashLv >= 2 ? level : 0
+    const slashRadius = 56 + effectiveLv * 20
+    const slashDmg = Math.round((28 + effectiveLv * 30) * upgrades.powerMultiplier)
+    const slashColors = ['#fbbf24', '#38bdf8', '#facc15', '#e879f9']
+    activeSlashes.push({
+      radius: slashRadius,
+      damage: slashDmg,
+      angle: 0,
+      timer: 16 + effectiveLv * 4,
+      maxTimer: 16 + effectiveLv * 4,
+      color: slashColors[effectiveLv] || '#fbbf24',
+      hitIds: new Set<string>()
     })
   }
 }
@@ -999,7 +1240,6 @@ const onKeyDown = (e: KeyboardEvent) => {
   if (keys.has(e.code) || player.controlLocked || deathOverlay.active || player.isDown || player.isVictory) return
   keys.add(e.code)
 
-  // コヨーテタイム対応ジャンプ（足場から離れた直後6フレーム以内ならジャンプ可能！）
   if ((e.code === 'ArrowUp' || e.code === 'Space' || e.code === 'KeyZ') && (player.onGround || player.coyoteTimer > 0)) {
     player.vy = PHYSICS.JUMP_VELOCITY
     player.onGround = false
@@ -1034,7 +1274,6 @@ const onKeyUp = (e: KeyboardEvent) => {
 let animFrameId = 0
 let lastFrameTime = performance.now()
 
-// ★ プレイヤーのスプライト切り替え（倒れた姿 down.png ＆ ステージ上での勝利ピース victory.png 対応！）
 const getPlayerSpriteKey = () => {
   if (player.isDown) return 'down'
   if (player.isVictory) return 'victory'
@@ -1045,9 +1284,66 @@ const getPlayerSpriteKey = () => {
   return 'idle'
 }
 
-// ====================================================
-// ★ 倒れた画像（down.png）を見せてから「YOU DIED」へ入る死亡シーケンス
-// ====================================================
+// ★ ボスの現在の状態（通常・被弾・倒れ・12体目盾差分）に応じたスプライトキーを返す
+const getBossActiveSpriteKey = (): string => {
+  if (boss.isDefeated) {
+    const downKey = `boss_${boss.id}_down`
+    if (sprites[downKey]) return downKey
+    if (boss.hasShield && sprites[`boss_${boss.id}_unarmed`]) return `boss_${boss.id}_unarmed`
+    return boss.spriteKey
+  }
+  if (boss.hurtTimer > 0) {
+    const hurtKey = `boss_${boss.id}_hurt`
+    if (sprites[hurtKey]) return hurtKey
+  }
+  if (boss.hasShield) {
+    if (boss.shieldState === 'INTACT') return `boss_${boss.id}`
+    if (boss.shieldState === 'CRACKED') return `boss_${boss.id}_cracked`
+    return `boss_${boss.id}_unarmed`
+  }
+  return boss.spriteKey
+}
+
+// ★ ボスへのダメージ適用処理（12体目ラスボスのステンドグラス盾判定つき！）
+const applyDamageToBoss = (rawDamage: number, isPiercing = false) => {
+  if (!boss.active || boss.isDefeated) return
+
+  // 12体目ラスボスがステンドグラスの盾を構えている場合
+  if (boss.hasShield && boss.shieldState !== 'UNARMED') {
+    boss.shieldHp = Math.max(0, boss.shieldHp - rawDamage)
+    floatingTexts.push({ x: boss.x - 55, y: boss.y - 160 + (Math.random() - 0.5) * 30, text: `GUARD -${rawDamage}`, color: '#38bdf8', alpha: 1.0 })
+
+    if (boss.shieldHp <= 0) {
+      // 盾が完全に砕け散った！
+      boss.shieldState = 'UNARMED'
+      screenShakeTimer = 14
+      spawnFireworkBurst(boss.x - 50, boss.y - 150)
+      floatingTexts.push({ x: boss.x - 40, y: boss.y - 210, text: 'SHIELD BREAK!!', color: '#facc15', alpha: 1.0 })
+    } else if (boss.shieldHp <= boss.maxShieldHp * 0.5 && boss.shieldState === 'INTACT') {
+      // 盾の耐久が半分以下になってヒビが入った！
+      boss.shieldState = 'CRACKED'
+      screenShakeTimer = 8
+      floatingTexts.push({ x: boss.x - 40, y: boss.y - 190, text: 'SHIELD CRACKED!', color: '#fbbf24', alpha: 1.0 })
+    }
+    return
+  }
+
+  // 本体へのダメージ
+  boss.hp = Math.max(0, boss.hp - rawDamage)
+  boss.hurtTimer = 14 // ボスの被弾リアクション画像を表示！
+  floatingTexts.push({
+    x: boss.x + (Math.random() - 0.5) * 24,
+    y: boss.y - (boss.hasShield ? 180 : 55),
+    text: `${rawDamage}`,
+    color: isPiercing ? '#facc15' : '#f472b6',
+    alpha: 1.0
+  })
+  if (isPiercing) screenShakeTimer = 5
+  if (boss.hp <= 0) {
+    triggerStageClearSequenceAsync()
+  }
+}
+
 const triggerYouDiedSequenceAsync = async (fellInPit = false) => {
   if (deathOverlay.active || player.isDown || gameResult.value) return
   player.controlLocked = true
@@ -1060,7 +1356,6 @@ const triggerYouDiedSequenceAsync = async (fellInPit = false) => {
   enemies.forEach(e => e.abortController.abort())
   boss.abortController?.abort()
 
-  // 落とし穴以外の通常ダメージ死なら、その場で倒れたエリカ（down.png）を1.1秒間しっかり見せる！
   if (!fellInPit) {
     await waitAsync(1100)
   }
@@ -1083,9 +1378,6 @@ const triggerYouDiedSequenceAsync = async (fellInPit = false) => {
   }
 }
 
-// ====================================================
-// ★ 被弾処理：上に浮く挙動（vy変更）を撤廃 ＆ 無敵時間を1.35倍（82フレーム）へ延長！
-// ====================================================
 const damagePlayer = (amount: number) => {
   if (player.invincibleTimer > 0 || deathOverlay.active || player.isDown || player.isVictory || gameResult.value || player.controlLocked) return
   if (upgrades.barrierHp > 0) {
@@ -1095,9 +1387,8 @@ const damagePlayer = (amount: number) => {
   }
 
   playerHp.value = Math.max(0, playerHp.value - amount)
-  player.invincibleTimer = 82 // 従来の60 → 82フレーム（約1.37倍）へ無敵時間を延長！
-  player.hurtPoseTimer = 24   // のけぞり画像を表示
-  // ※ player.vy は一切変更しない（勝手に浮き上がらないので操作しやすい！）
+  player.invincibleTimer = 82
+  player.hurtPoseTimer = 24
   screenShakeTimer = 8
   floatingTexts.push({ x: player.x, y: player.y - 55, text: `-${amount}`, color: '#ef4444', alpha: 1.0 })
 
@@ -1119,6 +1410,11 @@ const updateAndDraw = (now: number) => {
   const canvas = canvasRef.value
   if (!canvas) return
   const ctx = canvas.getContext('2d')!
+
+  // カメラの滑らかな補間更新（ズームイン・ズームアウト）
+  camera.zoom += (camera.targetZoom - camera.zoom) * 0.12
+  camera.focusX += (camera.targetX - camera.focusX) * 0.12
+  camera.focusY += (camera.targetY - camera.focusY) * 0.12
 
   const scrollSpd = currentTheme.isScrolling ? currentTheme.scrollSpeed : 0
   const prevY = player.y
@@ -1152,11 +1448,8 @@ const updateAndDraw = (now: number) => {
         if (nextX + 14 > obs.x && nextX - 14 < obs.x + obs.w) {
           if (player.x <= obs.x) {
             nextX = obs.x - 14
-            // 流れてくる壁と画面左端に本当に挟まれそうになった時だけ、ダメージなしで壁の上へひょいっと乗せる親切設計！
             if (nextX < 28) {
-              player.y = obs.y
-              player.vy = -3.5
-              nextX = obs.x + obs.w / 2
+              player.y = obs.y; player.vy = -3.5; nextX = obs.x + obs.w / 2
             }
           } else {
             nextX = obs.x + obs.w + 14
@@ -1165,7 +1458,6 @@ const updateAndDraw = (now: number) => {
         }
       }
     }
-    // ★ 左端の謎のダメージ壁を完全撤廃！（左端28px〜右端775pxの間で安全に動けます）
     player.x = Math.max(28, Math.min(775, nextX))
 
     if (fogGate.active && !fogGate.transitioning && enemies.length === 0 && player.x >= fogGate.x - 24) {
@@ -1197,7 +1489,7 @@ const updateAndDraw = (now: number) => {
     if (landed) {
       if (!player.onGround) { player.scaleX = 1.16; player.scaleY = 0.84 }
       player.onGround = true
-      player.coyoteTimer = 6 // 地面にいる間はコヨーテタイマーを充填
+      player.coyoteTimer = 6
     } else {
       player.onGround = false
       if (player.coyoteTimer > 0) player.coyoteTimer--
@@ -1212,6 +1504,7 @@ const updateAndDraw = (now: number) => {
   if (player.shootPoseTimer > 0) player.shootPoseTimer--
   if (player.hurtPoseTimer > 0) player.hurtPoseTimer--
   if (player.invincibleTimer > 0) player.invincibleTimer--
+  if (boss.hurtTimer > 0) boss.hurtTimer--
   if (Math.abs(player.vx) > 0.4) player.runAnimTimer++
 
   if (player.isDashing || chargeLevel.value >= 2) {
@@ -1219,47 +1512,80 @@ const updateAndDraw = (now: number) => {
   }
 
   // ==========================================
-  // 描画処理
+  // 描画開始（カメラズーム ＆ 画面シェイク適用）
   // ==========================================
   ctx.save()
+  if (Math.abs(camera.zoom - 1.0) > 0.01) {
+    ctx.translate(canvas.width / 2, canvas.height / 2)
+    ctx.scale(camera.zoom, camera.zoom)
+    ctx.translate(-camera.focusX, -camera.focusY)
+  }
   if (screenShakeTimer > 0) {
     screenShakeTimer--
     ctx.translate((Math.random() - 0.5) * 6, (Math.random() - 0.5) * 6)
   }
 
+  // 背景グラデーション
   const skyGrad = ctx.createLinearGradient(0, 0, 0, GROUND_Y)
   skyGrad.addColorStop(0, currentTheme.skyGradient[0])
   skyGrad.addColorStop(0.5, currentTheme.skyGradient[1])
   skyGrad.addColorStop(1, currentTheme.skyGradient[2])
   ctx.fillStyle = skyGrad
-  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  ctx.fillRect(-100, -100, canvas.width + 200, canvas.height + 200)
 
+  // テーマ別の背景バリエーション描画（6種類）
   ctx.fillStyle = 'rgba(255, 255, 255, 0.7)'
   bgStars.forEach(s => {
     s.x = (s.x - (s.speed + scrollSpd * 0.2) + 800) % 800
-    ctx.fillRect(s.x, s.y, s.size, s.size)
+    if (currentTheme.bgStyle === 'OCEAN') {
+      // 深海ステージは泡が浮かび上がる
+      ctx.beginPath(); ctx.arc(s.x, (s.y - now * 0.02 + 300) % 300, s.size + 1, 0, Math.PI * 2); ctx.strokeStyle = 'rgba(125, 211, 252, 0.4)'; ctx.stroke()
+    } else {
+      ctx.fillRect(s.x, s.y, s.size, s.size)
+    }
   })
+
+  if (currentTheme.bgStyle === 'GOTHIC') {
+    // ゴシックステージの巨大な赤い満月
+    ctx.save()
+    ctx.beginPath(); ctx.arc(640, 110, 52, 0, Math.PI * 2)
+    ctx.fillStyle = 'rgba(225, 29, 72, 0.35)'; ctx.shadowColor = '#e11d48'; ctx.shadowBlur = 25; ctx.fill()
+    ctx.restore()
+  }
 
   bgScrollX = (bgScrollX + scrollSpd * 0.4) % 55
   ctx.fillStyle = 'rgba(15, 23, 42, 0.55)'
-  bgBuildings.forEach(b => {
+  bgBuildings.forEach((b, idx) => {
     const bx = (b.x - bgScrollX + 880) % 880 - 55
-    ctx.fillRect(bx, GROUND_Y - b.h, b.w, b.h)
+    if (currentTheme.bgStyle === 'CATHEDRAL' || currentTheme.bgStyle === 'GOTHIC') {
+      // 尖塔アーチシルエット
+      ctx.beginPath()
+      ctx.moveTo(bx, GROUND_Y)
+      ctx.lineTo(bx, GROUND_Y - b.h)
+      ctx.lineTo(bx + b.w / 2, GROUND_Y - b.h - 28)
+      ctx.lineTo(bx + b.w, GROUND_Y - b.h)
+      ctx.lineTo(bx + b.w, GROUND_Y)
+      ctx.fill()
+    } else if (currentTheme.bgStyle === 'CYBER') {
+      // イコライザー波形バー
+      const dynH = 40 + Math.abs(Math.sin(now * 0.004 + idx)) * 90
+      ctx.fillRect(bx, GROUND_Y - dynH, b.w - 8, dynH)
+    } else {
+      ctx.fillRect(bx, GROUND_Y - b.h, b.w, b.h)
+    }
   })
 
-  // 地面（高さ1/10）
+  // 地面
   ctx.fillStyle = currentTheme.groundColor
-  ctx.fillRect(0, GROUND_Y, canvas.width, canvas.height - GROUND_Y)
+  ctx.fillRect(-100, GROUND_Y, canvas.width + 200, canvas.height - GROUND_Y + 100)
   ctx.strokeStyle = currentTheme.lineColor
   ctx.lineWidth = 3
-  ctx.beginPath(); ctx.moveTo(0, GROUND_Y); ctx.lineTo(canvas.width, GROUND_Y); ctx.stroke()
+  ctx.beginPath(); ctx.moveTo(-100, GROUND_Y); ctx.lineTo(canvas.width + 100, GROUND_Y); ctx.stroke()
 
-  // ボス部屋中の左右結界ライン描画（ボスもエリカもここから外へは出ない視覚ガイド）
   if (boss.active) {
     ctx.save()
     ctx.strokeStyle = 'rgba(244, 63, 94, 0.35)'
-    ctx.lineWidth = 3
-    ctx.setLineDash([8, 6])
+    ctx.lineWidth = 3; ctx.setLineDash([8, 6])
     ctx.beginPath()
     ctx.moveTo(20, 0); ctx.lineTo(20, GROUND_Y)
     ctx.moveTo(780, 0); ctx.lineTo(780, GROUND_Y)
@@ -1270,8 +1596,7 @@ const updateAndDraw = (now: number) => {
   for (const pit of pits.value) {
     ctx.fillStyle = '#020617'
     ctx.fillRect(pit.x, GROUND_Y - 2, pit.w, canvas.height - GROUND_Y + 4)
-    ctx.strokeStyle = '#ef4444'
-    ctx.lineWidth = 2
+    ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 2
     ctx.strokeRect(pit.x, GROUND_Y, pit.w, canvas.height - GROUND_Y)
   }
 
@@ -1280,8 +1605,7 @@ const updateAndDraw = (now: number) => {
     if (obs.type === 'wall') {
       ctx.fillStyle = '#1e293b'
       ctx.fillRect(obs.x, obs.y, obs.w, obs.h)
-      ctx.strokeStyle = currentTheme.lineColor
-      ctx.lineWidth = 2
+      ctx.strokeStyle = currentTheme.lineColor; ctx.lineWidth = 2
       ctx.strokeRect(obs.x, obs.y, obs.w, obs.h)
     } else {
       ctx.fillStyle = '#334155'
@@ -1346,7 +1670,7 @@ const updateAndDraw = (now: number) => {
     ctx.restore()
   }
 
-  // エリカ本体の描画（倒れている時やピース中は点滅させずハッキリ表示！）
+  // エリカ本体描画
   if (introState.active && player.y < GROUND_Y - 4) {
     ctx.save()
     ctx.fillStyle = 'rgba(244, 114, 182, 0.85)'
@@ -1357,9 +1681,64 @@ const updateAndDraw = (now: number) => {
     ctx.restore()
   } else if (player.isDown || player.isVictory || player.invincibleTimer % 4 < 2) {
     const dashScaleY = player.isDashing ? 0.74 : player.scaleY
-    // 勝利ポーズ(victory.png)は正面絵なので左右反転させずにそのまま描画
     const drawFacing = player.isVictory ? 1 : player.facing
     drawSprite(ctx, sprites[getPlayerSpriteKey()], player.x, player.y, drawFacing, playerDrawSize, player.scaleX, dashScaleY, 1.0, 0)
+  }
+
+  // ==========================================
+  // ★ 体の周囲を一周する「円月サウンド薙ぎ払い（SLASH）」の更新・描画・当たり判定
+  // ==========================================
+  for (let i = activeSlashes.length - 1; i >= 0; i--) {
+    const sw = activeSlashes[i]
+    sw.timer--
+    sw.angle += (Math.PI * 2) / sw.maxTimer
+    const cx = player.x
+    const cy = player.y - 30
+
+    // 回転する光の三日月刃を描画
+    ctx.save()
+    ctx.translate(cx, cy)
+    ctx.rotate(sw.angle * player.facing)
+    ctx.beginPath()
+    ctx.arc(0, 0, sw.radius, -0.4, Math.PI * 1.35)
+    ctx.strokeStyle = sw.color
+    ctx.lineWidth = 7
+    ctx.shadowColor = sw.color; ctx.shadowBlur = 14
+    ctx.stroke()
+    ctx.restore()
+
+    // 1. 周囲の敵弾を斬り払って消去！
+    for (let bIdx = bullets.length - 1; bIdx >= 0; bIdx--) {
+      const b = bullets[bIdx]
+      if (b.isEnemy && Math.hypot(b.x - cx, b.y - cy) < sw.radius + b.radius) {
+        bullets.splice(bIdx, 1)
+      }
+    }
+
+    // 2. 周囲のザコ敵への大ダメージ判定
+    for (let eIdx = enemies.length - 1; eIdx >= 0; eIdx--) {
+      const e = enemies[eIdx]
+      if (!sw.hitIds.has(e.id) && Math.hypot(e.x - cx, (e.y - 26) - cy) < sw.radius + 22) {
+        sw.hitIds.add(e.id)
+        e.hp -= sw.damage
+        floatingTexts.push({ x: e.x, y: e.y - 45, text: `SLASH ${sw.damage}!`, color: sw.color, alpha: 1.0 })
+        if (e.hp <= 0) {
+          onEnemyDefeated(e); enemies.splice(eIdx, 1)
+        }
+      }
+    }
+
+    // 3. ボスへの薙ぎ払いヒット判定
+    if (boss.active && !boss.isDefeated && !sw.hitIds.has('BOSS')) {
+      const bossCenterY = boss.hasShield ? boss.y - 140 : boss.y - 38
+      const hitDist = boss.hasShield ? sw.radius + 55 : sw.radius + 34
+      if (Math.hypot(boss.x - cx, bossCenterY - cy) < hitDist) {
+        sw.hitIds.add('BOSS')
+        applyDamageToBoss(sw.damage, true)
+      }
+    }
+
+    if (sw.timer <= 0) activeSlashes.splice(i, 1)
   }
 
   if (upgrades.barrierHp > 0 && !player.isDown) {
@@ -1404,6 +1783,13 @@ const updateAndDraw = (now: number) => {
     const e = enemies[i]
     const prevEnemyY = e.y
     if (!e.isStunned) e.x += e.vx - scrollSpd * 0.65
+
+    // ★ 白い霧が出ている間は、敵が左端の画面外へ逃げていかないように折り返させる！
+    if (fogGate.active && e.x < 35 && e.vx < 0) {
+      e.vx = -e.vx
+    } else if (fogGate.active && e.x > 730 && e.vx > 0) {
+      e.vx = -e.vx
+    }
 
     for (const obs of obstacles.value) {
       if (obs.type === 'wall' && e.y > obs.y + 6 && Math.abs(e.x - (obs.x + obs.w / 2)) < obs.w / 2 + 18) {
@@ -1460,40 +1846,36 @@ const updateAndDraw = (now: number) => {
       }
     }
 
-    if (e.x < -70 || e.y > canvas.height + 40) {
+    // 画面外や落とし穴の底へ落ちた敵は確実に配列から削除！
+    if (e.x < -40 || e.x > 870 || e.y > GROUND_Y + 25) {
       e.abortController.abort()
       enemies.splice(i, 1)
     }
   }
 
   // ==========================================
-  // ★ ボスの更新＆描画（上下左右のアリーナ境界壁で完全ロック！絶対に画面外へ出ない！）
+  // ボスの更新＆描画（被弾差分・倒れ差分・ピカッと発光消滅・12体目巨大スケール対応）
   // ==========================================
   if (boss.active) {
-    boss.x += boss.vx
-    if (boss.x <= BOSS_ARENA.LEFT) {
-      boss.x = BOSS_ARENA.LEFT
-      if (boss.vx < 0) boss.vx = -boss.vx * 0.5 // 左壁で跳ね返る
-    } else if (boss.x >= BOSS_ARENA.RIGHT) {
-      boss.x = BOSS_ARENA.RIGHT
-      if (boss.vx > 0) boss.vx = -boss.vx * 0.5 // 右壁で跳ね返る
-    }
-
-    if (boss.isFloating) {
-      boss.y += boss.vy
-      if (boss.y < 160) { boss.y = 160; boss.vy = 0 }
-      if (boss.y > 265) { boss.y = 265; boss.vy = 0 }
-    } else {
-      boss.vy += PHYSICS.GRAVITY
-      boss.y += boss.vy
-      // 上空の天井（TOP）より上へは絶対に飛び出さないようにクランプ！
-      if (boss.y < BOSS_ARENA.TOP) {
-        boss.y = BOSS_ARENA.TOP
-        if (boss.vy < 0) boss.vy = 0
+    if (!boss.isDefeated) {
+      boss.x += boss.vx
+      if (boss.x <= BOSS_ARENA.LEFT) {
+        boss.x = BOSS_ARENA.LEFT
+        if (boss.vx < 0) boss.vx = -boss.vx * 0.5
+      } else if (boss.x >= BOSS_ARENA.RIGHT) {
+        boss.x = BOSS_ARENA.RIGHT
+        if (boss.vx > 0) boss.vx = -boss.vx * 0.5
       }
-      if (boss.y >= BOSS_ARENA.BOTTOM) {
-        boss.y = BOSS_ARENA.BOTTOM
-        boss.vy = 0
+
+      if (boss.isFloating) {
+        boss.y += boss.vy
+        if (boss.y < 160) { boss.y = 160; boss.vy = 0 }
+        if (boss.y > 265) { boss.y = 265; boss.vy = 0 }
+      } else {
+        boss.vy += PHYSICS.GRAVITY
+        boss.y += boss.vy
+        if (boss.y < BOSS_ARENA.TOP) { boss.y = BOSS_ARENA.TOP; if (boss.vy < 0) boss.vy = 0 }
+        if (boss.y >= BOSS_ARENA.BOTTOM) { boss.y = BOSS_ARENA.BOTTOM; boss.vy = 0 }
       }
     }
 
@@ -1515,32 +1897,39 @@ const updateAndDraw = (now: number) => {
 
     const bossFacing = player.x > boss.x ? -1 : 1
     const bossDrawSize = Math.round(96 * CHAR_SCALE * boss.scale)
-    drawSprite(ctx, sprites[boss.spriteKey], boss.x, boss.y, bossFacing, bossDrawSize, 1, 1, 1.0, 0)
+    const activeBossKey = getBossActiveSpriteKey()
 
-    if (!player.isDown && !player.isVictory && Math.abs(player.x - boss.x) < 32 && Math.abs(player.y - boss.y) < 44) {
-      damagePlayer(15)
+    ctx.save()
+    // 被弾中または撃破時の白い閃光エフェクト
+    if (boss.flashAlpha > 0) {
+      ctx.filter = `brightness(${1 + boss.flashAlpha * 5}) opacity(${1 - boss.flashAlpha * 0.7})`
+    } else if (boss.hurtTimer > 0 && !sprites[`boss_${boss.id}_hurt`]) {
+      ctx.filter = 'brightness(1.8)'
+    }
+    drawSprite(ctx, sprites[activeBossKey], boss.x, boss.y, bossFacing, bossDrawSize, 1, 1, 1.0, 0)
+    ctx.restore()
+
+    const contactW = boss.hasShield ? 55 : 32
+    const contactH = boss.hasShield ? 260 : 44
+    if (!boss.isDefeated && !player.isDown && !player.isVictory &&
+        Math.abs(player.x - boss.x) < contactW && player.y > boss.y - contactH && player.y <= boss.y + 10) {
+      damagePlayer(16)
     }
   }
 
-  // 音符弾の更新＆壁遮断
+  // 音符弾の更新＆当たり判定
   for (let i = bullets.length - 1; i >= 0; i--) {
     const b = bullets[i]
     b.x += b.vx
     if (b.gravity) b.vy += b.gravity
     b.y += b.vy
 
-    if (b.isGroundCrawling) {
-      let surfaceY = GROUND_Y - 8
-      for (const obs of obstacles.value) {
-        if (b.x >= obs.x && b.x <= obs.x + obs.w) surfaceY = Math.min(surfaceY, obs.y - 8)
-      }
-      b.y = surfaceY
-    } else if (b.gravity && b.y >= GROUND_Y - 8) {
+    if (b.gravity && b.y >= GROUND_Y - 8) {
       b.y = GROUND_Y - 8; b.vy = -3.2
     }
 
     let blockedByWall = false
-    if (!b.piercing && !b.isGroundCrawling) {
+    if (!b.piercing) {
       for (const obs of obstacles.value) {
         if (obs.type === 'wall' && b.x + b.radius > obs.x && b.x - b.radius < obs.x + obs.w && b.y + b.radius > obs.y && b.y - b.radius < obs.y + obs.h) {
           blockedByWall = true; break
@@ -1572,7 +1961,7 @@ const updateAndDraw = (now: number) => {
       for (let j = enemies.length - 1; j >= 0; j--) {
         const e = enemies[j]
         if (Math.abs(b.x - e.x) < 28 && Math.abs(b.y - (e.y - 26)) < 30) {
-          if (e.isHidden && !b.piercing && !b.isGroundCrawling) {
+          if (e.isHidden && !b.piercing) {
             b.vx = -b.vx * 0.8; b.vy = -2; break
           }
           const dmg = (e.armored && !b.piercing && !e.isStunned) ? Math.ceil(b.damage * 0.4) : b.damage
@@ -1584,15 +1973,17 @@ const updateAndDraw = (now: number) => {
       }
       if (hit && !b.piercing) { bullets.splice(i, 1); continue }
 
-      if (boss.active && Math.abs(b.x - boss.x) < 36 && Math.abs(b.y - (boss.y - 38)) < 44) {
-        boss.hp = Math.max(0, boss.hp - b.damage)
-        floatingTexts.push({ x: boss.x + (Math.random() - 0.5) * 20, y: boss.y - 55, text: `${b.damage}`, color: b.piercing ? '#facc15' : '#f472b6', alpha: 1.0 })
-        if (b.piercing) screenShakeTimer = 4
-        if (!b.piercing) bullets.splice(i, 1)
-        if (boss.hp <= 0) {
-          triggerStageClearSequenceAsync()
+      // ボスへのヒット判定（12体目巨大ボスは縦全体に当たり判定あり！）
+      if (boss.active && !boss.isDefeated) {
+        const hitW = boss.hasShield ? 68 : 36
+        const hitTop = boss.hasShield ? boss.y - 290 : boss.y - 75
+        if (Math.abs(b.x - boss.x) < hitW && b.y >= hitTop && b.y <= boss.y) {
+          applyDamageToBoss(b.damage, !!b.piercing)
+          if (!b.piercing || (boss.hasShield && boss.shieldState !== 'UNARMED')) {
+            bullets.splice(i, 1)
+          }
+          continue
         }
-        continue
       }
     }
 
@@ -1616,7 +2007,7 @@ const updateAndDraw = (now: number) => {
     ctx.restore()
   }
 
-  // クリア演出中の花火パーティクル
+  // 花火パーティクル
   if ((player.isVictory || gameResult.value === 'CLEAR') && Math.random() < 0.06) spawnFireworkBurst()
   for (let i = fireworks.length - 1; i >= 0; i--) {
     const fw = fireworks[i]
