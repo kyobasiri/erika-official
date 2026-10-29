@@ -284,6 +284,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { measureSprite, drawFittedSprite } from '../game/spriteRenderer'
 
 // The API is optional. A missing URL is explicit OFFLINE mode, not a dummy request.
 const API_BASE = (import.meta.env.VITE_API_URL || '').trim().replace(/\/+$/, '')
@@ -631,6 +632,7 @@ const preloadSprite = (key: string, signal: AbortSignal): Promise<void> => {
       image.onload = null
       image.onerror = null
       if (success && !componentDisposed && !signal.aborted && !lifecycleAbort.signal.aborted) {
+        measureSprite(image)
         sprites[key] = image
       }
       resolve()
@@ -659,10 +661,16 @@ const preloadSprite = (key: string, signal: AbortSignal): Promise<void> => {
 const preloadSpriteKeys = (keys: string[], signal: AbortSignal) =>
   Promise.all(keys.map(key => preloadSprite(key, signal))).then(() => undefined)
 
-const preloadBossSprites = (bossId: string, signal: AbortSignal) => {
+const preloadBossSprites = async (bossId: string, signal: AbortSignal) => {
   const keys = [`boss_${bossId}`, `boss_${bossId}_hurt`, `boss_${bossId}_down`]
   if (bossId === 'sunflower') keys.push('boss_sunflower_cracked', 'boss_sunflower_unarmed')
-  return preloadSpriteKeys(keys, signal)
+  await preloadSpriteKeys(keys, signal)
+  // The unarmed pose is optional. All bosses are expected to have HURT/DOWN.
+  if (!signal.aborted && !componentDisposed) {
+    for (const key of [`boss_${bossId}`, `boss_${bossId}_hurt`, `boss_${bossId}_down`]) {
+      if (!sprites[key]) console.warn(`[ERIKA] Missing sprite: ${spriteUrls[key] ?? key}`)
+    }
+  }
 }
 
 // 非同期の敵出現・攻撃・演出を「ゲーム時間」で進める。
@@ -764,6 +772,24 @@ const floatingTexts: FloatingText[] = []
 const fireworks: FireworkParticle[] = []
 const enemies: Enemy[] = []
 const afterimages: { x: number; y: number; facing: number; alpha: number; spriteKey: string }[] = []
+interface ImpactParticle {
+  x: number; y: number; vx: number; vy: number
+  life: number; maxLife: number; color: string; size: number
+}
+const impactParticles: ImpactParticle[] = []
+// Bounded, game-time-driven particles: they never trigger extra network calls or timers.
+const spawnImpact = (x: number, y: number, color: string, count = 9, power = 2.7) => {
+  for (let i = 0; i < count; i++) {
+    const a = (i / count) * Math.PI * 2 + Math.random() * 0.25
+    const speed = power * (0.45 + Math.random() * 0.65)
+    impactParticles.push({
+      x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed,
+      life: 14 + Math.floor(Math.random() * 14), maxLife: 28,
+      color, size: 1.3 + Math.random() * 2.3,
+    })
+  }
+  if (impactParticles.length > 180) impactParticles.splice(0, impactParticles.length - 180)
+}
 let stageAbortController: AbortController | null = null
 let screenShakeTimer = 0
 
@@ -775,6 +801,7 @@ const boss = reactive({
   x: 640, y: GROUND_Y, vx: 0, vy: 0,
   hp: 620, maxHp: 620, scale: 1.2, pattern: 'KNIGHT',
   hurtTimer: 0, isDefeated: false, flashAlpha: 0,
+  defeatTicks: 0, defeatFacing: 1,
   hasShield: false,
   shieldState: 'INTACT' as ShieldState,
   shieldHp: 500, maxShieldHp: 500,
@@ -902,6 +929,7 @@ const startStageFromCloudRun = async (stageNum: number, fromBossGateCheckpoint =
   stagePlanVersion.value = null
   enemies.forEach(e => e.abortController.abort())
   enemies.length = 0; bullets.length = 0; activeSlashes.length = 0; dropItems.length = 0; fireworks.length = 0
+  impactParticles.length = 0; afterimages.length = 0; floatingTexts.length = 0
   obstacles.value = []; pits.value = []
   boss.active = false; boss.isDefeated = false; boss.flashAlpha = 0
   boss.warningLaserY = null; boss.warningSpikeX = null
@@ -1121,6 +1149,7 @@ const startBossBattleAsync = async (bossData: any, stageSignal: AbortSignal) => 
   boss.y = GROUND_Y
   boss.vx = 0; boss.vy = 0
   boss.hurtTimer = 0; boss.isDefeated = false; boss.flashAlpha = 0
+  boss.defeatTicks = 0; boss.defeatFacing = 1
   boss.isFloating = false; boss.warningLaserY = null; boss.warningSpikeX = null
 
   if (bossData.isGiantFinalBoss) {
@@ -1399,7 +1428,11 @@ const triggerStageClearSequenceAsync = async () => {
   const stageSignal = stageAbortController?.signal
   if (!stageSignal || stageSignal.aborted) return
   boss.isDefeated = true
+  boss.defeatTicks = 0
+  boss.defeatFacing = player.x > boss.x ? -1 : 1
+  boss.hurtTimer = 0
   boss.vx = 0; boss.vy = 0
+  spawnImpact(boss.x, boss.y - (boss.hasShield ? 115 : 56), '#facc15', 26, 5.4)
   boss.warningLaserY = null; boss.warningSpikeX = null
   boss.abortController?.abort()
   enemies.forEach(e => e.abortController.abort())
@@ -1408,10 +1441,11 @@ const triggerStageClearSequenceAsync = async () => {
 
   try {
     screenShakeTimer = 14
-    await waitAsync(1300, stageSignal)
-    for (let i = 1; i <= 10; i++) {
-      boss.flashAlpha = i / 10
-      await waitAsync(40, stageSignal)
+    // Keep the illustrated DOWN pose on screen before the final dissolve.
+    await waitAsync(1550, stageSignal)
+    for (let i = 1; i <= 8; i++) {
+      boss.flashAlpha = i / 8
+      await waitAsync(45, stageSignal)
     }
     spawnFireworkBurst(boss.x, boss.y - 45)
     boss.active = false
@@ -1445,6 +1479,7 @@ const triggerStageClearSequenceAsync = async () => {
 
 const onEnemyDefeated = (e: Enemy) => {
   score.value += e.score
+  spawnImpact(e.x, e.y - 30, '#facc15', 12, 3.1)
   e.abortController.abort()
   const roll = Math.random()
   if (roll < 0.08) dropItems.push({ x: e.x, y: e.y - 16, vy: -2.6, type: '1UP', lifeTimer: 450 })
@@ -1568,6 +1603,8 @@ const fireFromPosition = (originX: number, originY: number, level: number, isOpt
 
 const fireGuitarWave = (level: number) => {
   player.shootPoseTimer = 18
+  spawnImpact(player.x + player.facing * 36, player.y - 31,
+    level >= 2 ? '#facc15' : '#f9a8d4', level >= 2 ? 10 : 4, level >= 2 ? 3.1 : 1.3)
   fireFromPosition(player.x + player.facing * 34, player.y - 30, level, false)
   for (let i = 1; i <= upgrades.options; i++) {
     const histIdx = Math.max(0, positionHistory.length - i * 14)
@@ -1604,6 +1641,7 @@ const pressControl = (code: string) => {
     player.onGround = false
     player.coyoteTimer = 0
     player.scaleX = 0.85; player.scaleY = 1.18
+    spawnImpact(player.x, player.y - 3, '#94a3b8', 6, 1.5)
   }
   if (code === 'ArrowDown' || code === 'KeyC') startDashAsync()
   if (code === 'KeyX') {
@@ -1704,6 +1742,23 @@ const getPlayerSpriteKey = () => {
   return 'idle'
 }
 
+// Visual-only sizing, independent of hitboxes and Cloud Run boss statistics.
+// DOWN art is often wide (even in a square transparent PNG), so cap its width.
+interface BossDrawProfile { normalH: number; normalW: number; downW: number; downH: number; downX?: number }
+const BOSS_DRAW: Record<string, BossDrawProfile> = {
+  knight:    { normalH: 108, normalW: 115, downW: 177, downH: 85 },
+  concierge: { normalH: 105, normalW: 110, downW: 172, downH: 82 },
+  yukata:    { normalH: 104, normalW: 108, downW: 174, downH: 82 },
+  ivory:     { normalH: 110, normalW: 116, downW: 178, downH: 85 },
+  tea:       { normalH: 113, normalW: 111, downW: 174, downH: 85 },
+  kimono:    { normalH: 110, normalW: 115, downW: 183, downH: 85 },
+  flower:    { normalH: 115, normalW: 121, downW: 194, downH: 88 },
+  camellia:  { normalH: 109, normalW: 115, downW: 185, downH: 85 },
+  dress:     { normalH: 118, normalW: 121, downW: 190, downH: 85 },
+  gothic:    { normalH: 119, normalW: 125, downW: 190, downH: 88 },
+  queen:     { normalH: 125, normalW: 132, downW: 205, downH: 90 },
+  sunflower: { normalH: 290, normalW: 300, downW: 242, downH: 114, downX: -12 },
+}
 const getBossActiveSpriteKey = (): string => {
   if (boss.isDefeated) {
     const downKey = `boss_${boss.id}_down`
@@ -1732,14 +1787,17 @@ const applyDamageToBoss = (rawDamage: number, isPiercing = false) => {
   if (boss.hasShield && boss.shieldState !== 'UNARMED') {
     boss.shieldHp = Math.max(0, boss.shieldHp - rawDamage)
     floatingTexts.push({ x: boss.x - 55, y: boss.y - 160 + (Math.random() - 0.5) * 30, text: `GUARD -${rawDamage}`, color: '#38bdf8', alpha: 1.0 })
+    spawnImpact(boss.x - 55, boss.y - 140, '#67e8f9', 5, 2.4)
 
     if (boss.shieldHp <= 0) {
       boss.shieldState = 'UNARMED'
+      spawnImpact(boss.x - 46, boss.y - 125, '#facc15', 32, 5.2)
       screenShakeTimer = 14
       spawnFireworkBurst(boss.x - 50, boss.y - 150)
       floatingTexts.push({ x: boss.x - 40, y: boss.y - 210, text: 'SHIELD BREAK!!', color: '#facc15', alpha: 1.0 })
     } else if (boss.shieldHp <= boss.maxShieldHp * 0.5 && boss.shieldState === 'INTACT') {
       boss.shieldState = 'CRACKED'
+      spawnImpact(boss.x - 42, boss.y - 130, '#67e8f9', 14, 3.5)
       screenShakeTimer = 8
       floatingTexts.push({ x: boss.x - 40, y: boss.y - 190, text: 'SHIELD CRACKED!', color: '#fbbf24', alpha: 1.0 })
     }
@@ -1748,6 +1806,7 @@ const applyDamageToBoss = (rawDamage: number, isPiercing = false) => {
 
   boss.hp = Math.max(0, boss.hp - rawDamage)
   boss.hurtTimer = 14
+  spawnImpact(boss.x, boss.y - (boss.hasShield ? 66 : 48), isPiercing ? '#facc15' : '#f472b6', isPiercing ? 16 : 9, isPiercing ? 4 : 2.7)
   floatingTexts.push({
     x: boss.x + (Math.random() - 0.5) * 24,
     y: boss.y - (boss.hasShield ? 180 : 55),
@@ -1801,6 +1860,7 @@ const damagePlayer = (amount: number) => {
   if (player.invincibleTimer > 0 || deathOverlay.active || player.isDown || player.isVictory || gameResult.value || player.controlLocked) return
   if (upgrades.barrierHp > 0) {
     upgrades.barrierHp--; player.invincibleTimer = 55
+    spawnImpact(player.x, player.y - 34, '#38bdf8', 10, 3.0)
     floatingTexts.push({ x: player.x, y: player.y - 50, text: 'SHIELD!', color: '#38bdf8', alpha: 1.0 })
     return
   }
@@ -1808,6 +1868,7 @@ const damagePlayer = (amount: number) => {
   playerHp.value = Math.max(0, playerHp.value - amount)
   player.invincibleTimer = 82
   player.hurtPoseTimer = 24
+  spawnImpact(player.x, player.y - 40, '#fb7185', 12, 3.4)
   screenShakeTimer = 8
   floatingTexts.push({ x: player.x, y: player.y - 55, text: `-${amount}`, color: '#ef4444', alpha: 1.0 })
 
@@ -1900,7 +1961,10 @@ const updateAndDraw = (now: number) => {
     }
 
     if (landed) {
-      if (!player.onGround) { player.scaleX = 1.16; player.scaleY = 0.84 }
+      if (!player.onGround) {
+        player.scaleX = 1.16; player.scaleY = 0.84
+        spawnImpact(player.x, player.y - 2, '#94a3b8', 7, 1.7)
+      }
       player.onGround = true
       player.coyoteTimer = 6
     } else {
@@ -2043,11 +2107,28 @@ const updateAndDraw = (now: number) => {
   }
 
   const playerDrawSize = Math.round(96 * CHAR_SCALE)
+  // Player sprite poses share a visible bottom anchor. The wide DOWN pose is
+  // fitted by WIDTH, not stretched into the same square as the standing pose.
+  const drawPlayerPose = (key: string, x: number, y: number, facing: number, alpha = 1) => {
+    const isDown = key === 'down'
+    const img = sprites[key]
+    if (!img) { drawSprite(ctx, img, x, y, facing, playerDrawSize, 1, 1, alpha, 0); return }
+    drawFittedSprite(ctx, img, x, y, facing, {
+      maxHeight: isDown ? 64 : (key === 'victory' ? 82 : 78),
+      maxWidth: isDown ? 148 : 98,
+      scaleX: isDown ? 1 : player.scaleX,
+      scaleY: isDown ? 1 : (player.isDashing ? 0.74 : player.scaleY),
+      opacity: alpha,
+    })
+  }
   for (let i = afterimages.length - 1; i >= 0; i--) {
     const aft = afterimages[i]
     aft.alpha -= 0.05
     if (aft.alpha <= 0) { afterimages.splice(i, 1); continue }
-    drawSprite(ctx, sprites[aft.spriteKey], aft.x, aft.y, aft.facing, playerDrawSize, 1, 1, aft.alpha, 190)
+    ctx.save()
+    ctx.filter = 'hue-rotate(190deg) saturate(1.5)'
+    drawPlayerPose(aft.spriteKey, aft.x, aft.y, aft.facing, aft.alpha)
+    ctx.restore()
   }
 
   for (let i = 1; i <= upgrades.options; i++) {
@@ -2084,9 +2165,14 @@ const updateAndDraw = (now: number) => {
     ctx.fillRect(player.x - 2, 0, 4, player.y)
     ctx.restore()
   } else if (player.isDown || player.isVictory || player.invincibleTimer % 4 < 2) {
-    const dashScaleY = player.isDashing ? 0.74 : player.scaleY
+    if (player.onGround && !player.isDown) {
+      ctx.save()
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.25)'
+      ctx.beginPath(); ctx.ellipse(player.x, player.y + 1, 24, 3.7, 0, 0, Math.PI * 2); ctx.fill()
+      ctx.restore()
+    }
     const drawFacing = player.isVictory ? 1 : player.facing
-    drawSprite(ctx, sprites[getPlayerSpriteKey()], player.x, player.y, drawFacing, playerDrawSize, player.scaleX, dashScaleY, 1.0, 0)
+    drawPlayerPose(getPlayerSpriteKey(), player.x, player.y, drawFacing)
   }
 
   // ==========================================
@@ -2297,20 +2383,46 @@ const updateAndDraw = (now: number) => {
       ctx.restore()
     }
 
-    const bossFacing = player.x > boss.x ? -1 : 1
-    // ガラス盤は巨大、盾が外れたエリカ本体は通常ボスより少し大きめに描画する。
-    const bossDrawSize = boss.hasShield && boss.shieldState === 'UNARMED'
-      ? 128 : Math.round(96 * CHAR_SCALE * boss.scale)
+    const bossFacing = boss.isDefeated ? boss.defeatFacing : (player.x > boss.x ? -1 : 1)
     const activeBossKey = getBossActiveSpriteKey()
+    const profile = BOSS_DRAW[boss.id] ?? BOSS_DRAW.knight
+    const isDownPose = boss.isDefeated && !!sprites[`boss_${boss.id}_down`]
+    const isUnarmed = boss.hasShield && boss.shieldState === 'UNARMED'
+    const bossHeight = isDownPose ? profile.downH : isUnarmed ? 132 : profile.normalH
+    const bossWidth = isDownPose ? profile.downW : isUnarmed ? 139 : profile.normalW
+    const bossFloor = boss.isDefeated
+      ? boss.y + (GROUND_Y - boss.y) * Math.min(1, boss.defeatTicks / 18)
+      : boss.y
+    if (boss.isDefeated && boss.defeatTicks < 18) boss.defeatTicks++
 
     ctx.save()
+    // Ground shadow and hit feedback provide motion without replacing the art.
+    ctx.beginPath()
+    ctx.ellipse(boss.x, GROUND_Y + 1, isDownPose ? 59 : (boss.hasShield && !isUnarmed ? 78 : 33), 5, 0, 0, Math.PI * 2)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.28)'; ctx.fill()
     if (boss.flashAlpha > 0) {
-      ctx.filter = `brightness(${1 + boss.flashAlpha * 5}) opacity(${1 - boss.flashAlpha * 0.7})`
+      ctx.filter = `brightness(${1 + boss.flashAlpha * 3.0}) opacity(${1 - boss.flashAlpha * 0.65})`
     } else if (boss.hurtTimer > 0 && !sprites[`boss_${boss.id}_hurt`]) {
-      ctx.filter = 'brightness(1.8)'
+      ctx.filter = 'brightness(1.6)'
     }
-    drawSprite(ctx, sprites[activeBossKey], boss.x, boss.y, bossFacing, bossDrawSize, 1, 1, 1.0, 0)
+    if (sprites[activeBossKey]) {
+      drawFittedSprite(ctx, sprites[activeBossKey], boss.x, bossFloor, bossFacing, {
+        maxHeight: bossHeight, maxWidth: bossWidth,
+        offsetX: isDownPose ? (profile.downX ?? 0) : 0,
+      })
+    } else {
+      // Missing custom sprite: preserve the v2 fallback, do not crash.
+      drawSprite(ctx, undefined, boss.x, bossFloor, bossFacing, bossHeight, 1, 1, 1, 0)
+    }
     ctx.restore()
+    if (boss.hurtTimer > 0 && !boss.isDefeated) {
+      const centerY = boss.y - (isUnarmed ? 64 : boss.hasShield ? 130 : 48)
+      const radius = 15 + (14 - boss.hurtTimer) * 2.2
+      ctx.save()
+      ctx.beginPath(); ctx.arc(boss.x, centerY, radius, 0, Math.PI * 2)
+      ctx.strokeStyle = `rgba(250, 204, 21, ${0.48 * boss.hurtTimer / 14})`
+      ctx.lineWidth = 2.4; ctx.stroke(); ctx.restore()
+    }
 
     // 盾破壊後は生身のエリカ用の接触判定へ縮小する。
     const shieldVisible = boss.hasShield && boss.shieldState !== 'UNARMED'
@@ -2406,6 +2518,18 @@ const updateAndDraw = (now: number) => {
     if (b.x < -60 || b.x > canvas.width + 60 || b.y < -60 || b.y > canvas.height + 60) {
       bullets.splice(i, 1)
     }
+  }
+
+  for (let i = impactParticles.length - 1; i >= 0; i--) {
+    const p = impactParticles[i]
+    p.x += p.vx; p.y += p.vy; p.vy += 0.11
+    p.vx *= 0.94; p.life--
+    if (p.life <= 0) { impactParticles.splice(i, 1); continue }
+    ctx.save()
+    ctx.globalAlpha = Math.max(0, p.life / p.maxLife)
+    ctx.fillStyle = p.color
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill()
+    ctx.restore()
   }
 
   for (let i = floatingTexts.length - 1; i >= 0; i--) {
