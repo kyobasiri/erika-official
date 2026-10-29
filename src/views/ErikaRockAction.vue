@@ -127,6 +127,15 @@
               <div class="text-xs text-slate-400 mt-2">Cloud Run 接続確認中／ローカルモードでも続行できます</div>
             </div>
           </div>
+          <div v-if="isPaused" class="absolute inset-0 z-40 flex items-center justify-center bg-slate-950/80"
+               role="status" aria-live="polite">
+            <div class="text-center text-white">
+              <div class="text-3xl font-black tracking-widest">PAUSED</div>
+              <div class="mt-2 text-xs text-slate-300">{{ windowInactive ? '画面に戻ると再開します' : 'Pキー／再開ボタンでゲームに戻ります' }}</div>
+              <button v-if="!windowInactive" type="button" @click="toggleManualPause"
+                      class="mt-4 px-4 py-2 bg-pink-600 rounded-lg font-bold">再開する</button>
+            </div>
+          </div>
           <!-- ① ロックマン風：ステージ開始カウントダウン -->
           <transition name="fade">
             <div v-if="introState.active" class="absolute inset-0 flex flex-col items-center justify-center z-20 pointer-events-none bg-black/25">
@@ -255,6 +264,10 @@
             <span><kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-600">X</kbd> 音符ショット＆薙ぎ払い（Lv2以上チャージで敵弾消去！）</span>
           </div>
           <div class="flex gap-2">
+            <button type="button" @click="toggleManualPause"
+                    class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-600">
+              {{ manualPaused ? '▶ 再開' : 'Ⅱ 一時停止 (P)' }}
+            </button>
             <router-link to="/" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 transition">
               TOPへ戻る
             </router-link>
@@ -306,6 +319,11 @@ const lives = ref(3)
 const score = ref(0)
 const chargeLevel = ref(0)
 const isLoadingStage = ref(false)
+// 手動一時停止・ウィンドウ非アクティブを分離。フォーカス復帰でも手動停止は解除しない。
+const manualPaused = ref(false)
+const windowInactive = ref(false)
+const isPaused = computed(() => manualPaused.value || windowInactive.value)
+
 const currentStage = ref(1)
 const loopCount = computed(() => Math.floor((currentStage.value - 1) / 12) + 1)
 const stageProgress = ref(0)
@@ -435,12 +453,12 @@ const mergeCatalog = (defaults: any[], overrides: any[], idKey: string) => {
   return Array.from(byId.values())
 }
 
-const loadMasterJsonAsync = async () => {
+const loadMasterJsonAsync = async (signal: AbortSignal) => {
   try {
-    const res = await fetch('/assets/game-master.json', { cache: 'no-cache' })
+    const res = await fetch('/assets/game-master.json', { cache: 'no-cache', signal })
     if (!res.ok) return
     const json = await res.json()
-    if (!json || typeof json !== 'object') return
+    if (signal.aborted || !json || typeof json !== 'object') return
     masterData = {
       ...masterData,
       quotes: Array.isArray(json.quotes) && json.quotes.length ? json.quotes : masterData.quotes,
@@ -449,7 +467,7 @@ const loadMasterJsonAsync = async () => {
       stages: Array.isArray(json.stages) ? mergeCatalog(masterData.stages, json.stages, 'stage') : masterData.stages,
     }
   } catch (error) {
-    console.warn('[ERIKA] Could not load master data; using built-in defaults.', error)
+    if (!signal.aborted) console.warn('[ERIKA] Could not load master data; using built-in defaults.', error)
   }
 }
 
@@ -571,47 +589,117 @@ const requestStagePlan = async (stageNum: number, stageSignal: AbortSignal): Pro
 }
 
 const sprites: Record<string, HTMLImageElement> = {}
-const loadAllSprites = async () => {
-  const paths: Record<string, string> = {
+const spriteUrls: Record<string, string> = {}
+const pendingSpriteLoads = new Map<string, Promise<void>>()
+const lifecycleAbort = new AbortController()
+let componentDisposed = false
+
+// 起動時はプレイヤー/雑魚敵のみ先読み。ボス画像は各ステージ開始時に3状態まとめて先読みする。
+const buildSpriteCatalog = () => {
+  Object.assign(spriteUrls, {
     idle: '/sprites/idle.png', run1: '/sprites/run1.png', run2: '/sprites/run2.png',
     shoot: '/sprites/shoot.png', jump: '/sprites/jump.png', jumpShoot: '/sprites/jump_shoot.png',
-    hurt: '/sprites/hurt.png',
-    victory: '/sprites/victory.png',
-    down: '/sprites/down.png',
-  }
-  masterData.enemies.forEach((e: any) => { paths[e.type] = e.sprite })
-  masterData.bosses.forEach((b: any) => {
-    paths[`boss_${b.id}`] = b.sprite
-    paths[`boss_${b.id}_hurt`] = `/sprites/bosses/boss_${b.id}_hurt.png`
-    paths[`boss_${b.id}_down`] = `/sprites/bosses/boss_${b.id}_down.png`
-    if (b.spriteCracked) paths[`boss_${b.id}_cracked`] = b.spriteCracked
-    if (b.spriteUnarmed) paths[`boss_${b.id}_unarmed`] = b.spriteUnarmed
+    hurt: '/sprites/hurt.png', victory: '/sprites/victory.png', down: '/sprites/down.png',
   })
-
-  await Promise.all(
-    Object.entries(paths).map(([key, src]) => new Promise<void>((resolve) => {
-      const img = new Image()
-      img.src = src
-      img.onload = () => { sprites[key] = img; resolve() }
-      img.onerror = () => resolve()
-    }))
-  )
+  masterData.enemies.forEach((e: any) => { spriteUrls[e.type] = e.sprite })
+  masterData.bosses.forEach((b: any) => {
+    spriteUrls[`boss_${b.id}`] = b.sprite
+    spriteUrls[`boss_${b.id}_hurt`] = `/sprites/bosses/boss_${b.id}_hurt.png`
+    spriteUrls[`boss_${b.id}_down`] = `/sprites/bosses/boss_${b.id}_down.png`
+    if (b.spriteCracked) spriteUrls[`boss_${b.id}_cracked`] = b.spriteCracked
+    if (b.spriteUnarmed) spriteUrls[`boss_${b.id}_unarmed`] = b.spriteUnarmed
+  })
 }
 
+const preloadSprite = (key: string, signal: AbortSignal): Promise<void> => {
+  if (sprites[key] || !spriteUrls[key] || signal.aborted || componentDisposed) return Promise.resolve()
+  const existing = pendingSpriteLoads.get(key)
+  if (existing) return existing.then(() => {
+    if (!sprites[key] && !signal.aborted && !componentDisposed) return preloadSprite(key, signal)
+  })
+
+  const promise = new Promise<void>((resolve) => {
+    const image = new Image()
+    let finished = false
+    let loadTimeout = 0
+    const finish = (success: boolean) => {
+      if (finished) return
+      finished = true
+      window.clearTimeout(loadTimeout)
+      signal.removeEventListener('abort', onAbort)
+      lifecycleAbort.signal.removeEventListener('abort', onAbort)
+      image.onload = null
+      image.onerror = null
+      if (success && !componentDisposed && !signal.aborted && !lifecycleAbort.signal.aborted) {
+        sprites[key] = image
+      }
+      resolve()
+    }
+    const onAbort = () => {
+      // onloadが後から届いても新しいステージの素材を汚染しない。
+      image.src = ''
+      finish(false)
+    }
+    image.onload = () => finish(true)
+    image.onerror = () => finish(false)
+    signal.addEventListener('abort', onAbort, { once: true })
+    lifecycleAbort.signal.addEventListener('abort', onAbort, { once: true })
+    if (signal.aborted || lifecycleAbort.signal.aborted) { onAbort(); return }
+    image.src = spriteUrls[key]
+    loadTimeout = window.setTimeout(() => {
+      image.src = ''
+      finish(false)
+    }, 10000)
+  })
+  pendingSpriteLoads.set(key, promise)
+  void promise.finally(() => { if (pendingSpriteLoads.get(key) === promise) pendingSpriteLoads.delete(key) })
+  return promise
+}
+
+const preloadSpriteKeys = (keys: string[], signal: AbortSignal) =>
+  Promise.all(keys.map(key => preloadSprite(key, signal))).then(() => undefined)
+
+const preloadBossSprites = (bossId: string, signal: AbortSignal) => {
+  const keys = [`boss_${bossId}`, `boss_${bossId}_hurt`, `boss_${bossId}_down`]
+  if (bossId === 'sunflower') keys.push('boss_sunflower_cracked', 'boss_sunflower_unarmed')
+  return preloadSpriteKeys(keys, signal)
+}
+
+// 非同期の敵出現・攻撃・演出を「ゲーム時間」で進める。
+// setTimeoutではタブ非アクティブ中も時間が進み、復帰後に進行が飛んでいた。
+interface GameWait {
+  remainingMs: number
+  resolve: () => void
+  reject: (reason: Error) => void
+  signal?: AbortSignal
+  onAbort: () => void
+}
+const gameWaits = new Set<GameWait>()
+const settleGameWait = (timer: GameWait, abort: boolean) => {
+  if (!gameWaits.delete(timer)) return
+  timer.signal?.removeEventListener('abort', timer.onAbort)
+  lifecycleAbort.signal.removeEventListener('abort', timer.onAbort)
+  if (abort) timer.reject(new DOMException('Aborted', 'AbortError'))
+  else timer.resolve()
+}
+const advanceGameWaits = (ms: number) => {
+  for (const timer of Array.from(gameWaits)) {
+    timer.remainingMs -= ms
+    if (timer.remainingMs <= 0) settleGameWait(timer, false)
+  }
+}
 const waitAsync = (ms: number, signal?: AbortSignal) => new Promise<void>((resolve, reject) => {
-  if (signal?.aborted) {
+  if (componentDisposed || lifecycleAbort.signal.aborted || signal?.aborted) {
     reject(new DOMException('Aborted', 'AbortError'))
     return
   }
-  const onAbort = () => {
-    clearTimeout(timer)
-    reject(new DOMException('Aborted', 'AbortError'))
+  const timer: GameWait = {
+    remainingMs: Math.max(0, ms), resolve, reject,
+    signal, onAbort: () => settleGameWait(timer, true)
   }
-  const timer = window.setTimeout(() => {
-    signal?.removeEventListener('abort', onAbort)
-    resolve()
-  }, ms)
-  signal?.addEventListener('abort', onAbort, { once: true })
+  gameWaits.add(timer)
+  signal?.addEventListener('abort', timer.onAbort, { once: true })
+  lifecycleAbort.signal.addEventListener('abort', timer.onAbort, { once: true })
 })
 
 const player = {
@@ -727,7 +815,7 @@ const getDifficultyMultipliers = (stageNum: number) => {
   const loops = Math.floor((stageNum - 1) / 12) // 0: 1周目, 1: 2周目(STAGE 13〜)
   const stageInLoop = (stageNum - 1) % 12
   // 2周目以降は全武装が揃っている前提のため、基礎倍率を 2.8倍（さらに周回ごとに1.8倍）へ引き上げ！
-  const loopHpBoost = loops > 0 ? 2.8 * Math.pow(1.8, loops - 1) : 1.0
+  const loopHpBoost = loops > 0 ? 2.8 * Math.pow(1.8, Math.min(20, loops - 1)) : 1.0
   const enemyHpMul = (1 + stageInLoop * 0.22) * loopHpBoost
   const bossHpMul = stageNum === 1 ? 1.0 : (1 + stageInLoop * 0.18) * loopHpBoost
   const spdMul = (1 + Math.min(0.45, stageInLoop * 0.05)) * (loops > 0 ? 1.22 : 1.0)
@@ -845,7 +933,15 @@ const startStageFromCloudRun = async (stageNum: number, fromBossGateCheckpoint =
   } finally {
     if (!stageSignal.aborted) isLoadingStage.value = false
   }
-  if (stageSignal.aborted) return
+  if (stageSignal.aborted || componentDisposed) return
+  // ボスの通常・被弾・撃破素材を同じステージのロード画面で先読み。
+  isLoadingStage.value = true
+  try {
+    await preloadBossSprites(plan.boss.id, stageSignal)
+  } finally {
+    if (!stageSignal.aborted && !componentDisposed) isLoadingStage.value = false
+  }
+  if (stageSignal.aborted || componentDisposed) return
   activeStagePlan = plan
   cloudWaveCount.value = plan.enemy_waves.length
   stagePlanVersion.value = plan.plan_version
@@ -1329,13 +1425,15 @@ const triggerStageClearSequenceAsync = async () => {
     camera.targetY = player.y - 35
     camera.targetZoom = 1.85
 
-    for (let f = 1; f <= 6; f++) {
-      window.setTimeout(() => {
-        if (!stageSignal.aborted) {
+    // 花火もゲーム時間で制御する。ポーズ中にタイマーが進むのを防ぐ。
+    void (async () => {
+      try {
+        for (let f = 1; f <= 6; f++) {
+          await waitAsync(280, stageSignal)
           spawnFireworkBurst(player.x + (Math.random() - 0.5) * 220, player.y - 60 - Math.random() * 80)
         }
-      }, f * 280)
-    }
+      } catch { /* ステージ変更/終了によるキャンセル */ }
+    })()
 
     await waitAsync(2100, stageSignal)
     camera.targetZoom = 1.0
@@ -1392,6 +1490,7 @@ const retryFromCheckpoint = () => {
 }
 
 const resetFullGame = () => {
+  manualPaused.value = false
   runVersion++
   score.value = 0; lives.value = 3; maxHp.value = 100; playerHp.value = 100
   upgrades.doubleShotLv = 0; upgrades.slashLv = 0; upgrades.options = 0
@@ -1481,7 +1580,7 @@ const startDashAsync = async () => {
   if (!player.onGround || player.isDashing || player.controlLocked || player.isDown || player.isVictory) return
   player.isDashing = true
   player.vx = player.facing * PHYSICS.DASH_SPEED
-  try { await waitAsync(280) } finally { player.isDashing = false }
+  try { await waitAsync(280, stageAbortController?.signal) } catch {} finally { player.isDashing = false }
 }
 
 const keys = new Set<string>()
@@ -1497,7 +1596,7 @@ const touchActions = [
 ]
 
 const pressControl = (code: string) => {
-  if (keys.has(code) || player.controlLocked || deathOverlay.active ||
+  if (isPaused.value || keys.has(code) || player.controlLocked || deathOverlay.active ||
       player.isDown || player.isVictory || gameResult.value || isLoadingStage.value) return
   keys.add(code)
   if ((code === 'ArrowUp' || code === 'Space' || code === 'KeyZ') && (player.onGround || player.coyoteTimer > 0)) {
@@ -1528,6 +1627,14 @@ const releaseControl = (code: string) => {
   }
 }
 const onKeyDown = (e: KeyboardEvent) => {
+  if (e.code === 'KeyP') {
+    const el = e.target
+    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement ||
+        (el instanceof HTMLElement && el.isContentEditable)) return
+    e.preventDefault()
+    if (!e.repeat) toggleManualPause()
+    return
+  }
   if (!gameKeyCodes.includes(e.code)) return
   const el = e.target
   if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement ||
@@ -1547,19 +1654,40 @@ const resetInputState = () => {
   chargeAbort?.abort()
   chargeLevel.value = 0
 }
-const onVisibilityChange = () => { if (document.hidden) resetInputState() }
+const toggleManualPause = () => {
+  manualPaused.value = !manualPaused.value
+  resetInputState()
+}
+const onWindowBlur = () => {
+  windowInactive.value = true
+  resetInputState()
+}
+const onWindowFocus = () => { windowInactive.value = document.hidden }
+const onVisibilityChange = () => {
+  windowInactive.value = document.hidden
+  if (document.hidden) resetInputState()
+}
 
 let animFrameId = 0
+let gameTimeMs = 0
 let lastFrameTime = performance.now()
 let frameAccumulator = 0
 const FRAME_MS = 1000 / 60
 const animationLoop = (now: number) => {
+  if (componentDisposed) return
   animFrameId = requestAnimationFrame(animationLoop)
+  if (isPaused.value) {
+    lastFrameTime = now
+    frameAccumulator = 0
+    return
+  }
   frameAccumulator += Math.min(100, Math.max(0, now - lastFrameTime))
   lastFrameTime = now
   let steps = 0
   while (frameAccumulator >= FRAME_MS && steps < 5) {
-    updateAndDraw(now)
+    gameTimeMs += FRAME_MS
+    advanceGameWaits(FRAME_MS)
+    updateAndDraw(gameTimeMs)
     frameAccumulator -= FRAME_MS
     steps++
   }
@@ -1590,7 +1718,10 @@ const getBossActiveSpriteKey = (): string => {
   if (boss.hasShield) {
     if (boss.shieldState === 'INTACT') return `boss_${boss.id}`
     if (boss.shieldState === 'CRACKED') return `boss_${boss.id}_cracked`
-    return `boss_${boss.id}_unarmed`
+    // Unarmed画像が未配置の場合はHURT画像を代用して、透明な四角形表示を防ぐ。
+    if (sprites[`boss_${boss.id}_unarmed`]) return `boss_${boss.id}_unarmed`
+    if (sprites[`boss_${boss.id}_hurt`]) return `boss_${boss.id}_hurt`
+    return boss.spriteKey
   }
   return boss.spriteKey
 }
@@ -1644,7 +1775,7 @@ const triggerYouDiedSequenceAsync = async (fellInPit = false) => {
   enemies.forEach(e => e.abortController.abort())
   boss.abortController?.abort()
 
-  if (!fellInPit) await waitAsync(1100)
+  if (!fellInPit) { try { await waitAsync(1100) } catch { return } }
   if (capturedVersion !== runVersion) return
 
   lives.value--
@@ -1654,7 +1785,7 @@ const triggerYouDiedSequenceAsync = async (fellInPit = false) => {
     : '残機がすべて失われました'
   deathOverlay.active = true
 
-  await waitAsync(2400)
+  try { await waitAsync(2400) } catch { return }
   if (capturedVersion !== runVersion) return
   deathOverlay.active = false
 
@@ -2167,7 +2298,9 @@ const updateAndDraw = (now: number) => {
     }
 
     const bossFacing = player.x > boss.x ? -1 : 1
-    const bossDrawSize = Math.round(96 * CHAR_SCALE * boss.scale)
+    // ガラス盤は巨大、盾が外れたエリカ本体は通常ボスより少し大きめに描画する。
+    const bossDrawSize = boss.hasShield && boss.shieldState === 'UNARMED'
+      ? 128 : Math.round(96 * CHAR_SCALE * boss.scale)
     const activeBossKey = getBossActiveSpriteKey()
 
     ctx.save()
@@ -2179,8 +2312,10 @@ const updateAndDraw = (now: number) => {
     drawSprite(ctx, sprites[activeBossKey], boss.x, boss.y, bossFacing, bossDrawSize, 1, 1, 1.0, 0)
     ctx.restore()
 
-    const contactW = boss.hasShield ? 55 : 32
-    const contactH = boss.hasShield ? 260 : 44
+    // 盾破壊後は生身のエリカ用の接触判定へ縮小する。
+    const shieldVisible = boss.hasShield && boss.shieldState !== 'UNARMED'
+    const contactW = shieldVisible ? 55 : 32
+    const contactH = shieldVisible ? 260 : 44
     if (!boss.isDefeated && !player.isDown && !player.isVictory &&
         Math.abs(player.x - boss.x) < contactW && player.y > boss.y - contactH && player.y <= boss.y + 10) {
       damagePlayer(16)
@@ -2252,8 +2387,10 @@ const updateAndDraw = (now: number) => {
       if (hit && !b.piercing) { bullets.splice(i, 1); continue }
 
       if (boss.active && !boss.isDefeated) {
-        const hitW = boss.hasShield ? 68 : 36
-        const hitTop = boss.hasShield ? boss.y - 290 : boss.y - 75
+        // 盾がUNARMEDなら見た目も当たり判定も小さくする。
+        const shieldVisible = boss.hasShield && boss.shieldState !== 'UNARMED'
+        const hitW = shieldVisible ? 68 : 36
+        const hitTop = shieldVisible ? boss.y - 290 : boss.y - 75
         if (Math.abs(b.x - boss.x) < hitW && b.y >= hitTop && b.y <= boss.y &&
             !b.hitTargets?.has('BOSS')) {
           if (b.piercing) (b.hitTargets ??= new Set()).add('BOSS')
@@ -2324,12 +2461,20 @@ const drawSprite = (
 }
 
 onMounted(async () => {
-  await loadMasterJsonAsync()
-  await loadAllSprites()
+  await loadMasterJsonAsync(lifecycleAbort.signal)
+  if (lifecycleAbort.signal.aborted) return
+  buildSpriteCatalog()
+  await preloadSpriteKeys([
+    'idle', 'run1', 'run2', 'shoot', 'jump', 'jumpShoot', 'hurt', 'victory', 'down',
+    ...masterData.enemies.map((e: any) => e.type),
+  ], lifecycleAbort.signal)
+  if (lifecycleAbort.signal.aborted) return
   window.addEventListener('keydown', onKeyDown)
   window.addEventListener('keyup', onKeyUp)
-  window.addEventListener('blur', resetInputState)
+  window.addEventListener('blur', onWindowBlur)
+  window.addEventListener('focus', onWindowFocus)
   document.addEventListener('visibilitychange', onVisibilityChange)
+  windowInactive.value = document.hidden
   lastFrameTime = performance.now()
   frameAccumulator = 0
   animFrameId = requestAnimationFrame(animationLoop)
@@ -2337,9 +2482,12 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  componentDisposed = true
+  lifecycleAbort.abort()
   window.removeEventListener('keydown', onKeyDown)
   window.removeEventListener('keyup', onKeyUp)
-  window.removeEventListener('blur', resetInputState)
+  window.removeEventListener('blur', onWindowBlur)
+  window.removeEventListener('focus', onWindowFocus)
   document.removeEventListener('visibilitychange', onVisibilityChange)
   resetInputState()
   runVersion++
