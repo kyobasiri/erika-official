@@ -47,6 +47,19 @@
             </div>
           </div>
 
+          <!-- API is intentionally visible, including offline fallback. -->
+          <div class="flex items-center gap-1.5 text-[10px] font-mono px-2 py-1 rounded-lg border"
+               :class="cloudStatus === 'ONLINE' ? 'bg-emerald-950/80 border-emerald-700 text-emerald-300' :
+                 cloudStatus === 'CONNECTING' ? 'bg-amber-950/70 border-amber-700 text-amber-300' :
+                 'bg-slate-950 border-slate-700 text-slate-400'"
+               role="status" aria-live="polite">
+            <span class="inline-block h-1.5 w-1.5 rounded-full"
+                  :class="cloudStatus === 'ONLINE' ? 'bg-emerald-400' : cloudStatus === 'CONNECTING' ? 'bg-amber-400 animate-pulse' : 'bg-slate-500'"></span>
+            {{ cloudStatus === 'ONLINE' ? 'CLOUD RUN' : cloudStatus === 'CONNECTING' ? 'CONNECTING' : 'LOCAL MODE' }}
+            <span v-if="cloudWaveCount" class="opacity-70">/ {{ cloudWaveCount }} WAVES</span>
+            <span v-if="stagePlanVersion === 2" class="opacity-60">v2</span>
+          </div>
+
           <!-- 装備中パワーアップ -->
           <div class="flex flex-wrap gap-1 text-[10px] font-mono">
             <span class="px-2 py-1 rounded border" :class="upgrades.doubleShotLv > 0 ? 'bg-pink-950/80 border-pink-500 text-pink-300 font-bold' : 'bg-slate-950 border-slate-800 text-slate-600'">
@@ -106,6 +119,14 @@
         <!-- ゲーム画面領域（Canvas ＋ 演出オーバーレイ） -->
         <!-- ==================================================== -->
         <div class="relative">
+          <div v-if="isLoadingStage" class="absolute inset-0 z-30 bg-slate-950/85 flex items-center justify-center"
+               role="status" aria-live="polite">
+            <div class="text-center">
+              <div class="text-cyan-300 text-xs font-mono tracking-[0.25em] animate-pulse">STAGE DATA SYNC</div>
+              <div class="text-2xl font-black text-white mt-2">STAGE {{ currentStage }}</div>
+              <div class="text-xs text-slate-400 mt-2">Cloud Run 接続確認中／ローカルモードでも続行できます</div>
+            </div>
+          </div>
           <!-- ① ロックマン風：ステージ開始カウントダウン -->
           <transition name="fade">
             <div v-if="introState.active" class="absolute inset-0 flex flex-col items-center justify-center z-20 pointer-events-none bg-black/25">
@@ -200,6 +221,30 @@
         </div>
 
         <!-- ==================================================== -->
+        <!-- Smartphone & tablet: pointer capture allows hold/release controls. -->
+        <div class="md:hidden bg-slate-900/95 border-t border-slate-700 px-3 py-3 select-none"
+             style="touch-action: none">
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+              <button v-for="control in touchDirections" :key="control.code"
+                      type="button" :aria-label="control.label"
+                      class="w-14 h-14 rounded-xl border border-cyan-700 bg-slate-800 text-white font-black text-xl active:bg-cyan-800"
+                      @pointerdown.prevent="pressTouch(control.code, $event)"
+                      @pointerup.prevent="releaseTouch(control.code)"
+                      @pointercancel="releaseTouch(control.code)">{{ control.symbol }}</button>
+            </div>
+            <div class="flex items-center gap-2">
+              <button v-for="control in touchActions" :key="control.code" type="button"
+                      :aria-label="control.label"
+                      class="w-14 h-14 rounded-xl border border-pink-700 bg-slate-800 text-white font-black text-sm active:bg-pink-800"
+                      @pointerdown.prevent="pressTouch(control.code, $event)"
+                      @pointerup.prevent="releaseTouch(control.code)"
+                      @pointercancel="releaseTouch(control.code)">{{ control.symbol }}</button>
+            </div>
+          </div>
+          <div class="text-[10px] text-slate-400 text-center mt-2">ジャンプ＝J ／ ダッシュ＝D ／ Xを長押しして離すとチャージ攻撃</div>
+        </div>
+
         <!-- 下部操作ガイド -->
         <!-- ==================================================== -->
         <div class="bg-slate-900 px-4 py-2.5 flex flex-wrap justify-between items-center gap-2 text-xs text-slate-300 border-t border-slate-800">
@@ -227,7 +272,12 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://erika-action-api-xxxxxxxxxx-an.a.run.app'
+// The API is optional. A missing URL is explicit OFFLINE mode, not a dummy request.
+const API_BASE = (import.meta.env.VITE_API_URL || '').trim().replace(/\/+$/, '')
+const cloudStatus = ref<'CONNECTING' | 'ONLINE' | 'OFFLINE'>('CONNECTING')
+const cloudWaveCount = ref(0)
+const stagePlanVersion = ref<number | null>(null)
+
 
 const GROUND_Y = 408
 const CHAR_SCALE = 0.8
@@ -373,14 +423,151 @@ let masterData: any = {
   ]
 }
 
+// User-edited master JSON can be partial: merge by stable IDs rather than
+// silently rejecting the file if it has fewer than 12 bosses.
+const mergeCatalog = (defaults: any[], overrides: any[], idKey: string) => {
+  const byId = new Map(defaults.map(item => [item[idKey], { ...item }]))
+  for (const item of overrides) {
+    if (item && item[idKey] !== undefined && byId.has(item[idKey])) {
+      byId.set(item[idKey], { ...byId.get(item[idKey]), ...item })
+    }
+  }
+  return Array.from(byId.values())
+}
+
 const loadMasterJsonAsync = async () => {
   try {
-    const res = await fetch('/data/game-master.json')
-    if (res.ok) {
-      const json = await res.json()
-      if (json.bosses && json.bosses.length >= 12) masterData = json
+    const res = await fetch('/assets/game-master.json', { cache: 'no-cache' })
+    if (!res.ok) return
+    const json = await res.json()
+    if (!json || typeof json !== 'object') return
+    masterData = {
+      ...masterData,
+      quotes: Array.isArray(json.quotes) && json.quotes.length ? json.quotes : masterData.quotes,
+      enemies: Array.isArray(json.enemies) ? mergeCatalog(masterData.enemies, json.enemies, 'type') : masterData.enemies,
+      bosses: Array.isArray(json.bosses) ? mergeCatalog(masterData.bosses, json.bosses, 'id') : masterData.bosses,
+      stages: Array.isArray(json.stages) ? mergeCatalog(masterData.stages, json.stages, 'stage') : masterData.stages,
     }
-  } catch {}
+  } catch (error) {
+    console.warn('[ERIKA] Could not load master data; using built-in defaults.', error)
+  }
+}
+
+interface StageWave {
+  id: string
+  type: string
+  spawn_delay_ms: number
+  hp: number
+  speed: number
+}
+interface BossStageData {
+  id: string
+  name: string
+  hp: number
+  pattern: string
+  scale: number
+  isGiantFinalBoss?: boolean
+  cutin_quote: { quote: string; source: string }
+}
+interface StagePlan {
+  stage: number
+  enemy_waves: StageWave[]
+  boss: BossStageData
+  plan_version: number
+}
+
+let activeStagePlan: StagePlan | null = null
+
+const buildOfflineStagePlan = (stageNum: number): StagePlan => {
+  const { enemyHpMul, spdMul, bossHpMul } = getDifficultyMultipliers(stageNum)
+  const count = 14 + Math.min(8, Math.floor((stageNum - 1) / 3) + Math.floor((stageNum - 1) / 12))
+  const waves: StageWave[] = []
+  let spawnAt = 900
+  for (let i = 0; i < count; i++) {
+    const template = masterData.enemies[(i * 3 + stageNum + Math.floor(i / 4)) % masterData.enemies.length]
+    spawnAt += 1450 + (i * 113 + stageNum * 73) % 420
+    waves.push({
+      id: `offline-${stageNum}-${i}`, type: template.type,
+      spawn_delay_ms: spawnAt,
+      hp: Math.max(1, Math.round(template.hp * enemyHpMul)),
+      speed: template.speed * spdMul
+    })
+  }
+  const bossTemplate = masterData.bosses[(stageNum - 1) % masterData.bosses.length]
+  return {
+    stage: stageNum, plan_version: 0, enemy_waves: waves,
+    boss: {
+      ...bossTemplate,
+      hp: Math.max(1, Math.round(bossTemplate.baseHp * bossHpMul)),
+      cutin_quote: masterData.quotes[(stageNum - 1) % masterData.quotes.length],
+    }
+  }
+}
+
+const requestStagePlan = async (stageNum: number, stageSignal: AbortSignal): Promise<StagePlan> => {
+  const offline = buildOfflineStagePlan(stageNum)
+  if (!API_BASE) {
+    cloudStatus.value = 'OFFLINE'
+    return offline
+  }
+
+  cloudStatus.value = 'CONNECTING'
+  const controller = new AbortController()
+  const abortRequest = () => controller.abort()
+  stageSignal.addEventListener('abort', abortRequest, { once: true })
+  const timeout = window.setTimeout(() => controller.abort(), 5500)
+  try {
+    const response = await fetch(`${API_BASE}/api/stage-start?stage=${stageNum}`, {
+      signal: controller.signal,
+      headers: { Accept: 'application/json' },
+    })
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const data: unknown = await response.json()
+    if (!data || typeof data !== 'object') throw new Error('Bad stage payload')
+    const raw = data as Record<string, any>
+    if (raw.stage !== stageNum || raw.plan_version !== 2 ||
+        !Array.isArray(raw.enemy_waves) || raw.enemy_waves.length < 1 || raw.enemy_waves.length > 50 ||
+        !raw.boss || raw.boss.id !== offline.boss.id ||
+        !Number.isFinite(raw.boss.hp) || raw.boss.hp < 1 ||
+        typeof raw.boss.cutin_quote?.quote !== 'string' || typeof raw.boss.cutin_quote?.source !== 'string') {
+      throw new Error('Stage payload validation failed')
+    }
+    let previousDelay = 0
+    const waves: StageWave[] = raw.enemy_waves.map((w: any, index: number) => {
+      const source = masterData.enemies.find((e: any) => e.type === w.type)
+      if (!source || !Number.isFinite(w.spawn_delay_ms) || !Number.isFinite(w.hp) ||
+          !Number.isFinite(w.speed) || w.spawn_delay_ms < previousDelay ||
+          w.spawn_delay_ms > 120000 || w.hp < 1 || w.speed < 0) {
+        throw new Error(`Invalid wave ${index}`)
+      }
+      previousDelay = w.spawn_delay_ms
+      return {
+        id: `stage${stageNum}-wave${index}`, type: source.type,
+        spawn_delay_ms: Math.round(w.spawn_delay_ms),
+        hp: Math.round(w.hp), speed: Math.min(12, w.speed)
+      }
+    })
+    if (stageSignal.aborted) throw new DOMException('Aborted', 'AbortError')
+    cloudStatus.value = 'ONLINE'
+    return {
+      stage: stageNum, plan_version: 2, enemy_waves: waves,
+      boss: {
+        ...offline.boss, hp: Math.round(raw.boss.hp),
+        cutin_quote: {
+          quote: raw.boss.cutin_quote.quote.slice(0, 160),
+          source: raw.boss.cutin_quote.source.slice(0, 100),
+        },
+      },
+    }
+  } catch (error) {
+    if (stageSignal.aborted) throw error
+    console.warn('[ERIKA] Cloud Run unavailable; switching to local stage plan.', error)
+    cloudStatus.value = 'OFFLINE'
+    return offline
+  } finally {
+    window.clearTimeout(timeout)
+    stageSignal.removeEventListener('abort', abortRequest)
+  }
 }
 
 const sprites: Record<string, HTMLImageElement> = {}
@@ -412,11 +599,19 @@ const loadAllSprites = async () => {
 }
 
 const waitAsync = (ms: number, signal?: AbortSignal) => new Promise<void>((resolve, reject) => {
-  const timer = setTimeout(resolve, ms)
-  signal?.addEventListener('abort', () => {
+  if (signal?.aborted) {
+    reject(new DOMException('Aborted', 'AbortError'))
+    return
+  }
+  const onAbort = () => {
     clearTimeout(timer)
     reject(new DOMException('Aborted', 'AbortError'))
-  })
+  }
+  const timer = window.setTimeout(() => {
+    signal?.removeEventListener('abort', onAbort)
+    resolve()
+  }, ms)
+  signal?.addEventListener('abort', onAbort, { once: true })
 })
 
 const player = {
@@ -448,6 +643,7 @@ interface Bullet {
   x: number; y: number; vx: number; vy: number; gravity?: number
   radius: number; damage: number; color: string
   noteSymbol: string; piercing?: boolean; isGroundCrawling?: boolean; isEnemy?: boolean
+  hitTargets?: Set<string> // Charged shots can hit each target only once.
 }
 interface SlashWave {
   radius: number
@@ -469,7 +665,7 @@ interface Enemy {
   hp: number; maxHp: number; score: number
   stompable: boolean; spiky?: boolean; armored?: boolean; helmet?: boolean
   wallAction: 'jump' | 'bounce' | 'fly' | 'stay'
-  isHidden?: boolean; isCharging?: boolean; isStunned?: boolean
+  isHidden?: boolean; isCharging?: boolean; isStunned?: boolean; stunTimer?: number
   hueRotate: number; baseY: number; abortController: AbortController
 }
 
@@ -603,6 +799,19 @@ const startStageFromCloudRun = async (stageNum: number, fromBossGateCheckpoint =
   }
 
   stageAbortController?.abort()
+  chargeAbort?.abort()
+  chargeLevel.value = 0
+  keys.clear()
+  deathOverlay.active = false
+  player.controlLocked = true
+  player.onGround = true
+  player.coyoteTimer = 0
+  player.isDashing = false
+  player.invincibleTimer = 0
+  player.hurtPoseTimer = 0
+  activeStagePlan = null
+  cloudWaveCount.value = 0
+  stagePlanVersion.value = null
   enemies.forEach(e => e.abortController.abort())
   enemies.length = 0; bullets.length = 0; activeSlashes.length = 0; dropItems.length = 0; fireworks.length = 0
   obstacles.value = []; pits.value = []
@@ -626,11 +835,20 @@ const startStageFromCloudRun = async (stageNum: number, fromBossGateCheckpoint =
   stageAbortController = new AbortController()
   const stageSignal = stageAbortController.signal
 
+  let plan: StagePlan
   try {
-    await fetch(`${API_BASE}/api/stage-start?stage=${stageNum}`)
-  } catch {} finally {
-    isLoadingStage.value = false
+    plan = await requestStagePlan(stageNum, stageSignal)
+  } catch {
+    if (stageSignal.aborted) return
+    plan = buildOfflineStagePlan(stageNum)
+    cloudStatus.value = 'OFFLINE'
+  } finally {
+    if (!stageSignal.aborted) isLoadingStage.value = false
   }
+  if (stageSignal.aborted) return
+  activeStagePlan = plan
+  cloudWaveCount.value = plan.enemy_waves.length
+  stagePlanVersion.value = plan.plan_version
 
   try {
     await playMegamanIntroAsync(stageSignal)
@@ -639,36 +857,20 @@ const startStageFromCloudRun = async (stageNum: number, fromBossGateCheckpoint =
       currentTheme.isScrolling = true
       runGimmickSpawnerAsync(stageSignal)
 
-      const { enemyHpMul, spdMul } = getDifficultyMultipliers(stageNum)
-
-      let count = 0
-      while (stageProgress.value < 96) {
-        const tmpl = masterData.enemies[(count + stageNum) % masterData.enemies.length]
+      // Spawn order and timing now come from Cloud Run, with the identical
+      // StageWave contract supplied by the offline fallback.
+      let lastSpawnAt = 0
+      for (const wave of plan.enemy_waves) {
+        await waitAsync(Math.max(0, wave.spawn_delay_ms - lastSpawnAt), stageSignal)
+        lastSpawnAt = wave.spawn_delay_ms
+        const template = masterData.enemies.find((e: any) => e.type === wave.type)
+        if (!template) continue
         spawnSingleEnemy({
-          id: `stg${stageNum}_e${count}`,
-          ...tmpl,
-          hp: Math.round(tmpl.hp * enemyHpMul),
-          speed: tmpl.speed * spdMul
+          ...template, id: wave.id, hp: wave.hp, speed: wave.speed
         }, stageSignal)
-
-        if (stageProgress.value > 40 && count % (loopCount.value > 1 ? 2 : 3) === 0) {
-          const subTmpl = masterData.enemies[(count + 2) % masterData.enemies.length]
-          setTimeout(() => {
-            if (!stageSignal.aborted && currentTheme.isScrolling) {
-              spawnSingleEnemy({
-                id: `stg${stageNum}_sub_${count}`,
-                ...subTmpl,
-                hp: Math.round(subTmpl.hp * enemyHpMul),
-                speed: subTmpl.speed * spdMul
-              }, stageSignal)
-            }
-          }, 650)
-        }
-
-        count++
-        stageProgress.value = Math.min(100, stageProgress.value + 7.5)
-        await waitAsync(Math.max(1350, 2150 - (stageNum % 12) * 85), stageSignal)
+        stageProgress.value = Math.min(96, (lastSpawnAt / plan.enemy_waves[plan.enemy_waves.length - 1].spawn_delay_ms) * 96)
       }
+      await waitAsync(900, stageSignal)
     }
 
     stageProgress.value = 100
@@ -710,17 +912,14 @@ const enterFogGateTransitionAsync = async () => {
     fogGate.active = false
     fogGate.transitioning = false
 
-    const bossTmpl = masterData.bosses[(currentStage.value - 1) % masterData.bosses.length]
-    const quoteObj = masterData.quotes[(currentStage.value - 1) % masterData.quotes.length]
-    const { bossHpMul } = getDifficultyMultipliers(currentStage.value)
-
-    await startBossBattleAsync({
-      ...bossTmpl,
-      hp: Math.round(bossTmpl.baseHp * bossHpMul),
-      cutin_quote: quoteObj
-    }, stageSignal)
+    const plannedBoss = activeStagePlan?.stage === currentStage.value
+      ? activeStagePlan.boss : buildOfflineStagePlan(currentStage.value).boss
+    await startBossBattleAsync(plannedBoss, stageSignal)
   } catch {} finally {
-    player.controlLocked = false
+    // A previous stage must never unlock a newer stage's intro.
+    if (stageAbortController?.signal === stageSignal && !stageSignal.aborted) {
+      player.controlLocked = false
+    }
   }
 }
 
@@ -1101,6 +1300,8 @@ const executeSunflowerFierceAttackAsync = async (signal: AbortSignal, extra: num
 
 const triggerStageClearSequenceAsync = async () => {
   if (boss.isDefeated || player.isVictory || gameResult.value) return
+  const stageSignal = stageAbortController?.signal
+  if (!stageSignal || stageSignal.aborted) return
   boss.isDefeated = true
   boss.vx = 0; boss.vy = 0
   boss.warningLaserY = null; boss.warningSpikeX = null
@@ -1109,32 +1310,39 @@ const triggerStageClearSequenceAsync = async () => {
   enemies.length = 0
   bullets.length = 0
 
-  screenShakeTimer = 14
-  await waitAsync(1300)
+  try {
+    screenShakeTimer = 14
+    await waitAsync(1300, stageSignal)
+    for (let i = 1; i <= 10; i++) {
+      boss.flashAlpha = i / 10
+      await waitAsync(40, stageSignal)
+    }
+    spawnFireworkBurst(boss.x, boss.y - 45)
+    boss.active = false
+    boss.flashAlpha = 0
 
-  for (let i = 1; i <= 10; i++) {
-    boss.flashAlpha = i / 10
-    await waitAsync(40)
+    score.value += 2500 * currentStage.value
+    player.isVictory = true
+    player.vx = 0
+    player.hurtPoseTimer = 0
+    camera.targetX = player.x
+    camera.targetY = player.y - 35
+    camera.targetZoom = 1.85
+
+    for (let f = 1; f <= 6; f++) {
+      window.setTimeout(() => {
+        if (!stageSignal.aborted) {
+          spawnFireworkBurst(player.x + (Math.random() - 0.5) * 220, player.y - 60 - Math.random() * 80)
+        }
+      }, f * 280)
+    }
+
+    await waitAsync(2100, stageSignal)
+    camera.targetZoom = 1.0
+    gameResult.value = 'CLEAR'
+  } catch {
+    // Restart/unmount aborts the victory animation without touching the new run.
   }
-  spawnFireworkBurst(boss.x, boss.y - 45)
-  boss.active = false
-  boss.flashAlpha = 0
-
-  score.value += 2500 * currentStage.value
-  player.isVictory = true
-  player.vx = 0
-  player.hurtPoseTimer = 0
-  camera.targetX = player.x
-  camera.targetY = player.y - 35
-  camera.targetZoom = 1.85
-
-  for (let f = 1; f <= 6; f++) {
-    setTimeout(() => spawnFireworkBurst(player.x + (Math.random() - 0.5) * 220, player.y - 60 - Math.random() * 80), f * 280)
-  }
-
-  await waitAsync(2100)
-  camera.targetZoom = 1.0
-  gameResult.value = 'CLEAR'
 }
 
 const onEnemyDefeated = (e: Enemy) => {
@@ -1177,12 +1385,14 @@ const selectBonusAndNextStage = (choiceId: string) => {
 }
 
 const retryFromCheckpoint = () => {
+  runVersion++
   lives.value = 3
   playerHp.value = maxHp.value
   startStageFromCloudRun(currentStage.value, true)
 }
 
 const resetFullGame = () => {
+  runVersion++
   score.value = 0; lives.value = 3; maxHp.value = 100; playerHp.value = 100
   upgrades.doubleShotLv = 0; upgrades.slashLv = 0; upgrades.options = 0
   upgrades.barrierHp = 0; upgrades.powerMultiplier = 1.0; upgrades.maxChargeLevel = 2
@@ -1275,46 +1485,86 @@ const startDashAsync = async () => {
 }
 
 const keys = new Set<string>()
-const onKeyDown = (e: KeyboardEvent) => {
-  if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'KeyZ', 'KeyX', 'KeyC'].includes(e.code)) {
-    e.preventDefault()
-  }
-  if (keys.has(e.code) || player.controlLocked || deathOverlay.active || player.isDown || player.isVictory) return
-  keys.add(e.code)
+const gameKeyCodes = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'KeyZ', 'KeyX', 'KeyC']
+const touchDirections = [
+  { code: 'ArrowLeft', symbol: '◀', label: '左へ移動' },
+  { code: 'ArrowRight', symbol: '▶', label: '右へ移動' },
+]
+const touchActions = [
+  { code: 'KeyZ', symbol: 'J', label: 'ジャンプ' },
+  { code: 'KeyC', symbol: 'D', label: 'ダッシュ' },
+  { code: 'KeyX', symbol: 'X', label: '音符ショット・チャージ' },
+]
 
-  if ((e.code === 'ArrowUp' || e.code === 'Space' || e.code === 'KeyZ') && (player.onGround || player.coyoteTimer > 0)) {
+const pressControl = (code: string) => {
+  if (keys.has(code) || player.controlLocked || deathOverlay.active ||
+      player.isDown || player.isVictory || gameResult.value || isLoadingStage.value) return
+  keys.add(code)
+  if ((code === 'ArrowUp' || code === 'Space' || code === 'KeyZ') && (player.onGround || player.coyoteTimer > 0)) {
     player.vy = PHYSICS.JUMP_VELOCITY
     player.onGround = false
     player.coyoteTimer = 0
     player.scaleX = 0.85; player.scaleY = 1.18
   }
-  if (e.code === 'ArrowDown' || e.code === 'KeyC') {
-    startDashAsync()
-  }
-  if (e.code === 'KeyX') {
+  if (code === 'ArrowDown' || code === 'KeyC') startDashAsync()
+  if (code === 'KeyX') {
     fireGuitarWave(0)
     startChargeAsync()
   }
 }
-
-const onKeyUp = (e: KeyboardEvent) => {
-  keys.delete(e.code)
-  if ((e.code === 'ArrowUp' || e.code === 'Space' || e.code === 'KeyZ') && player.vy < -1.5) {
+const releaseControl = (code: string) => {
+  if (!keys.has(code)) return
+  keys.delete(code)
+  if ((code === 'ArrowUp' || code === 'Space' || code === 'KeyZ') && player.vy < -1.5) {
     player.vy *= 0.45
   }
-  if (e.code === 'KeyX') {
-    if (chargeLevel.value > 0) {
-      const lv = chargeLevel.value
-      chargeAbort?.abort(); chargeLevel.value = 0
-      fireGuitarWave(lv)
-    } else {
-      chargeAbort?.abort()
+  if (code === 'KeyX') {
+    const level = chargeLevel.value
+    chargeAbort?.abort()
+    chargeLevel.value = 0
+    if (level > 0 && !player.controlLocked && !player.isDown && !gameResult.value) {
+      fireGuitarWave(level)
     }
   }
 }
+const onKeyDown = (e: KeyboardEvent) => {
+  if (!gameKeyCodes.includes(e.code)) return
+  const el = e.target
+  if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement ||
+      (el instanceof HTMLElement && el.isContentEditable)) return
+  e.preventDefault()
+  if (!e.repeat) pressControl(e.code)
+}
+const onKeyUp = (e: KeyboardEvent) => releaseControl(e.code)
+const pressTouch = (code: string, event: PointerEvent) => {
+  const element = event.currentTarget
+  if (element instanceof HTMLElement) element.setPointerCapture(event.pointerId)
+  pressControl(code)
+}
+const releaseTouch = (code: string) => releaseControl(code)
+const resetInputState = () => {
+  keys.clear()
+  chargeAbort?.abort()
+  chargeLevel.value = 0
+}
+const onVisibilityChange = () => { if (document.hidden) resetInputState() }
 
 let animFrameId = 0
 let lastFrameTime = performance.now()
+let frameAccumulator = 0
+const FRAME_MS = 1000 / 60
+const animationLoop = (now: number) => {
+  animFrameId = requestAnimationFrame(animationLoop)
+  frameAccumulator += Math.min(100, Math.max(0, now - lastFrameTime))
+  lastFrameTime = now
+  let steps = 0
+  while (frameAccumulator >= FRAME_MS && steps < 5) {
+    updateAndDraw(now)
+    frameAccumulator -= FRAME_MS
+    steps++
+  }
+  if (steps >= 5) frameAccumulator = 0
+}
 
 const getPlayerSpriteKey = () => {
   if (player.isDown) return 'down'
@@ -1380,7 +1630,9 @@ const applyDamageToBoss = (rawDamage: number, isPiercing = false) => {
   }
 }
 
+let runVersion = 0
 const triggerYouDiedSequenceAsync = async (fellInPit = false) => {
+  const capturedVersion = runVersion
   if (deathOverlay.active || player.isDown || gameResult.value) return
   player.controlLocked = true
   player.isDown = true
@@ -1392,9 +1644,8 @@ const triggerYouDiedSequenceAsync = async (fellInPit = false) => {
   enemies.forEach(e => e.abortController.abort())
   boss.abortController?.abort()
 
-  if (!fellInPit) {
-    await waitAsync(1100)
-  }
+  if (!fellInPit) await waitAsync(1100)
+  if (capturedVersion !== runVersion) return
 
   lives.value--
   const resumeAtFog = boss.active || checkpointReachedBossGate.value
@@ -1404,6 +1655,7 @@ const triggerYouDiedSequenceAsync = async (fellInPit = false) => {
   deathOverlay.active = true
 
   await waitAsync(2400)
+  if (capturedVersion !== runVersion) return
   deathOverlay.active = false
 
   if (lives.value > 0) {
@@ -1438,10 +1690,6 @@ const isOverPit = (x: number): boolean => {
 }
 
 const updateAndDraw = (now: number) => {
-  animFrameId = requestAnimationFrame(updateAndDraw)
-  const elapsed = now - lastFrameTime
-  if (elapsed < 15) return
-  lastFrameTime = now
 
   const canvas = canvasRef.value
   if (!canvas) return
@@ -1808,6 +2056,10 @@ const updateAndDraw = (now: number) => {
   for (let i = enemies.length - 1; i >= 0; i--) {
     const e = enemies[i]
     const prevEnemyY = e.y
+    if (e.stunTimer && e.stunTimer > 0) {
+      e.stunTimer--
+      if (e.stunTimer <= 0) e.isStunned = false
+    }
     if (!e.isStunned) e.x += e.vx - scrollSpd * 0.65
 
     if (fogGate.active && e.x < 35 && e.vx < 0) e.vx = -e.vx
@@ -1850,7 +2102,8 @@ const updateAndDraw = (now: number) => {
       ctx.fillStyle = '#f43f5e'; ctx.fillRect(e.x - 16, e.y - 62, 32 * (e.hp / e.maxHp), 4)
     }
 
-    if (!player.isDown && !player.isVictory && Math.abs(player.x - e.x) < 28 && Math.abs(player.y - e.y) < 34) {
+    const enemyHitHalfWidth = e.type === 'hedgehog' ? 40 : 28
+    if (!player.isDown && !player.isVictory && Math.abs(player.x - e.x) < enemyHitHalfWidth && Math.abs(player.y - e.y) < 34) {
       if (player.vy > 0 && player.y < e.y - 10) {
         if (e.spiky) {
           damagePlayer(14)
@@ -1860,7 +2113,7 @@ const updateAndDraw = (now: number) => {
           const stompDmg = Math.round(24 * upgrades.powerMultiplier)
           e.hp -= stompDmg
           floatingTexts.push({ x: e.x, y: e.y - 45, text: `${stompDmg}`, color: '#facc15', alpha: 1.0 })
-          if (e.type === 'turtle' && e.hp > 0) e.isStunned = true
+          if (e.type === 'turtle' && e.hp > 0) { e.isStunned = true; e.stunTimer = 85 }
           if (e.hp <= 0) { onEnemyDefeated(e); enemies.splice(i, 1); continue }
         }
       } else if (!player.isDashing) {
@@ -1982,12 +2235,15 @@ const updateAndDraw = (now: number) => {
       let hit = false
       for (let j = enemies.length - 1; j >= 0; j--) {
         const e = enemies[j]
-        if (Math.abs(b.x - e.x) < 28 && Math.abs(b.y - (e.y - 26)) < 30) {
+        const hitHalfWidth = e.type === 'hedgehog' ? 40 : 28
+        if (Math.abs(b.x - e.x) < hitHalfWidth && Math.abs(b.y - (e.y - 26)) < 30 &&
+            !b.hitTargets?.has(e.id)) {
           if (e.isHidden && !b.piercing) {
             b.vx = -b.vx * 0.8; b.vy = -2; break
           }
           const dmg = (e.armored && !b.piercing && !e.isStunned) ? Math.ceil(b.damage * 0.4) : b.damage
           e.hp -= dmg; hit = true
+          if (b.piercing) (b.hitTargets ??= new Set()).add(e.id)
           floatingTexts.push({ x: e.x, y: e.y - 42, text: `${dmg}`, color: b.piercing ? '#facc15' : '#ffffff', alpha: 1.0 })
           if (e.hp <= 0) { onEnemyDefeated(e); enemies.splice(j, 1) }
           if (!b.piercing) break
@@ -1998,7 +2254,9 @@ const updateAndDraw = (now: number) => {
       if (boss.active && !boss.isDefeated) {
         const hitW = boss.hasShield ? 68 : 36
         const hitTop = boss.hasShield ? boss.y - 290 : boss.y - 75
-        if (Math.abs(b.x - boss.x) < hitW && b.y >= hitTop && b.y <= boss.y) {
+        if (Math.abs(b.x - boss.x) < hitW && b.y >= hitTop && b.y <= boss.y &&
+            !b.hitTargets?.has('BOSS')) {
+          if (b.piercing) (b.hitTargets ??= new Set()).add('BOSS')
           applyDamageToBoss(b.damage, !!b.piercing)
           if (!b.piercing || (boss.hasShield && boss.shieldState !== 'UNARMED')) {
             bullets.splice(i, 1)
@@ -2055,7 +2313,9 @@ const drawSprite = (
   ctx.scale(facing * scaleX, scaleY)
   if (img && img.complete && img.naturalWidth > 0) {
     if (hueRotateDeg !== 0) ctx.filter = `hue-rotate(${hueRotateDeg}deg) saturate(1.3)`
-    ctx.drawImage(img, -size / 2, -size + 5, size, size)
+    // Preserve the portrait / landscape ratio of the supplied PNG artwork.
+    const width = size * Math.min(2.0, img.naturalWidth / img.naturalHeight)
+    ctx.drawImage(img, -width / 2, -size + 5, width, size)
   } else {
     ctx.fillStyle = hueRotateDeg ? '#38bdf8' : '#ec4899'
     ctx.fillRect(-size / 3, -size * 0.8, (size * 2) / 3, size * 0.8)
@@ -2068,14 +2328,21 @@ onMounted(async () => {
   await loadAllSprites()
   window.addEventListener('keydown', onKeyDown)
   window.addEventListener('keyup', onKeyUp)
+  window.addEventListener('blur', resetInputState)
+  document.addEventListener('visibilitychange', onVisibilityChange)
   lastFrameTime = performance.now()
-  animFrameId = requestAnimationFrame(updateAndDraw)
-  startStageFromCloudRun(1, false)
+  frameAccumulator = 0
+  animFrameId = requestAnimationFrame(animationLoop)
+  void startStageFromCloudRun(1, false)
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', onKeyDown)
   window.removeEventListener('keyup', onKeyUp)
+  window.removeEventListener('blur', resetInputState)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+  resetInputState()
+  runVersion++
   cancelAnimationFrame(animFrameId)
   stageAbortController?.abort()
   chargeAbort?.abort()
