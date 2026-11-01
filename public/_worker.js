@@ -628,10 +628,10 @@ async function handleRanking(request, env, url, corsHeaders) {
 const MAX_ROCK_STAGE = 999;
 
 // ブラウザ側で計算したスコアのうち「明らかにありえない値」だけを弾くための上限。
-// 1ステージあたり：ボス撃破 2500×ステージ数 ＋ 雑魚・アイテム・弾消しの上限の目安 60000×周回数
+// 1ステージあたり：ボス撃破 2500×ステージ数 ＋ 雑魚（コンボ最大×3）・アイテム・弾消しの上限の目安 160000×周回数
 function maxRockScore(stage) {
     let total = 0;
-    for (let s = 1; s <= stage; s++) total += 2500 * s + 60000 * Math.ceil(s / 12);
+    for (let s = 1; s <= stage; s++) total += 2500 * s + 160000 * Math.ceil(s / 12);
     return total;
 }
 

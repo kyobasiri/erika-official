@@ -137,6 +137,7 @@
             <button v-if="isTouch" type="button" class="hud-btn hud-btn--wide" :class="autoFire ? 'is-on' : ''"
                     :aria-label="autoFire ? 'オート射撃：ON（タップで手動に切替）' : 'オート射撃：OFF（タップでオートに切替）'"
                     @click="toggleAutoFire">{{ autoFire ? 'AUTO' : 'MAN' }}</button>
+            <button type="button" class="hud-btn" aria-label="操作説明・難易度" @click="openTutorial">？</button>
             <button type="button" class="hud-btn" :class="sound.bgm ? 'is-on' : 'is-off'"
                     :aria-label="sound.bgm ? 'BGMをオフ' : 'BGMをオン'" :title="bgmTitle ? `♪ ${bgmTitle}` : 'BGM'"
                     @click="toggleBgm">♫</button>
@@ -170,7 +171,7 @@
               </div>
             </div>
 
-            <div v-if="isPaused && !gameResult" class="absolute inset-0 z-40 flex items-center justify-center bg-slate-950/85"
+            <div v-if="isPaused && !gameResult && !tutorialOpen" class="absolute inset-0 z-40 flex items-center justify-center bg-slate-950/85"
                  role="status" aria-live="polite">
               <div class="text-center text-white px-4">
                 <div class="text-2xl @md:text-3xl font-black tracking-widest">PAUSED</div>
@@ -187,6 +188,49 @@
                   <button type="button" @click="resetFullGame" :disabled="isLoadingStage"
                           class="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-600 text-sm">STAGE 1 から</button>
                   <router-link to="/" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-600 text-sm">TOPへ</router-link>
+                </div>
+                <div v-if="!windowInactive" class="mt-3 text-[11px] text-slate-400">
+                  難易度：<b class="text-white">{{ difficulty }}</b>
+                  <button type="button" class="ml-2 underline" @click="setDifficulty(difficulty === 'EASY' ? 'NORMAL' : 'EASY')">
+                    {{ difficulty === 'EASY' ? 'NORMAL' : 'EASY' }} にして STAGE 1 から
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 操作説明（初回は自動表示） -->
+            <div v-if="tutorialOpen" class="z-[80] bg-slate-950/95 overflow-y-auto p-3 @md:p-6"
+                 :class="(compactOverlay || isTouch) ? 'fixed inset-0 safe-x safe-b' : 'absolute inset-0'">
+              <div class="tutorial-body">
+                <h2 class="text-lg @md:text-2xl font-black text-white text-center">{{ tutorialFirstTime ? 'ようこそ ERIKA ROCK ACTION へ' : '操作説明' }}</h2>
+                <ul class="tutorial-list">
+                  <template v-if="isTouch">
+                    <li><b>◀ ▶ パッド</b>：移動（指をスライドで切り替え）／<b>同じ向きに2回タップ</b>でダッシュ</li>
+                    <li v-if="autoFire"><b>ショットは自動</b>。チャージも自動で溜まり、<b>BURST</b> で好きなときに解放（偃月の弾消しもここ）</li>
+                    <li v-else><b>SHOT</b>：連打で音符弾／長押し→離してチャージ攻撃</li>
+                    <li><b>JUMP</b>：ジャンプ。敵を<b>踏むと特大ダメージ</b>（ボスの頭も踏める）</li>
+                    <li>右上の <b>AUTO</b> で手動操作に切り替えできます</li>
+                  </template>
+                  <template v-else>
+                    <li><kbd class="kbd">←</kbd><kbd class="kbd">→</kbd> 移動 ／ <kbd class="kbd">↓</kbd>/<kbd class="kbd">C</kbd> ダッシュ</li>
+                    <li><kbd class="kbd">↑</kbd>/<kbd class="kbd">Z</kbd>/<kbd class="kbd">Space</kbd> ジャンプ。敵を<b>踏むと特大ダメージ</b>（ボスの頭も踏める）</li>
+                    <li><kbd class="kbd">X</kbd> 連打で音符弾／長押し→離してチャージ攻撃（Lv2以上の偃月で敵弾を消せる）</li>
+                    <li><kbd class="kbd">P</kbd> 一時停止</li>
+                  </template>
+                  <li>敵を続けて倒すと<b>コンボ</b>でスコア倍率アップ。ボスは体力半分で<b>発狂</b>します</li>
+                </ul>
+                <div class="text-center text-xs text-slate-300 mb-2">難易度{{ tutorialFirstTime ? '' : '（変更すると STAGE 1 から）' }}</div>
+                <div class="flex justify-center gap-2 mb-4">
+                  <button v-for="d in (['EASY', 'NORMAL'] as const)" :key="d" type="button" class="diff-btn"
+                          :class="difficulty === d ? 'is-active' : ''" @click="setDifficulty(d, !tutorialFirstTime)">
+                    <span class="font-black">{{ d }}</span>
+                    <span class="text-[10px] opacity-80">{{ d === 'EASY' ? '残機5・被ダメ60%（ランキング対象外）' : '残機3・全国ランキング対象' }}</span>
+                  </button>
+                </div>
+                <div class="text-center">
+                  <button type="button" class="px-8 py-2.5 rounded-lg bg-pink-600 hover:bg-pink-500 text-white font-black" @click="closeTutorial">
+                    {{ tutorialFirstTime ? 'START!' : 'とじる' }}
+                  </button>
                 </div>
               </div>
             </div>
@@ -209,14 +253,38 @@
               {{ enemies.length > 0 ? `⚠️ 残りの敵をすべて倒してください（残り ${enemies.length} 体）` : '🌫️ 右端の「白い霧」に触れてボス部屋へ進む →' }}
             </div>
 
+            <!-- コンボ表示 -->
+            <div v-if="comboCount >= 2" class="combo-badge absolute top-2 left-2 @md:top-3 @md:left-3 z-10 pointer-events-none" :key="`combo-${comboCount}`">
+              <div class="combo-badge__count text-xl @md:text-3xl">{{ comboCount }}<span class="text-[10px] @md:text-sm ml-1">COMBO</span></div>
+              <div class="combo-badge__mul text-[10px] @md:text-xs">SCORE ×{{ comboMultiplier(comboCount).toFixed(1) }}</div>
+              <div class="combo-badge__bar" :class="isPaused ? 'is-paused' : ''"></div>
+            </div>
+            <!-- 発狂 -->
+            <div v-if="bossBanner.rage" class="rage-banner absolute inset-x-0 top-[30%] z-20 pointer-events-none text-center">
+              <div class="rage-banner__text text-3xl @md:text-5xl">RAGE MODE!!</div>
+              <div class="text-[10px] @md:text-xs text-red-200 tracking-[0.3em] font-mono">THE BOSS IS ENRAGED</div>
+            </div>
+
+            <!-- ボス接近：WARNING バナー -->
+            <div v-if="bossBanner.warning" class="boss-warning absolute inset-x-0 top-1/2 -translate-y-1/2 z-20 pointer-events-none">
+              <div class="boss-warning__stripe"></div>
+              <div class="boss-warning__text text-3xl @md:text-5xl @2xl:text-6xl">⚠ WARNING ⚠</div>
+              <div class="boss-warning__sub text-[10px] @md:text-xs">A HUGE BOSS IS APPROACHING</div>
+              <div class="boss-warning__stripe"></div>
+            </div>
+            <!-- ボス撃破：BOSS DEFEATED -->
+            <div v-if="bossBanner.defeated" class="boss-defeated absolute inset-x-0 top-[18%] z-20 pointer-events-none text-center">
+              <div class="boss-defeated__text text-3xl @md:text-5xl @2xl:text-6xl">BOSS DEFEATED!!</div>
+            </div>
+
             <!-- ③ ボス登場時：ボスへのズームイン紹介バナー -->
             <transition name="fade">
               <div v-if="cutin.visible" class="absolute inset-x-0 bottom-2 @md:bottom-6 flex justify-center z-20 pointer-events-none">
-                <div class="px-4 py-2 @md:px-8 @md:py-4 rounded-xl border-2 border-pink-500 bg-slate-950/90 shadow-2xl text-center max-w-xl w-full mx-2 @md:mx-4">
+                <div class="cutin-card px-4 py-2 @md:px-8 @md:py-4 rounded-xl border-2 border-pink-500 bg-slate-950/90 shadow-2xl text-center max-w-xl w-full mx-2 @md:mx-4">
                   <div class="text-pink-400 text-[9px] @md:text-xs font-mono tracking-widest mb-0.5">
                     WARNING // {{ loopCount > 1 ? `LOOP ${loopCount} EX BOSS` : 'BOSS ENCOUNTER' }}
                   </div>
-                  <div class="text-base @md:text-xl @2xl:text-2xl font-black text-yellow-300 tracking-wide mb-0.5 @md:mb-1">BOSS: {{ cutin.bossName }}</div>
+                  <div class="cutin-name text-base @md:text-xl @2xl:text-2xl font-black text-yellow-300 tracking-wide mb-0.5 @md:mb-1">BOSS: {{ cutin.bossName }}</div>
                   <div class="text-[11px] @md:text-sm font-bold text-white">「{{ cutin.quote }}」</div>
                   <div class="text-[9px] @md:text-[11px] text-slate-400 mt-0.5">— {{ cutin.source }}</div>
                 </div>
@@ -309,7 +377,8 @@
             </div>
             <!-- 全国ランキングへ登録 -->
             <form class="w-full max-w-md mb-4 flex flex-col items-center gap-2" @submit.prevent="submitScore">
-              <div v-if="!scoreSubmitted" class="flex w-full gap-2">
+              <p v-if="difficulty === 'EASY'" class="text-[11px] text-slate-400">EASY モードの記録は全国ランキングに登録できません</p>
+              <div v-else-if="!scoreSubmitted" class="flex w-full gap-2">
                 <input v-model="playerName" type="text" maxlength="20" placeholder="名前（20文字まで）"
                        class="flex-1 min-w-0 px-3 py-2 rounded-lg bg-slate-900 border border-slate-600 text-white text-sm select-text"
                        aria-label="ランキングに載せる名前" />
@@ -318,6 +387,10 @@
                   {{ isSubmittingScore ? '送信中…' : '全国ランキングに登録' }}
                 </button>
               </div>
+              <button type="button" @click="shareToX"
+                      class="px-4 py-1.5 rounded-lg bg-black border border-slate-600 hover:border-white text-white text-xs font-bold">
+                𝕏 で結果をシェア
+              </button>
               <p v-if="scoreSubmitMessage" class="text-xs" :class="scoreSubmitted ? 'text-emerald-300' : 'text-amber-300'">{{ scoreSubmitMessage }}</p>
             </form>
             <div class="w-full max-w-md mb-4 text-left">
@@ -483,7 +556,7 @@ const loadSound = () => {
 const sound = reactive(loadSound())
 const saveSound = () => { try { localStorage.setItem(SOUND_KEY, JSON.stringify(sound)) } catch { /* 保存不可 */ } }
 setSfxEnabled(sound.sfx)
-setSfxVolume(0.45)
+setSfxVolume(0.85)
 const bgmTitle = ref('')
 const bgm = createYoutubeBgm('rock-bgm-player', (title) => { bgmTitle.value = title })
 let audioUnlocked = false
@@ -492,7 +565,7 @@ const onFirstGesture = () => {
   if (audioUnlocked) return
   audioUnlocked = true
   unlockAudio()
-  if (sound.bgm && !isPaused.value) bgm.play()
+  if (!isPaused.value) resumeSceneBgm()
 }
 const toggleSfx = () => {
   sound.sfx = !sound.sfx
@@ -505,10 +578,26 @@ const toggleBgm = () => {
   sound.bgm = !sound.bgm
   saveSound()
   audioUnlocked = true
-  if (sound.bgm) bgm.play()
+  if (sound.bgm) resumeSceneBgm()
   else bgm.stop()
 }
-const nextBgm = () => { if (sound.bgm) bgm.next() }
+const nextBgm = () => { if (sound.bgm && bgmScene === 'stage') bgm.next() }
+// いま流すべき曲の種類（ステージ曲／ボス曲／無音）
+let bgmScene: 'stage' | 'boss' | null = null
+const isFinalBossStage = () => (currentStage.value - 1) % 12 === 11
+const resumeSceneBgm = () => {
+  if (!sound.bgm || !audioUnlocked || !bgmScene) return
+  if (bgm.playing) { bgm.resume(); return }
+  if (bgmScene === 'boss') bgm.playBoss(isFinalBossStage())
+  else bgm.playStage()
+}
+const startSceneBgm = (scene: 'stage' | 'boss' | null) => {
+  bgmScene = scene
+  if (!scene) { bgm.stop(); return }
+  if (!sound.bgm || !audioUnlocked) return
+  if (scene === 'boss') bgm.playBoss(isFinalBossStage())
+  else bgm.playStage()
+}
 
 // ====================================================
 // 全国ランキング（ラビリンスと同じ仕組み：/api/rock-ranking）
@@ -536,7 +625,7 @@ const fetchRankings = async () => {
   }
 }
 const submitScore = async () => {
-  if (isSubmittingScore.value || scoreSubmitted.value || gameResult.value !== 'GAMEOVER') return
+  if (isSubmittingScore.value || scoreSubmitted.value || gameResult.value !== 'GAMEOVER' || difficulty.value !== 'NORMAL') return
   isSubmittingScore.value = true
   scoreSubmitMessage.value = ''
   const name = playerName.value.trim().slice(0, 20)
@@ -622,7 +711,7 @@ const isLoadingStage = ref(false)
 // 手動一時停止・ウィンドウ非アクティブを分離。フォーカス復帰でも手動停止は解除しない。
 const manualPaused = ref(false)
 const windowInactive = ref(false)
-const isPaused = computed(() => manualPaused.value || windowInactive.value)
+const isPaused = computed(() => manualPaused.value || windowInactive.value || tutorialOpen.value)
 
 const currentStage = ref(1)
 const loopCount = computed(() => Math.floor((currentStage.value - 1) / 12) + 1)
@@ -689,6 +778,77 @@ const bonusChoices = computed(() => [
 ])
 
 const cutin = reactive({ visible: false, bossName: '', quote: '', source: '' })
+
+// ====================================================
+// 難易度（EASY は残機5・被ダメージ60%。ランキング登録は NORMAL のみ）
+// ====================================================
+type Difficulty = 'EASY' | 'NORMAL'
+const DIFF_KEY = 'erika-rock-action:difficulty'
+const difficulty = ref<Difficulty>((() => { try { return localStorage.getItem(DIFF_KEY) === 'EASY' ? 'EASY' : 'NORMAL' } catch { return 'NORMAL' } })())
+const diffConfig = computed(() => difficulty.value === 'EASY' ? { lives: 5, damageMul: 0.6 } : { lives: 3, damageMul: 1 })
+const setDifficulty = (d: Difficulty, restart = true) => {
+  playSfx('select')
+  if (d === difficulty.value) return
+  difficulty.value = d
+  try { localStorage.setItem(DIFF_KEY, d) } catch { /* 保存不可 */ }
+  if (restart) resetFullGame()
+  else lives.value = diffConfig.value.lives
+}
+
+// ====================================================
+// コンボ（3秒以内に次の敵を倒すと継続。倍率は最大×3.0）
+// ====================================================
+const COMBO_WINDOW = 180 // フレーム
+const comboCount = ref(0)
+let comboTimer = 0
+const comboMultiplier = (count: number) => 1 + Math.min(Math.max(0, count - 1), 20) * 0.1
+const addCombo = (x: number, y: number) => {
+  comboCount.value++
+  comboTimer = COMBO_WINDOW
+  if (comboCount.value >= 5 && comboCount.value % 5 === 0) {
+    playSfx('combo')
+    floatingTexts.push({ x, y: y - 70, text: `${comboCount.value} COMBO!!`, color: '#67e8f9', alpha: 1.0 })
+  }
+}
+const breakCombo = () => { comboCount.value = 0; comboTimer = 0 }
+
+// ====================================================
+// はじめての操作説明（初回のみ自動表示。「？」ボタンでいつでも表示）
+// ====================================================
+const TUTORIAL_KEY = 'erika-rock-action:tutorial-seen'
+const tutorialOpen = ref((() => { try { return localStorage.getItem(TUTORIAL_KEY) !== '1' } catch { return false } })())
+const tutorialFirstTime = ref(tutorialOpen.value)
+const closeTutorial = () => {
+  tutorialOpen.value = false
+  tutorialFirstTime.value = false
+  try { localStorage.setItem(TUTORIAL_KEY, '1') } catch { /* 保存不可 */ }
+  onFirstGesture()
+  resumeSceneBgm()
+}
+const openTutorial = () => { tutorialOpen.value = true; resetInputState() }
+
+// ====================================================
+// X（旧Twitter）でシェア
+// ====================================================
+const shareToX = () => {
+  const text = `ERIKA ROCK ACTION で STAGE ${currentStage.value} まで到達！ SCORE ${score.value}${difficulty.value === 'EASY' ? '（EASY）' : ''} #ERIKAROCKACTION`
+  const url = `${location.origin}/rock-action`
+  window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank', 'noopener,noreferrer')
+}
+
+// 踏みつけの衝撃波リング
+const stompRings: { x: number; y: number; r: number; alpha: number }[] = []
+// ボス登場／撃破のバナー（DOM演出）
+const bossBanner = reactive({ warning: false, defeated: false, rage: false })
+// 画面全体のフラッシュ・周辺の色かぶり・スローモーション（演出用）
+const screenFlash = { alpha: 0, color: '#ffffff' }
+const vignette = { alpha: 0, rgb: '220,38,38' }
+let slowMoUntil = 0
+let slowMoScale = 1
+const setSlowMo = (realMs: number, scale: number) => { slowMoUntil = performance.now() + realMs; slowMoScale = scale }
+const flash = (color: string, alpha: number) => { screenFlash.color = color; screenFlash.alpha = Math.max(screenFlash.alpha, alpha) }
+let bossDropping = false
+let bossHidden = false
 
 // ★ マスタデータ：中盤〜後半、そして2周目のフル装備に耐えうるよう基礎HPをしっかり底上げ！
 let masterData: any = {
@@ -1044,6 +1204,7 @@ interface Bullet {
   x: number; y: number; vx: number; vy: number; gravity?: number
   radius: number; damage: number; color: string
   noteSymbol: string; piercing?: boolean; isGroundCrawling?: boolean; isEnemy?: boolean
+  cosmetic?: boolean // 演出用（当たり判定なし）
   hitTargets?: Set<string> // Charged shots can hit each target only once.
 }
 interface SlashWave {
@@ -1111,6 +1272,7 @@ const boss = reactive({
   shieldState: 'INTACT' as ShieldState,
   shieldHp: 500, maxShieldHp: 500,
   isFloating: false, warningLaserY: null as number | null, warningSpikeX: null as number | null,
+  enraged: false,
   abortController: null as AbortController | null
 })
 
@@ -1241,6 +1403,12 @@ const startStageFromCloudRun = async (stageNum: number, fromBossGateCheckpoint =
   boss.warningLaserY = null; boss.warningSpikeX = null
   fogGate.active = false; fogGate.transitioning = false
   boss.abortController?.abort()
+  bossBanner.warning = false; bossBanner.defeated = false; bossBanner.rage = false
+  bossDropping = false
+  bossHidden = false
+  vignette.alpha = 0; screenFlash.alpha = 0; slowMoUntil = 0
+  // クリア・死亡で止めた BGM を、次のステージ開始で新しい曲として再開
+  if (bgmScene !== 'stage' || !bgm.playing) startSceneBgm('stage')
 
   const stg = masterData.stages[(stageNum - 1) % masterData.stages.length]
   currentTheme.themeName = stg.themeName
@@ -1471,7 +1639,35 @@ const startBossBattleAsync = async (bossData: any, stageSignal: AbortSignal) => 
 
   boss.active = true
   player.controlLocked = true
+  player.vx = 0
+  // 警報の間はボスを画面外に隠しておく
+  bossHidden = true
+  boss.y = -500; boss.vy = 0
 
+  // ① WARNING：曲を止めて警報と赤い点滅
+  startSceneBgm(null)
+  boss.enraged = false
+  bossBanner.warning = true
+  for (let k = 0; k < 3; k++) {
+    playSfx('siren')
+    vignette.rgb = '220,38,38'; vignette.alpha = 0.6
+    await waitAsync(520, stageSignal)
+  }
+  bossBanner.warning = false
+
+  // ② 空から落下して着地（地響き）
+  boss.y = bossData.isGiantFinalBoss ? -260 : -80
+  boss.vy = 7
+  bossHidden = false
+  bossDropping = true
+  camera.targetX = boss.x
+  camera.targetY = GROUND_Y - 120
+  camera.targetZoom = 1.2
+  for (let i = 0; i < 150 && bossDropping; i++) await waitAsync(16, stageSignal)
+  bossDropping = false
+  await waitAsync(250, stageSignal)
+
+  // ③ ズームしてカットイン
   camera.targetX = boss.x
   camera.targetY = bossData.isGiantFinalBoss ? GROUND_Y - 140 : GROUND_Y - 45
   camera.targetZoom = bossData.isGiantFinalBoss ? 1.35 : 1.85
@@ -1480,8 +1676,9 @@ const startBossBattleAsync = async (bossData: any, stageSignal: AbortSignal) => 
   cutin.source = bossData.cutin_quote.source
   cutin.visible = true
   playSfx('warning')
+  startSceneBgm('boss')
 
-  await waitAsync(2200, stageSignal)
+  await waitAsync(2400, stageSignal)
 
   cutin.visible = false
   camera.targetZoom = 1.0
@@ -1505,11 +1702,15 @@ const startBossBattleAsync = async (bossData: any, stageSignal: AbortSignal) => 
   })()
 
   // ★ 周回ごとの弾幕追加数（1周目は0、2周目は+1、3周目は+2...）
-  const extra = loopCount.value - 1
-  const cooldownScale = extra > 0 ? 0.75 : 1.0
+  const loopExtra = loopCount.value - 1
+  let extra = loopExtra
+  let cooldownScale = loopExtra > 0 ? 0.75 : 1.0
 
   try {
     while (boss.active && boss.hp > 0 && !boss.isDefeated) {
+      // 発狂中は弾数+1・隙が25%短くなる
+      extra = loopExtra + (boss.enraged ? 1 : 0)
+      cooldownScale = (loopExtra > 0 ? 0.75 : 1.0) * (boss.enraged ? 0.75 : 1.0)
       if (boss.pattern === 'SUNFLOWER_FINAL') {
         if (boss.shieldState !== 'UNARMED') {
           for (let w = 0; w < 3; w++) {
@@ -1752,17 +1953,45 @@ const triggerStageClearSequenceAsync = async () => {
   bullets.length = 0
 
   try {
-    screenShakeTimer = 14
+    screenShakeTimer = 18
     playSfx('bossDown')
+    startSceneBgm(null)
+    // 撃破の瞬間：白フラッシュ＋スローモーション＋「BOSS DEFEATED」
+    flash('#ffffff', 0.95)
+    vignette.rgb = '250,204,21'; vignette.alpha = 0.5
+    setSlowMo(1200, 0.3)
+    vibrate([80, 40, 120])
+    bossBanner.defeated = true
+    camera.targetX = boss.x
+    camera.targetY = boss.y - (boss.hasShield ? 120 : 50)
+    camera.targetZoom = boss.hasShield ? 1.3 : 1.6
+    // 連鎖爆発
+    void (async () => {
+      try {
+        const spread = boss.hasShield ? 150 : 70
+        for (let k = 0; k < 9; k++) {
+          await waitAsync(150, stageSignal)
+          const ex = boss.x + (Math.random() - 0.5) * spread
+          const ey = boss.y - Math.random() * (boss.hasShield ? 260 : 100)
+          spawnImpact(ex, ey, k % 2 ? '#fb923c' : '#facc15', 16, 4.5)
+          spawnImpact(ex, ey, '#ffffff', 6, 2)
+          screenShakeTimer = Math.max(screenShakeTimer, 8)
+          playSfx('explosion')
+        }
+      } catch { /* キャンセル */ }
+    })()
     // Keep the illustrated DOWN pose on screen before the final dissolve.
     await waitAsync(1550, stageSignal)
+    camera.targetZoom = 1.0; camera.targetX = 400; camera.targetY = 225
     for (let i = 1; i <= 8; i++) {
       boss.flashAlpha = i / 8
       await waitAsync(45, stageSignal)
     }
     spawnFireworkBurst(boss.x, boss.y - 45)
+    flash('#fef9c3', 0.7)
     boss.active = false
     boss.flashAlpha = 0
+    bossBanner.defeated = false
 
     score.value += 2500 * currentStage.value
     commitBestScore()
@@ -1795,7 +2024,10 @@ const triggerStageClearSequenceAsync = async () => {
 
 const onEnemyDefeated = (e: Enemy) => {
   playSfx('enemyDown')
-  score.value += e.score
+  addCombo(e.x, e.y)
+  const gained = Math.round(e.score * comboMultiplier(comboCount.value))
+  score.value += gained
+  if (comboCount.value >= 2) floatingTexts.push({ x: e.x, y: e.y - 58, text: `+${gained}`, color: '#fde68a', alpha: 1.0 })
   spawnImpact(e.x, e.y - 30, '#facc15', 12, 3.1)
   e.abortController.abort()
   const roll = Math.random()
@@ -1835,10 +2067,11 @@ const selectBonusAndNextStage = (choiceId: string) => {
 }
 
 const retryFromCheckpoint = () => {
+  breakCombo()
   scoreSubmitted.value = false
   scoreSubmitMessage.value = ''
   runVersion++
-  lives.value = 3
+  lives.value = diffConfig.value.lives
   playerHp.value = maxHp.value
   startStageFromCloudRun(currentStage.value, true)
 }
@@ -1849,7 +2082,8 @@ const resetFullGame = () => {
   scoreSubmitted.value = false
   scoreSubmitMessage.value = ''
   runVersion++
-  score.value = 0; lives.value = 3; maxHp.value = 100; playerHp.value = 100
+  score.value = 0; lives.value = diffConfig.value.lives; maxHp.value = 100; playerHp.value = 100
+  breakCombo()
   upgrades.doubleShotLv = 0; upgrades.slashLv = 0; upgrades.options = 0
   upgrades.barrierHp = 0; upgrades.powerMultiplier = 1.0; upgrades.maxChargeLevel = 2
   startStageFromCloudRun(1, false)
@@ -1958,6 +2192,8 @@ const touchActions = [
   { code: 'KeyX', symbol: '♪', short: 'SHOT', label: '音符ショット（長押しでチャージ）' },
   { code: 'KeyZ', symbol: '▲', short: 'JUMP', label: 'ジャンプ' },
 ]
+// オート時：溜まったチャージを好きなタイミングで撃つボタン（弾消しの偃月もここで発動）
+const burstAction = { code: 'Burst', symbol: '✦', short: 'BURST', label: 'チャージ解放（溜まっているときだけ）' }
 const pressedTouch = reactive(new Set<string>())
 
 // ====================================================
@@ -1975,7 +2211,7 @@ const toggleAutoFire = () => {
   resetInputState()
   playSfx('select')
 }
-const visibleTouchActions = computed(() => autoFire.value ? touchActions.filter(a => a.code === 'KeyZ') : touchActions)
+const visibleTouchActions = computed(() => autoFire.value ? [burstAction, touchActions[2]] : touchActions)
 const AUTO_SHOT_INTERVAL = 13 // フレーム（約0.2秒ごと）
 // 手動チャージ(400/1150/2050ms)より少し遅め：連射しながら溜まるぶんのバランス調整
 const AUTO_CHARGE_FRAMES = [36, 105, 185]
@@ -1987,7 +2223,10 @@ const canAct = () => !isPaused.value && !player.controlLocked && !deathOverlay.a
 const autoFireTick = () => {
   if (!autoFire.value) return
   if (!canAct()) {
-    if (autoChargeFrames > 0) { autoChargeFrames = 0; chargeLevel.value = 0 }
+    // ポーズ中はチャージを保持、ミス・ステージ切替などではリセット
+    if (!isPaused.value && autoChargeFrames > 0 && (player.isDown || gameResult.value || isLoadingStage.value)) {
+      autoChargeFrames = 0; chargeLevel.value = 0
+    }
     autoShotTimer = 10
     return
   }
@@ -2004,18 +2243,16 @@ const autoFireTick = () => {
     chargeLevel.value = lv
     if (lv > 0) playSfx(`charge${lv}` as SfxName)
   }
-  if (lv >= maxLv && autoChargeFrames >= AUTO_CHARGE_FRAMES[maxLv - 1] + 8) {
-    fireGuitarWave(lv)
-    chargeLevel.value = 0
-    autoChargeFrames = 0
-    autoShotTimer = AUTO_SHOT_INTERVAL
-  }
+  // 最大まで溜まったらそのまま保持（BURST ボタンで好きなときに解放）
+  if (autoChargeFrames > AUTO_CHARGE_FRAMES[maxLv - 1]) autoChargeFrames = AUTO_CHARGE_FRAMES[maxLv - 1]
 }
 let lastPadTap = { dir: 0, at: 0 }
 const actionButtonClass = (code: string) => {
-  const classes = [`action-btn--${code === 'KeyZ' ? 'jump' : code === 'KeyX' ? 'shot' : 'dash'}`]
+  const kind = code === 'KeyZ' ? 'jump' : code === 'KeyX' ? 'shot' : code === 'Burst' ? 'burst' : 'dash'
+  const classes = [`action-btn--${kind}`]
   if (pressedTouch.has(code)) classes.push('is-pressed')
-  if (code === 'KeyX' && chargeLevel.value > 0) classes.push(`is-charge-${chargeLevel.value}`)
+  if ((code === 'KeyX' || code === 'Burst') && chargeLevel.value > 0) classes.push(`is-charge-${chargeLevel.value}`)
+  if (code === 'Burst' && chargeLevel.value === 0) classes.push('is-empty')
   return classes
 }
 
@@ -2126,7 +2363,16 @@ const pressTouch = (code: string, event: PointerEvent) => {
   if (element instanceof HTMLElement) element.setPointerCapture?.(event.pointerId)
   pressedTouch.add(code)
   vibrate(8)
+  if (code === 'Burst') { releaseBurst(); return }
   pressControl(code)
+}
+const releaseBurst = () => {
+  const lv = chargeLevel.value
+  if (!autoFire.value || lv <= 0 || !canAct()) return
+  fireGuitarWave(lv)
+  chargeLevel.value = 0
+  autoChargeFrames = 0
+  autoShotTimer = AUTO_SHOT_INTERVAL
 }
 const releaseTouch = (code: string) => {
   if (!pressedTouch.has(code)) return
@@ -2138,8 +2384,8 @@ const resetInputState = () => {
   pressedTouch.clear()
   onPadUp()
   chargeAbort?.abort()
-  chargeLevel.value = 0
-  autoChargeFrames = 0
+  // オート時のチャージはストックとして保持する
+  if (!autoFire.value) chargeLevel.value = 0
 }
 const toggleManualPause = () => {
   manualPaused.value = !manualPaused.value
@@ -2168,7 +2414,8 @@ const animationLoop = (now: number) => {
     frameAccumulator = 0
     return
   }
-  frameAccumulator += Math.min(100, Math.max(0, now - lastFrameTime))
+  const timeScale = now < slowMoUntil ? slowMoScale : 1
+  frameAccumulator += Math.min(100, Math.max(0, now - lastFrameTime)) * timeScale
   lastFrameTime = now
   let steps = 0
   while (frameAccumulator >= FRAME_MS && steps < 5) {
@@ -2207,7 +2454,7 @@ const BOSS_DRAW: Record<string, BossDrawProfile> = {
   dress:     { normalH: 118, normalW: 121, downW: 190, downH: 85 },
   gothic:    { normalH: 119, normalW: 125, downW: 190, downH: 88 },
   queen:     { normalH: 125, normalW: 132, downW: 205, downH: 90 },
-  sunflower: { normalH: 290, normalW: 300, downW: 242, downH: 114, downX: -12 },
+  sunflower: { normalH: 290, normalW: 300, downW: 430, downH: 205, downX: -12 },
 }
 const getBossActiveSpriteKey = (): string => {
   if (boss.isDefeated) {
@@ -2229,6 +2476,19 @@ const getBossActiveSpriteKey = (): string => {
     return boss.spriteKey
   }
   return boss.spriteKey
+}
+
+// 体力半分で発狂：攻撃が激しく速くなる
+const triggerRage = () => {
+  boss.enraged = true
+  playSfx('rage')
+  flash('#dc2626', 0.4)
+  vignette.rgb = '220,38,38'; vignette.alpha = 0.7
+  screenShakeTimer = Math.max(screenShakeTimer, 16)
+  vibrate([50, 30, 50])
+  spawnImpact(boss.x, boss.y - (boss.hasShield ? 140 : 60), '#ef4444', 26, 5)
+  bossBanner.rage = true
+  void waitAsync(1600, stageAbortController?.signal).then(() => { bossBanner.rage = false }).catch(() => { bossBanner.rage = false })
 }
 
 const applyDamageToBoss = (rawDamage: number, isPiercing = false) => {
@@ -2258,6 +2518,7 @@ const applyDamageToBoss = (rawDamage: number, isPiercing = false) => {
 
   boss.hp = Math.max(0, boss.hp - rawDamage)
   playSfx('bossHit')
+  if (!boss.enraged && boss.hp > 0 && boss.hp <= boss.maxHp / 2) triggerRage()
   boss.hurtTimer = 14
   spawnImpact(boss.x, boss.y - (boss.hasShield ? 66 : 48), isPiercing ? '#facc15' : '#f472b6', isPiercing ? 16 : 9, isPiercing ? 4 : 2.7)
   floatingTexts.push({
@@ -2287,8 +2548,39 @@ const triggerYouDiedSequenceAsync = async (fellInPit = false) => {
   stageAbortController?.abort()
   enemies.forEach(e => e.abortController.abort())
   boss.abortController?.abort()
+  startSceneBgm(null)
+  bossBanner.warning = false
+  vibrate([120, 60, 200])
 
-  if (!fellInPit) { try { await waitAsync(1100) } catch { return } }
+  if (fellInPit) {
+    // 落とし穴：ヒューッと落ちて、穴の底から光が吹き上がる
+    playSfx('fall')
+    vignette.rgb = '0,0,0'; vignette.alpha = 0.85
+    const fx = player.x
+    try {
+      await waitAsync(550)
+      spawnImpact(fx, VIEW_H - 4, currentTheme.lineColor, 22, 5.5)
+      spawnImpact(fx, VIEW_H - 4, '#ffffff', 10, 3)
+      flash(currentTheme.lineColor, 0.35)
+      screenShakeTimer = 12
+      floatingTexts.push({ x: fx, y: VIEW_H - 50, text: 'FALL OUT...', color: '#e2e8f0', alpha: 1.0 })
+      await waitAsync(650)
+    } catch { return }
+  } else {
+    // 体力0：赤いフラッシュ＋スロー＋音符が砕け散る
+    flash('#7f1d1d', 0.6)
+    vignette.rgb = '220,38,38'; vignette.alpha = 0.9
+    setSlowMo(900, 0.3)
+    screenShakeTimer = 16
+    spawnImpact(player.x, player.y - 34, '#f472b6', 30, 5)
+    spawnImpact(player.x, player.y - 34, '#ffffff', 12, 3)
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2
+      bullets.push({ x: player.x, y: player.y - 34, vx: Math.cos(a) * 2.4, vy: Math.sin(a) * 2.4 - 1, gravity: 0.05,
+        radius: 7, damage: 0, color: '#f9a8d4', noteSymbol: k % 2 ? '♪' : '♬', piercing: true, cosmetic: true })
+    }
+    try { await waitAsync(1300) } catch { return }
+  }
   if (capturedVersion !== runVersion) return
 
   lives.value--
@@ -2297,6 +2589,7 @@ const triggerYouDiedSequenceAsync = async (fellInPit = false) => {
     ? (resumeAtFog ? 'ボス部屋前（白い霧）から再出撃します...' : 'ステージ初期地点から再出撃します...')
     : '残機がすべて失われました'
   deathOverlay.active = true
+  playSfx('youDied')
 
   try { await waitAsync(2400) } catch { return }
   if (capturedVersion !== runVersion) return
@@ -2322,8 +2615,11 @@ const damagePlayer = (amount: number) => {
     return
   }
 
+  amount = Math.max(1, Math.round(amount * diffConfig.value.damageMul))
   playerHp.value = Math.max(0, playerHp.value - amount)
   playSfx('playerHit')
+  if (comboCount.value >= 2) floatingTexts.push({ x: player.x, y: player.y - 75, text: 'COMBO BREAK', color: '#94a3b8', alpha: 1.0 })
+  breakCombo()
   vibrate(amount >= 16 ? 45 : 25)
   player.invincibleTimer = 82
   player.hurtPoseTimer = 24
@@ -2334,6 +2630,20 @@ const damagePlayer = (amount: number) => {
   if (playerHp.value <= 0) {
     triggerYouDiedSequenceAsync(false)
   }
+}
+
+// 踏みつけ：3段チャージ＋偃月フルヒット（約160）に並ぶ特大ダメージ。リスクに見合うご褒美
+const STOMP_DAMAGE = 160
+const stompImpact = (x: number, y: number, dmg: number) => {
+  playSfx('stompHeavy')
+  player.scaleX = 1.3; player.scaleY = 0.7
+  spawnImpact(x, y, '#facc15', 18, 4.6)
+  spawnImpact(x, y, '#ffffff', 8, 2.6)
+  stompRings.push({ x, y: player.y, r: 8, alpha: 1 })
+  screenShakeTimer = Math.max(screenShakeTimer, 7)
+  setSlowMo(110, 0.12) // ヒットストップ
+  vibrate(35)
+  floatingTexts.push({ x, y: y - 22, text: `STOMP!! ${dmg}`, color: '#facc15', alpha: 1.0 })
 }
 
 const isOverPit = (x: number): boolean => {
@@ -2774,11 +3084,9 @@ const updateAndDraw = (now: number) => {
           damagePlayer(14)
         } else if (e.stompable) {
           player.vy = PHYSICS.BOUNCE_VELOCITY
-          playSfx('stomp')
-          player.scaleX = 1.22; player.scaleY = 0.78
-          const stompDmg = Math.round(24 * upgrades.powerMultiplier)
+          const stompDmg = Math.round(STOMP_DAMAGE * upgrades.powerMultiplier)
+          stompImpact(e.x, e.y - 30, stompDmg)
           e.hp -= stompDmg
-          floatingTexts.push({ x: e.x, y: e.y - 45, text: `${stompDmg}`, color: '#facc15', alpha: 1.0 })
           if (e.type === 'turtle' && e.hp > 0) { e.isStunned = true; e.stunTimer = 85 }
           if (e.hp <= 0) { onEnemyDefeated(e); enemies.splice(i, 1); continue }
         }
@@ -2793,7 +3101,7 @@ const updateAndDraw = (now: number) => {
     }
   }
 
-  if (boss.active) {
+  if (boss.active && !bossHidden) {
     if (!boss.isDefeated) {
       boss.x += boss.vx
       if (boss.x <= BOSS_ARENA.LEFT) {
@@ -2811,8 +3119,22 @@ const updateAndDraw = (now: number) => {
       } else {
         boss.vy += PHYSICS.GRAVITY
         boss.y += boss.vy
-        if (boss.y < BOSS_ARENA.TOP) { boss.y = BOSS_ARENA.TOP; if (boss.vy < 0) boss.vy = 0 }
-        if (boss.y >= BOSS_ARENA.BOTTOM) { boss.y = BOSS_ARENA.BOTTOM; boss.vy = 0 }
+        if (!bossDropping && boss.y < BOSS_ARENA.TOP) { boss.y = BOSS_ARENA.TOP; if (boss.vy < 0) boss.vy = 0 }
+        if (boss.y >= BOSS_ARENA.BOTTOM) {
+          if (bossDropping) {
+            // 着地の衝撃
+            bossDropping = false
+            screenShakeTimer = 22
+            flash('#ffffff', 0.45)
+            playSfx('bossLand')
+            vibrate([60, 30, 60])
+            const giant = boss.hasShield
+            spawnImpact(boss.x - 30, GROUND_Y - 4, '#cbd5e1', 18, giant ? 6 : 4)
+            spawnImpact(boss.x + 30, GROUND_Y - 4, '#cbd5e1', 18, giant ? 6 : 4)
+            spawnImpact(boss.x, GROUND_Y - 10, currentTheme.lineColor, 14, 5)
+          }
+          boss.y = BOSS_ARENA.BOTTOM; boss.vy = 0
+        }
       }
     }
 
@@ -2837,17 +3159,33 @@ const updateAndDraw = (now: number) => {
     const profile = BOSS_DRAW[boss.id] ?? BOSS_DRAW.knight
     const isDownPose = boss.isDefeated && !!sprites[`boss_${boss.id}_down`]
     const isUnarmed = boss.hasShield && boss.shieldState === 'UNARMED'
-    const bossHeight = isDownPose ? profile.downH : isUnarmed ? 132 : profile.normalH
-    const bossWidth = isDownPose ? profile.downW : isUnarmed ? 139 : profile.normalW
+    // 向日葵エリカ（最終ボス）は盾を失っても巨大なまま
+    // 盾なしの絵は腕を広げていて横長なので、幅の上限を広げて高さを保つ
+    const bossHeight = isDownPose ? profile.downH : isUnarmed ? Math.round(profile.normalH * 0.95) : profile.normalH
+    const bossWidth = isDownPose ? profile.downW : isUnarmed ? Math.round(profile.normalW * 1.35) : profile.normalW
     const bossFloor = boss.isDefeated
       ? boss.y + (GROUND_Y - boss.y) * Math.min(1, boss.defeatTicks / 18)
       : boss.y
     if (boss.isDefeated && boss.defeatTicks < 18) boss.defeatTicks++
 
+    if (boss.enraged && !boss.isDefeated) {
+      // 発狂オーラ（赤く脈打つ光）
+      const auraH = boss.hasShield ? 300 : 120
+      const pulse = 0.55 + Math.sin(now * 0.012) * 0.2
+      const ag = ctx.createRadialGradient(boss.x, boss.y - auraH * 0.45, 10, boss.x, boss.y - auraH * 0.45, auraH * 0.75)
+      ag.addColorStop(0, `rgba(239,68,68,${(0.45 * pulse).toFixed(3)})`)
+      ag.addColorStop(1, 'rgba(239,68,68,0)')
+      ctx.fillStyle = ag
+      ctx.fillRect(boss.x - auraH, boss.y - auraH * 1.25, auraH * 2, auraH * 1.35)
+      if (Math.random() < 0.25) {
+        impactParticles.push({ x: boss.x + (Math.random() - 0.5) * auraH * 0.6, y: boss.y - Math.random() * auraH,
+          vx: 0, vy: -1.2 - Math.random(), life: 26, maxLife: 26, color: '#f87171', size: 2 + Math.random() * 2 })
+      }
+    }
     ctx.save()
     // Ground shadow and hit feedback provide motion without replacing the art.
     ctx.beginPath()
-    ctx.ellipse(boss.x, GROUND_Y + 1, isDownPose ? 59 : (boss.hasShield && !isUnarmed ? 78 : 33), 5, 0, 0, Math.PI * 2)
+    ctx.ellipse(boss.x, GROUND_Y + 1, isDownPose ? (boss.hasShield ? 150 : 59) : (boss.hasShield ? 78 : 33), 5, 0, 0, Math.PI * 2)
     ctx.fillStyle = 'rgba(0, 0, 0, 0.28)'; ctx.fill()
     if (boss.flashAlpha > 0) {
       ctx.filter = `brightness(${1 + boss.flashAlpha * 3.0}) opacity(${1 - boss.flashAlpha * 0.65})`
@@ -2865,7 +3203,7 @@ const updateAndDraw = (now: number) => {
     }
     ctx.restore()
     if (boss.hurtTimer > 0 && !boss.isDefeated) {
-      const centerY = boss.y - (isUnarmed ? 64 : boss.hasShield ? 130 : 48)
+      const centerY = boss.y - (boss.hasShield ? 130 : 48)
       const radius = 15 + (14 - boss.hurtTimer) * 2.2
       ctx.save()
       ctx.beginPath(); ctx.arc(boss.x, centerY, radius, 0, Math.PI * 2)
@@ -2875,9 +3213,20 @@ const updateAndDraw = (now: number) => {
 
     // 盾破壊後は生身のエリカ用の接触判定へ縮小する。
     const shieldVisible = boss.hasShield && boss.shieldState !== 'UNARMED'
-    const contactW = shieldVisible ? 55 : 32
-    const contactH = shieldVisible ? 260 : 44
-    if (!boss.isDefeated && !player.isDown && !player.isVictory &&
+    // 巨大ボスは盾の有無で判定を少しだけ変える（盾なしは少し細身）
+    const contactW = shieldVisible ? 55 : boss.hasShield ? 46 : 32
+    const contactH = shieldVisible ? 260 : boss.hasShield ? 240 : 44
+    // 通常サイズのボスは頭を踏める（巨大ボスは届かない）
+    const headTop = boss.y - 122
+    const headBottom = boss.y - 58
+    if (!boss.hasShield && !boss.isDefeated && !player.isDown && !player.isVictory && player.vy > 0 &&
+        Math.abs(player.x - boss.x) < 40 && player.y >= headTop && player.y <= headBottom) {
+      player.vy = PHYSICS.BOUNCE_VELOCITY * 1.1
+      player.invincibleTimer = Math.max(player.invincibleTimer, 24)
+      const stompDmg = Math.round(STOMP_DAMAGE * upgrades.powerMultiplier)
+      stompImpact(boss.x, boss.y - 90, stompDmg)
+      applyDamageToBoss(stompDmg, true)
+    } else if (!boss.isDefeated && !player.isDown && !player.isVictory &&
         Math.abs(player.x - boss.x) < contactW && player.y > boss.y - contactH && player.y <= boss.y + 10) {
       damagePlayer(16)
     }
@@ -2895,7 +3244,7 @@ const updateAndDraw = (now: number) => {
         if (b.x >= obs.x && b.x <= obs.x + obs.w) surfaceY = Math.min(surfaceY, obs.y - 8)
       }
       b.y = surfaceY
-    } else if (b.gravity && b.y >= GROUND_Y - 8) {
+    } else if (b.gravity && !b.cosmetic && b.y >= GROUND_Y - 8) {
       b.y = GROUND_Y - 8; b.vy = -3.2
     }
 
@@ -2911,6 +3260,10 @@ const updateAndDraw = (now: number) => {
 
     // 光る弾は事前描画したキャッシュを貼るだけ（shadowBlur を毎フレーム使わない）
     drawBulletGlyph(ctx, b.noteSymbol, b.color, b.radius, b.x, b.y)
+    if (b.cosmetic) {
+      if (b.y > VIEW_H + 40 || b.x < -40 || b.x > VIEW_W + 40) bullets.splice(i, 1)
+      continue
+    }
 
     if (b.isEnemy) {
       if (!player.isDown && !player.isVictory && Math.abs(b.x - player.x) < 17 && Math.abs(b.y - (player.y - 28)) < 25) {
@@ -2942,8 +3295,8 @@ const updateAndDraw = (now: number) => {
       if (boss.active && !boss.isDefeated) {
         // 盾がUNARMEDなら見た目も当たり判定も小さくする。
         const shieldVisible = boss.hasShield && boss.shieldState !== 'UNARMED'
-        const hitW = shieldVisible ? 68 : 36
-        const hitTop = shieldVisible ? boss.y - 290 : boss.y - 75
+        const hitW = shieldVisible ? 68 : boss.hasShield ? 60 : 36
+        const hitTop = shieldVisible ? boss.y - 290 : boss.y - (boss.hasShield ? 265 : 75)
         if (Math.abs(b.x - boss.x) < hitW && b.y >= hitTop && b.y <= boss.y &&
             !b.hitTargets?.has('BOSS')) {
           if (b.piercing) (b.hitTargets ??= new Set()).add('BOSS')
@@ -2960,6 +3313,18 @@ const updateAndDraw = (now: number) => {
       bullets.splice(i, 1)
     }
   }
+
+  for (let i = stompRings.length - 1; i >= 0; i--) {
+    const ring = stompRings[i]
+    ring.r += 4.5; ring.alpha -= 0.06
+    if (ring.alpha <= 0) { stompRings.splice(i, 1); continue }
+    ctx.save()
+    ctx.globalAlpha = ring.alpha
+    ctx.strokeStyle = '#fde047'; ctx.lineWidth = 3
+    ctx.beginPath(); ctx.ellipse(ring.x, ring.y - 2, ring.r, ring.r * 0.28, 0, 0, Math.PI * 2); ctx.stroke()
+    ctx.restore()
+  }
+  if (comboTimer > 0 && --comboTimer === 0) breakCombo()
 
   for (let i = impactParticles.length - 1; i >= 0; i--) {
     const p = impactParticles[i]
@@ -3002,6 +3367,23 @@ const updateAndDraw = (now: number) => {
   }
 
   ctx.restore()
+
+  // 画面全体の演出（カメラの影響を受けない）
+  if (vignette.alpha > 0.01) {
+    const vg = ctx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, VIEW_H * 0.35, VIEW_W / 2, VIEW_H / 2, VIEW_W * 0.62)
+    vg.addColorStop(0, `rgba(${vignette.rgb},0)`)
+    vg.addColorStop(1, `rgba(${vignette.rgb},${vignette.alpha.toFixed(3)})`)
+    ctx.fillStyle = vg
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H)
+    vignette.alpha *= 0.965
+  }
+  if (screenFlash.alpha > 0.01) {
+    ctx.globalAlpha = screenFlash.alpha
+    ctx.fillStyle = screenFlash.color
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H)
+    ctx.globalAlpha = 1
+    screenFlash.alpha *= 0.88
+  }
 }
 
 const drawSprite = (
@@ -3031,7 +3413,7 @@ const drawSprite = (
 // 一時停止中は BGM・効果音も止める
 watch(isPaused, (paused) => {
   if (paused) { bgm.pause(); suspendAudio() }
-  else { resumeAudio(); if (sound.bgm && audioUnlocked) bgm.play() }
+  else { resumeAudio(); if (sound.bgm && audioUnlocked && bgm.playing) bgm.resume() }
 })
 
 onMounted(async () => {
@@ -3056,6 +3438,7 @@ onMounted(async () => {
   lastFrameTime = performance.now()
   frameAccumulator = 0
   animFrameId = requestAnimationFrame(animationLoop)
+  lives.value = diffConfig.value.lives
   void startStageFromCloudRun(1, false)
 })
 
@@ -3117,8 +3500,68 @@ onUnmounted(() => {
 .hud-btn--wide { width: auto; padding: 0 0.45rem; font-size: 0.65rem; letter-spacing: 0.05em; }
 .hud-btn.is-on { border-color: rgb(34 211 238); color: rgb(165 243 252); }
 .hud-btn.is-off { opacity: 0.55; }
-.action-cluster.is-solo { grid-template-columns: auto; }
-.action-cluster.is-solo .action-btn--jump { width: 5.25rem; height: 5.25rem; margin-bottom: 0; }
+.action-cluster.is-solo { grid-template-columns: auto auto; }
+.action-btn--burst { width: 3.6rem; height: 3.6rem; border-color: rgb(250 204 21); margin-bottom: 0.2rem; }
+.action-btn--burst.is-empty { opacity: 0.35; border-color: rgb(71 85 105); }
+.action-btn--burst.is-charge-1 { box-shadow: 0 0 0 3px rgb(34 211 238 / 0.8), 0 0 14px rgb(34 211 238 / 0.7); }
+.action-btn--burst.is-charge-2 { box-shadow: 0 0 0 3px rgb(250 204 21 / 0.9), 0 0 18px rgb(250 204 21 / 0.8); }
+.action-btn--burst.is-charge-3 { box-shadow: 0 0 0 4px rgb(232 121 249 / 0.95), 0 0 24px rgb(232 121 249 / 0.9); animation: charge-pulse 0.35s ease-in-out infinite alternate; }
+.action-cluster.is-solo .action-btn--jump { width: 5rem; height: 5rem; margin-bottom: 1.3rem; }
+
+/* ------- コンボ・発狂・操作説明 ------- */
+.combo-badge { text-align: left; animation: combo-pop 0.25s ease-out both; }
+.combo-badge__count { font-weight: 900; font-style: italic; color: #67e8f9; text-shadow: 0 0 10px rgb(34 211 238 / 0.8), 2px 2px 0 #0f172a; line-height: 1; }
+.combo-badge__mul { font-family: monospace; color: #fde68a; text-shadow: 1px 1px 0 #0f172a; }
+.combo-badge__bar { height: 3px; margin-top: 3px; width: 90px; background: #67e8f9; transform-origin: left; animation: combo-timer 3s linear both; }
+.combo-badge__bar.is-paused { animation-play-state: paused; }
+@keyframes combo-pop { from { transform: scale(1.5); } to { transform: scale(1); } }
+@keyframes combo-timer { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+.rage-banner { animation: rage-shake 0.12s linear infinite; }
+.rage-banner__text { font-weight: 900; letter-spacing: 0.15em; color: #fecaca; text-shadow: 0 0 14px #ef4444, 0 0 30px #b91c1c, 2px 2px 0 #450a0a; }
+@keyframes rage-shake { 0% { transform: translate(0, 0); } 25% { transform: translate(2px, -1px); } 50% { transform: translate(-2px, 1px); } 75% { transform: translate(1px, 2px); } }
+
+.tutorial-body { max-width: 34rem; margin: auto; display: flex; flex-direction: column; justify-content: center; min-height: 100%; }
+.tutorial-list { margin: 0.75rem 0 1rem; display: grid; gap: 0.4rem; font-size: 0.78rem; color: rgb(226 232 240); }
+.tutorial-list li { background: rgb(30 41 59 / 0.7); border: 1px solid rgb(51 65 85); border-radius: 0.5rem; padding: 0.4rem 0.6rem; }
+.tutorial-list b { color: #f9a8d4; }
+.diff-btn { display: flex; flex-direction: column; align-items: center; padding: 0.45rem 0.9rem; border-radius: 0.6rem; border: 1px solid rgb(71 85 105); background: rgb(30 41 59); color: white; min-width: 9rem; }
+.diff-btn.is-active { border-color: #f472b6; background: rgb(131 24 67 / 0.6); box-shadow: 0 0 12px rgb(244 114 182 / 0.5); }
+
+/* ------- ボス演出 ------- */
+.boss-warning { text-align: center; animation: warn-blink 0.52s steps(2, start) infinite; }
+.boss-warning__stripe {
+  height: 14px;
+  background: repeating-linear-gradient(-45deg, #facc15 0 14px, #111 14px 28px);
+  background-size: 40px 14px;
+  animation: stripe-move 0.6s linear infinite;
+  opacity: 0.95;
+}
+.boss-warning__text {
+  font-weight: 900; letter-spacing: 0.25em; color: #ef4444;
+  background: rgb(0 0 0 / 0.65);
+  text-shadow: 0 0 18px rgb(239 68 68 / 0.9), 0 0 2px #fff;
+  padding: 0.15em 0;
+}
+.boss-warning__sub { background: rgb(0 0 0 / 0.65); color: #fca5a5; letter-spacing: 0.4em; font-family: monospace; padding-bottom: 0.3em; }
+@keyframes warn-blink { 0% { opacity: 1; } 100% { opacity: 0.55; } }
+@keyframes stripe-move { to { background-position: 40px 0; } }
+
+.boss-defeated__text {
+  font-weight: 900; letter-spacing: 0.08em; font-style: italic;
+  background: linear-gradient(90deg, #fde047, #f472b6, #67e8f9, #fde047);
+  background-size: 200% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 0 12px rgb(250 204 21 / 0.8));
+  animation: defeated-in 0.5s cubic-bezier(.2,1.6,.4,1) both, shine 1.2s linear infinite;
+}
+@keyframes defeated-in { from { transform: scale(2.6) rotate(-6deg); opacity: 0; } to { transform: scale(1) rotate(-3deg); opacity: 1; } }
+@keyframes shine { to { background-position: 200% 0; } }
+
+.cutin-card { animation: cutin-slide 0.45s cubic-bezier(.2,1.3,.4,1) both; }
+.cutin-name { animation: name-glow 0.9s ease-in-out infinite alternate; }
+@keyframes cutin-slide { from { transform: translateX(120%) skewX(-20deg); } to { transform: translateX(0) skewX(0); } }
+@keyframes name-glow { from { text-shadow: 0 0 4px rgb(250 204 21 / 0.4); } to { text-shadow: 0 0 16px rgb(250 204 21 / 1); } }
 
 /* iPhone のノッチ・ホームバーを避ける */
 .safe-x {

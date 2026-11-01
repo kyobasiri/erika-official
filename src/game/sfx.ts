@@ -10,6 +10,8 @@ export type SfxName =
   | 'jump' | 'dash' | 'stomp' | 'enemyHit' | 'enemyDown' | 'bossHit' | 'guard'
   | 'shieldBreak' | 'playerHit' | 'barrier' | 'item' | 'oneUp' | 'bossDown'
   | 'clear' | 'death' | 'warning' | 'select'
+  | 'siren' | 'bossLand' | 'explosion' | 'fall'
+  | 'youDied' | 'stompHeavy' | 'rage' | 'combo'
 
 // 例: { shot: '/sfx/shot.mp3' }  ← 素材を用意したらここに追加
 const SFX_FILES: Partial<Record<SfxName, string>> = {}
@@ -19,7 +21,7 @@ let master: GainNode | null = null
 let noiseBuffer: AudioBuffer | null = null
 const fileBuffers = new Map<SfxName, AudioBuffer>()
 let enabled = true
-let volume = 0.5
+let volume = 0.85
 const lastPlayed = new Map<SfxName, number>()
 
 const getCtx = (): AudioContext | null => {
@@ -65,6 +67,46 @@ export function setSfxVolume(v: number) {
 }
 export function suspendAudio() { if (ctx && ctx.state === 'running') void ctx.suspend() }
 export function resumeAudio() { if (ctx && ctx.state === 'suspended') void ctx.resume() }
+
+// 長い残響（「YOU DIED」の重く暗い響き用）。減衰するノイズからインパルス応答を作る
+let reverb: ConvolverNode | null = null
+const getReverb = (c: AudioContext): AudioNode => {
+  if (reverb) return reverb
+  const seconds = 4.2
+  const len = Math.floor(c.sampleRate * seconds)
+  const ir = c.createBuffer(2, len, c.sampleRate)
+  for (let ch = 0; ch < 2; ch++) {
+    const d = ir.getChannelData(ch)
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6)
+  }
+  reverb = c.createConvolver()
+  reverb.buffer = ir
+  const wet = c.createGain()
+  wet.gain.value = 0.9
+  reverb.connect(wet).connect(master!)
+  return reverb
+}
+// ゆっくり立ち上がって長く消える持続音
+const swell = (c: AudioContext, out: AudioNode, t: number, type: Wave, freq: number, attack: number, dur: number, gain: number, lowpass = 0) => {
+  const o = c.createOscillator()
+  const g = c.createGain()
+  o.type = type
+  o.frequency.setValueAtTime(freq, t)
+  g.gain.setValueAtTime(0.0001, t)
+  g.gain.exponentialRampToValueAtTime(gain, t + attack)
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur)
+  let node: AudioNode = o
+  if (lowpass) {
+    const f = c.createBiquadFilter()
+    f.type = 'lowpass'
+    f.frequency.value = lowpass
+    node.connect(f)
+    node = f
+  }
+  node.connect(g).connect(out)
+  o.start(t)
+  o.stop(t + dur + 0.05)
+}
 
 type Wave = OscillatorType
 const tone = (c: AudioContext, out: AudioNode, t: number, type: Wave, f0: number, f1: number, dur: number, gain: number) => {
@@ -173,14 +215,59 @@ export function playSfx(name: SfxName) {
       tone(c, out, t, 'sawtooth', 160, 40, 1.0, 0.12)
       break
     case 'clear': arpeggio(c, out, t, [523, 659, 784, 1047, 784, 1047, 1319], 0.11, 'square', 0.06, 0.2); break
-    case 'death':
-      arpeggio(c, out, t, [440, 415, 392, 370, 349], 0.14, 'triangle', 0.1, 0.25)
-      tone(c, out, t + 0.7, 'sine', 110, 55, 1.0, 0.12)
+    case 'death': // 倒れた瞬間の鈍い衝撃音（この後に YOU DIED が続く）
+      tone(c, out, t, 'sine', 120, 38, 0.7, 0.4)
+      noise(c, out, t, 0.35, 0.3, 700, 'lowpass', 90)
       break
+    case 'youDied': {
+      // ダークファンタジー風の「YOU DIED」：
+      // 低い衝撃 → 暗い短調の持続音 → 鐘のような金属的な響き、すべて長い残響の中へ
+      const rv = getReverb(c)
+      tone(c, out, t, 'sine', 80, 30, 2.2, 0.45)
+      tone(c, rv, t, 'sine', 80, 30, 2.2, 0.35)
+      noise(c, rv, t, 1.6, 0.18, 260, 'lowpass', 60)
+      // D・F・A（ニ短調）を低く、ゆっくり
+      for (const f of [73.42, 87.31, 110, 146.83]) {
+        swell(c, rv, t + 0.05, 'sawtooth', f, 0.9, 5.2, 0.05, 420)
+        swell(c, out, t + 0.05, 'sawtooth', f * 1.004, 0.9, 4.5, 0.02, 300)
+      }
+      // 鐘（非整数倍音で金属的に）
+      for (const [ratio, g] of [[1, 0.09], [2.0, 0.05], [2.76, 0.045], [4.07, 0.03], [5.4, 0.02]] as const) {
+        swell(c, rv, t + 0.25, 'sine', 146.83 * ratio, 0.01, 4.8 / Math.sqrt(ratio), g)
+      }
+      break
+    }
+    case 'stompHeavy': // 踏みつけ（ドゴッ＋キラッ）
+      tone(c, out, t, 'sine', 180, 45, 0.28, 0.4)
+      noise(c, out, t, 0.2, 0.35, 1800, 'lowpass', 150)
+      arpeggio(c, out, t + 0.05, [1319, 1760, 2637], 0.04, 'square', 0.045)
+      break
+    case 'rage': // 発狂（うなり）
+      tone(c, out, t, 'sawtooth', 70, 140, 0.9, 0.18)
+      tone(c, out, t, 'sawtooth', 73, 146, 0.9, 0.14)
+      noise(c, out, t, 0.9, 0.3, 500, 'bandpass', 2400)
+      break
+    case 'combo': arpeggio(c, out, t, [1047, 1319, 1568, 2093], 0.045, 'square', 0.045); break
     case 'warning':
       tone(c, out, t, 'square', 880, 880, 0.12, 0.05)
       tone(c, out, t + 0.16, 'square', 880, 880, 0.12, 0.05)
       break
     case 'select': tone(c, out, t, 'square', 1175, 1568, 0.08, 0.05); break
+    case 'siren': // ボス接近の警報（上下するサイレン）
+      tone(c, out, t, 'sawtooth', 520, 880, 0.24, 0.07)
+      tone(c, out, t + 0.24, 'sawtooth', 880, 520, 0.24, 0.07)
+      break
+    case 'bossLand': // ボスの着地（ドスン）
+      tone(c, out, t, 'sine', 110, 32, 0.6, 0.35)
+      noise(c, out, t, 0.5, 0.5, 900, 'lowpass', 80)
+      break
+    case 'explosion':
+      noise(c, out, t, 0.45, 0.45, 2400, 'lowpass', 90)
+      tone(c, out, t, 'square', 140, 40, 0.3, 0.08)
+      break
+    case 'fall': // 落下（ヒューッ）
+      tone(c, out, t, 'triangle', 1400, 120, 0.9, 0.08)
+      noise(c, out, t + 0.1, 0.8, 0.12, 3000, 'bandpass', 300)
+      break
   }
 }
