@@ -1532,10 +1532,17 @@ const spawnSingleEnemy = (wave: any, stageSignal: AbortSignal) => {
   const isFlying = wave.type === 'note_ghost'
   const startY = isFlying ? 235 : GROUND_Y
   const isExLoop = loopCount.value > 1
+  // 出現位置が落とし穴の上なら、穴の向こう側に出す
+  let spawnX = 825
+  if (!isFlying) {
+    for (const pit of pits.value) {
+      if (spawnX > pit.x - 4 && spawnX < pit.x + pit.w + 4) spawnX = pit.x + pit.w + 14
+    }
+  }
 
   const enemy: Enemy = {
     id: wave.id, type: wave.type, name: wave.name,
-    x: 825, y: startY, baseY: startY,
+    x: spawnX, y: startY, baseY: startY,
     vx: -wave.speed, vy: 0,
     hp: wave.hp, maxHp: wave.hp, score: wave.score * loopCount.value,
     stompable: wave.stompable, spiky: wave.spiky, armored: wave.armored, helmet: wave.helmet,
@@ -3000,8 +3007,18 @@ const updateAndDraw = (now: number) => {
     const item = dropItems[i]
     item.x -= scrollSpd
     item.vy += PHYSICS.GRAVITY
-    if (!isOverPit(item.x)) item.y = Math.min(GROUND_Y - 10, item.y + item.vy)
-    else item.y += item.vy
+    const prevItemY = item.y
+    item.y += item.vy
+    // 足場・障害物の上、または地面に乗る（すり抜けない）
+    if (item.vy >= 0) {
+      for (const obs of obstacles.value) {
+        const top = obs.y - 10
+        if (item.x > obs.x - 6 && item.x < obs.x + obs.w + 6 && prevItemY <= top + 1 && item.y >= top) {
+          item.y = top; item.vy = 0
+        }
+      }
+      if (!isOverPit(item.x) && item.y >= GROUND_Y - 10 && prevItemY <= GROUND_Y - 4) { item.y = GROUND_Y - 10; item.vy = 0 }
+    }
     item.lifeTimer--
 
     ctx.save()
@@ -3031,7 +3048,10 @@ const updateAndDraw = (now: number) => {
       e.stunTimer--
       if (e.stunTimer <= 0) e.isStunned = false
     }
-    if (!e.isStunned) e.x += e.vx - scrollSpd * 0.65
+    // 気絶中（ひっくり返ったカメ）は地面と一緒に流れる。普段は少しゆっくり流れる
+    const prevEnemyX = e.x
+    if (e.isStunned) e.x -= scrollSpd
+    else e.x += e.vx - scrollSpd * 0.65
 
     if (fogGate.active && e.x < 35 && e.vx < 0) e.vx = -e.vx
     else if (fogGate.active && e.x > 730 && e.vx > 0) e.vx = -e.vx
@@ -3043,8 +3063,24 @@ const updateAndDraw = (now: number) => {
       }
     }
 
-    for (const pit of pits.value) {
-      if (e.wallAction === 'jump' && e.vy === 0 && Math.abs(e.x - (pit.x + pit.w)) < 16) e.vy = -4.3
+    // 落とし穴に勝手に落ちないようにする
+    if (e.type !== 'note_ghost') {
+      const onGround = e.vy === 0 && e.y >= GROUND_Y - 1
+      // 地面（穴）から見た移動方向
+      const rel = (e.x - prevEnemyX) + scrollSpd
+      const dir = rel > 0.05 ? 1 : rel < -0.05 ? -1 : 0
+      if (onGround && dir !== 0 && !isOverPit(prevEnemyX) && isOverPit(e.x + dir * 16)) {
+        if (e.wallAction === 'jump' && !e.isStunned) {
+          e.vy = -4.4 // 飛び越える
+        } else {
+          // 跳べない敵は穴の手前で踏みとどまって引き返す
+          e.x = prevEnemyX - scrollSpd
+          if (e.wallAction === 'bounce' && !e.isStunned) e.vx = -e.vx
+        }
+      } else if (!onGround && e.vy > 0 && isOverPit(e.x) && e.y > GROUND_Y - 60 && dir !== 0) {
+        // 空中で穴の上に来てしまったら、向こう岸まで押し出す
+        e.x += dir * 3
+      }
     }
 
     if (e.type === 'note_ghost') {
@@ -3069,7 +3105,9 @@ const updateAndDraw = (now: number) => {
     const enemyImg = sprites[e.type]
     const enemySprite = enemyImg ? getTintedSprite(e.type, enemyImg, e.hueRotate) : undefined
     // 色替えはキャッシュ済みなので filter は不要（画像未読込時は代替の矩形を青で描く）
-    drawSprite(ctx, enemySprite, e.x + shakeX, e.y, enemyFacing, enemyDrawSize, 1, stunFlipY, 1.0,
+    // ひっくり返すと絵が下向きに伸びるので、その分だけ持ち上げて地面の上に置く
+    const drawY = stunFlipY < 0 ? e.y + (enemyDrawSize - 5) * stunFlipY : e.y
+    drawSprite(ctx, enemySprite, e.x + shakeX, drawY, enemyFacing, enemyDrawSize, 1, stunFlipY, 1.0,
       enemySprite ? 0 : e.hueRotate || 1)
 
     if (e.hp < e.maxHp) {

@@ -18,6 +18,7 @@ interface YouTubeAPI {
     events: {
       onReady: (event: { target: BGMPlayer }) => void
       onStateChange?: (event: { data: number; target: BGMPlayer }) => void
+      onError?: (event: { data: number; target: BGMPlayer }) => void
     }
   }) => BGMPlayer
 }
@@ -65,6 +66,20 @@ export function createYoutubeBgm(elementId: string, onTitle?: (title: string) =>
   let volume = 12 // 効果音の方がはっきり聞こえる程度に控えめ
   let previousReady: (() => void) | undefined
 
+  // ボス曲は「袋から1枚ずつ引く」方式：3曲を一巡するまで同じ曲は出ない
+  let errorStreak = 0
+  let bossBag: Song[] = []
+  let lastBossId = ''
+  const drawBossSong = () => {
+    if (!bossBag.length) {
+      bossBag = [...BOSS_SONGS].sort(() => Math.random() - 0.5)
+      // 一巡の境目で同じ曲が2連続にならないように
+      if (bossBag.length > 1 && getVideoId(bossBag[bossBag.length - 1]) === lastBossId) bossBag.reverse()
+    }
+    const song = bossBag.pop()!
+    lastBossId = getVideoId(song)
+    return song
+  }
   const bossIds = new Set([...BOSS_SONGS, FINAL_BOSS_SONG].map(s => getVideoId(s)))
   const pickStage = () => {
     const pool = stageSongs.filter(s => !bossIds.has(getVideoId(s)))
@@ -101,7 +116,16 @@ export function createYoutubeBgm(elementId: string, onTitle?: (title: string) =>
           flush()
         },
         // 曲が終わったら：ボス曲はループ、ステージ曲は次の曲をランダムで
+        // 埋め込み再生が許可されていない動画などで失敗したら、別の曲へ
+        onError: (e) => {
+          if (++errorStreak > 4) { console.warn('[ERIKA] BGM の再生に連続で失敗したため停止します。'); return }
+          console.warn(`[ERIKA] BGM を再生できませんでした（${current?.title ?? ''} / code ${e.data}）。次の曲へ切り替えます。`)
+          if (!wantPlaying || !current) return
+          if (current.loop) start(drawBossSong(), true)
+          else start(pickStage(), false)
+        },
         onStateChange: (e) => {
+          if (e.data === 1) errorStreak = 0 // 再生できた
           if (e.data !== 0 || !wantPlaying || !current) return
           if (current.loop) { needsLoad = true; flush() }
           else start(pickStage(), false)
@@ -140,7 +164,7 @@ export function createYoutubeBgm(elementId: string, onTitle?: (title: string) =>
     playStage() { start(pickStage(), false) },
     /** ボス曲（ループ）。final=true は最終ボス専用曲 */
     playBoss(final: boolean) {
-      start(final ? FINAL_BOSS_SONG : BOSS_SONGS[Math.floor(Math.random() * BOSS_SONGS.length)], true)
+      start(final ? FINAL_BOSS_SONG : drawBossSong(), true)
     },
     /** 一時停止からの再開（止まっていた場合は新しいステージ曲） */
     resume() {
