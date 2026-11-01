@@ -619,6 +619,111 @@ async function handleRanking(request, env, url, corsHeaders) {
 }
 
 // ==========================================
+// ERIKA ROCK ACTION のランキング（D1）
+//   GET  /api/rock-ranking   上位50件
+//   POST /api/rock-ranking   スコアを登録
+// ラビリンスと同じ仕組み（1件 = 1行の INSERT・IPごとの回数制限・古い下位データの掃除）。
+// テーブルは migrations/0004_rock_action_ranking.sql で作る。
+// ==========================================
+const MAX_ROCK_STAGE = 999;
+
+// ブラウザ側で計算したスコアのうち「明らかにありえない値」だけを弾くための上限。
+// 1ステージあたり：ボス撃破 2500×ステージ数 ＋ 雑魚・アイテム・弾消しの上限の目安 60000×周回数
+function maxRockScore(stage) {
+    let total = 0;
+    for (let s = 1; s <= stage; s++) total += 2500 * s + 60000 * Math.ceil(s / 12);
+    return total;
+}
+
+async function handleRockRanking(request, env, url, corsHeaders) {
+    const jsonHeaders = {
+        ...corsHeaders,
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': 'no-store',
+    };
+    const jsonResponse = (data, status = 200, extra = {}) =>
+        new Response(JSON.stringify(data), { status, headers: { ...jsonHeaders, ...extra } });
+
+    if (!['GET', 'POST'].includes(request.method)) {
+        return jsonResponse({ error: 'Method Not Allowed' }, 405, { Allow: 'GET, POST, OPTIONS' });
+    }
+    if (!env.DB) return jsonResponse({ error: 'D1（DB）が設定されていません。' }, 500);
+
+    try {
+        if (request.method === 'GET') {
+            const { results } = await env.DB.prepare(
+                `SELECT name, score, stage, created_at FROM rock_action_ranking
+                 ORDER BY score DESC, created_at ASC LIMIT ?`
+            ).bind(RANKING_TOP_LIMIT).all();
+            return jsonResponse(results.map((r) => ({
+                name: r.name, score: r.score, stage: r.stage, date: r.created_at,
+            })));
+        }
+
+        // ---- POST ----
+        if (request.headers.get('Origin') !== url.origin) {
+            return jsonResponse({ error: '外部サイトからは登録できません。' }, 403);
+        }
+        let body;
+        try {
+            body = await request.json();
+        } catch {
+            return jsonResponse({ error: 'JSON形式で送信してください。' }, 400);
+        }
+        if (!body || typeof body !== 'object' || Array.isArray(body)) {
+            return jsonResponse({ error: '送信データが不正です。' }, 400);
+        }
+        if (!Number.isSafeInteger(body.score) || body.score < 0 ||
+            !Number.isSafeInteger(body.stage) || body.stage < 1 || body.stage > MAX_ROCK_STAGE) {
+            return jsonResponse({ error: 'スコアまたはステージが不正です。' }, 400);
+        }
+        if (body.score > maxRockScore(body.stage)) {
+            return jsonResponse({ error: 'スコアが範囲外のため登録できません。' }, 400);
+        }
+
+        const now = new Date();
+        const nowIso = now.toISOString();
+        const hourAgo = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
+        const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+        const ipHash = await hashIp(ip, env.IP_HASH_SALT || '');
+        const limit = readLimit(env.RANKING_LIMIT_PER_IP_HOUR, DEFAULT_RANKING_LIMIT_PER_IP_HOUR);
+        const recent = await env.DB.prepare(
+            'SELECT COUNT(*) AS n FROM rock_action_ranking WHERE ip_hash = ? AND created_at > ?'
+        ).bind(ipHash, hourAgo).first();
+        if (recent && recent.n >= limit) {
+            return jsonResponse({ error: '登録の回数が上限に達しました。しばらく時間をおいてから再度お試しください。' }, 429, { 'Retry-After': '3600' });
+        }
+
+        const name = typeof body.name === 'string' ? body.name.trim().slice(0, 20) || '名無しのロッカー' : '名無しのロッカー';
+        const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+        await env.DB.batch([
+            env.DB.prepare(
+                `INSERT INTO rock_action_ranking (id, name, score, stage, ip_hash, created_at)
+                 VALUES (?, ?, ?, ?, ?, ?)`
+            ).bind(crypto.randomUUID(), name, body.score, body.stage, ipHash, nowIso),
+            env.DB.prepare(
+                `DELETE FROM rock_action_ranking WHERE created_at < ? AND id NOT IN
+                   (SELECT id FROM rock_action_ranking ORDER BY score DESC, created_at ASC LIMIT ?)`
+            ).bind(dayAgo, RANKING_KEEP_LIMIT),
+            env.DB.prepare(
+                'UPDATE rock_action_ranking SET ip_hash = NULL WHERE created_at < ? AND ip_hash IS NOT NULL'
+            ).bind(dayAgo),
+        ]);
+
+        // 登録した記録が何位か（同点は先に登録した人が上）
+        const rankRow = await env.DB.prepare(
+            'SELECT COUNT(*) AS n FROM rock_action_ranking WHERE score > ?'
+        ).bind(body.score).first();
+        return jsonResponse({ success: true, rank: (rankRow?.n ?? 0) + 1 });
+    } catch (error) {
+        console.error('Rock Ranking API Error:', error);
+        return jsonResponse({
+            error: request.method === 'GET' ? 'ランキングの取得に失敗しました。' : 'スコアの保存に失敗しました。',
+        }, 500);
+    }
+}
+
+// ==========================================
 // サイトマップ（GET /sitemap.xml）
 //   検索エンジンに「このサイトにはこういうページがあります」と伝える一覧。
 //   固定のページに加えて、記事（articles.json）と観測日誌（public_reports.json）を毎回ここで組み立てる。
@@ -880,6 +985,9 @@ export default {
             // 5. ランキングAPI
             if (path === '/api/ranking') {
                 return handleRanking(request, env, url, corsHeaders);
+            }
+            if (path === '/api/rock-ranking') {
+                return handleRockRanking(request, env, url, corsHeaders);
             }
 
             // 6. 静的ファイルのフォールバック
