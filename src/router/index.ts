@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import { createRouter, createWebHistory, START_LOCATION, type RouteRecordRaw } from 'vue-router'
 import { nextTick } from 'vue'
 import HomeView from '../views/HomeView.vue'
 
@@ -9,7 +9,25 @@ import HomeView from '../views/HomeView.vue'
 //     → ゲームなどの大きなページや、そのページだけで使うフォントの CSS を、
 //       最初の表示でまとめて読み込まなくて済む
 //   ・meta.title はブラウザのタブに出るページ名（下の afterEach で設定する）
+//   ・ERIKAKUGE（格闘ゲーム）は、このサイトとは別に作ったアプリ（public/erikakuge/ に置いたビルド結果）。
+//     メニューから開いたときは、ページごと読み込み直して開く（下の openStaticApp）
 // ==========================================
+
+/**
+ * 別に作ったアプリ（public/<名前>/ に置いたもの）を、ページごと読み込み直して開く。
+ * ・サイトの中のリンク（router-link）から来たとき → そのアドレスを読み込み直す。Cloudflare がアプリの index.html を返す
+ * ・アドレスを直接開いたのにこのサイトが表示された（＝アプリのファイルが無い）とき → 「ページが見つかりません」にする
+ *   （ここでも読み込み直すと、同じことのくり返しになって止まらないため）
+ */
+function openStaticApp(url: string) {
+  return (to: { path: string }, from: unknown) => {
+    if (from === START_LOCATION) {
+      return { name: 'not-found', params: { pathMatch: to.path.replace(/^\/|\/$/g, '').split('/') } }
+    }
+    window.location.assign(url)
+    return false
+  }
+}
 
 // タイトルの末尾につけるサイト名
 const SITE_NAME = 'Erika Official'
@@ -44,6 +62,8 @@ const routes: Array<RouteRecordRaw> = [
   { path: '/beat', name: 'beat', component: () => import('../views/BeatView.vue'), meta: { title: 'ERIKA BEAT' } },
   { path: '/labyrinth', name: 'labyrinth', component: () => import('../views/LabyrinthView.vue'), meta: { title: 'エリカの迷宮' } },
   { path: '/rock-action', name: 'rock-action', component: () => import('../views/ErikaRockAction.vue'), meta: { title: 'ERIKA ROCK ACTION' } },
+  // ERIKAKUGE（格闘ゲーム）。中身は public/erikakuge/ で、ここはページごと開き直すための入口（component は使われない）
+  { path: '/erikakuge', name: 'erikakuge', component: () => import('../views/NotFoundView.vue'), beforeEnter: openStaticApp('/erikakuge/') },
   // 規約・お問い合わせ
   { path: '/privacy', name: 'privacy', component: () => import('../views/PrivacyView.vue'), meta: { title: 'プライバシーポリシー' } },
   { path: '/contact', name: 'contact', component: () => import('../views/ContactView.vue'), meta: { title: 'お問い合わせ' } },

@@ -1,0 +1,50 @@
+{
+  "name": "漁港の夜",
+  "base": "#0b1430",
+  "layers": [
+    {
+      "image": "far.webp",
+      "factor": 0.1,
+      "y": 0,
+      "shake": false
+    },
+    {
+      "image": "mid.webp",
+      "factor": 0.293,
+      "y": 0
+    },
+    {
+      "image": "near.webp",
+      "factor": 0.7,
+      "y": 600
+    },
+    {
+      "image": "floor.webp",
+      "factor": 1,
+      "y": 780
+    }
+  ],
+  "glints": {
+    "factor": 0.293,
+    "area": [
+      0,
+      600,
+      2299,
+      270
+    ],
+    "count": 24,
+    "color": "rgba(160,190,255,ALPHA)"
+  },
+  "lamps": {
+    "factor": 0.293,
+    "points": [
+      [
+        1986,
+        449,
+        5
+      ]
+    ],
+    "color": "rgba(255,220,140,ALPHA)",
+    "period": 90
+  }
+}

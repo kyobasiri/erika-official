@@ -21,6 +21,7 @@ interface Video {
 }
 
 const games = [
+  { to: '/erikakuge/', title: 'ERIKAKUGE', category: 'FIGHTING', description: 'ムーンエリカの2D格闘ゲーム。CPU戦・対戦・コンボトライアル（PC・ゲームパッド向け）。', accent: '#ffe08a' },
   { to: '/labyrinth', title: 'エリカの迷宮', category: 'DUNGEON', description: '一歩ずつ、未知の奥へ。', accent: '#a78bfa' },
   { to: '/rock-action', title: 'ERIKA Rock Action', category: 'ACTION', description: '迫りくるギミックと12人のエリカに挑む横スクロールアクション。', accent: '#22d3ee' },
   { to: '/beat', title: 'ERIKA BEAT', category: 'RHYTHM', description: '音楽に合わせて、リズムを刻む。', accent: '#22d3ee' },

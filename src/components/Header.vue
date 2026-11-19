@@ -18,6 +18,7 @@ const navItems = [
 ]
 
 const gameItems = [
+  { to: '/erikakuge/', label: 'ERIKAKUGE', note: '2D格闘ゲーム（PC・ゲームパッド向け）', mobileNote: '格闘ゲーム（PC向け）', highlight: false },
   { to: '/beat', label: 'ERIKA BEAT', note: 'YouTube同期リズムゲーム', mobileNote: 'リズムゲーム', highlight: true },
   { to: '/rpg', label: 'RPG Battle', note: 'ブラウザRPG・エリカ討伐戦', mobileNote: 'エリカ討伐戦', highlight: false },
   { to: '/game', label: 'Memory Game', note: 'AIアート神経衰弱', mobileNote: '神経衰弱', highlight: false },

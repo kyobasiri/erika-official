@@ -1,0 +1,173 @@
+[
+  {
+    "level": 1,
+    "title": "下段から必殺技",
+    "hint": "2Kは押しっぱなしにせず、2回押す。2回目の2Kが当たったらすぐ 3+S",
+    "setup": {},
+    "steps": [
+      {
+        "move": "crouch_kick",
+        "label": "2K（しゃがみK）",
+        "cmd": "2+K"
+      },
+      {
+        "move": "crouch_kick",
+        "label": "2K",
+        "cmd": "2+K"
+      },
+      {
+        "move": "special_anti_air",
+        "cmd": "3+S"
+      }
+    ]
+  },
+  {
+    "level": 2,
+    "title": "追加入力から突進",
+    "hint": "近Pが当たったらもう一度P。2段目が当たったらすぐ 4+S",
+    "setup": {},
+    "steps": [
+      {
+        "move": "punch_near",
+        "label": "近P",
+        "cmd": "P（近くで）"
+      },
+      {
+        "move": "punch_near_2",
+        "label": "近P 2段目",
+        "cmd": "P"
+      },
+      {
+        "move": "special_rush",
+        "cmd": "4+S"
+      }
+    ]
+  },
+  {
+    "level": 3,
+    "title": "派生と目押し",
+    "hint": "ジゼルシェルが終わって動けるようになった瞬間に 4+S（キャンセルできないので目押し）",
+    "setup": {},
+    "steps": [
+      {
+        "move": "kick_near",
+        "label": "近K",
+        "cmd": "K（近くで）"
+      },
+      {
+        "move": "kick_near_2",
+        "label": "近K 2段目",
+        "cmd": "K"
+      },
+      {
+        "move": "special_spin",
+        "cmd": "S"
+      },
+      {
+        "move": "special_anti_air_set",
+        "cmd": "K（トリガー中に）"
+      },
+      {
+        "move": "special_rush",
+        "cmd": "4+S"
+      }
+    ]
+  },
+  {
+    "level": 4,
+    "title": "飛び込みからスーパーキャンセル",
+    "hint": "少し離れた所から前ジャンプ。落ちてくる途中の高い所でPを押す。ジゼルスケートが当たったらすぐ 6+P+S",
+    "setup": {
+      "gap": 300,
+      "meter": 1000
+    },
+    "demo": {
+      "jumpAt": 410
+    },
+    "steps": [
+      {
+        "move": "jump_punch",
+        "label": "ジャンプP",
+        "cmd": "ジャンプ中に P"
+      },
+      {
+        "move": "punch_near",
+        "label": "近P",
+        "cmd": "P（近くで）"
+      },
+      {
+        "move": "punch_near_2",
+        "label": "近P 2段目",
+        "cmd": "P"
+      },
+      {
+        "move": "special_spin",
+        "cmd": "S"
+      },
+      {
+        "move": "special_anti_air_set",
+        "cmd": "K（トリガー中に）"
+      },
+      {
+        "move": "special_rush",
+        "cmd": "4+S"
+      },
+      {
+        "move": "super_rush",
+        "cmd": "6+P+S"
+      }
+    ]
+  },
+  {
+    "level": 5,
+    "title": "画面端でMAXまで",
+    "hint": "画面端限定。ジゼルシェルのあと前ダッシュ（66）で近づき、近Pから拾い直す",
+    "setup": {
+      "corner": true,
+      "meter": 3000,
+      "maxIn": true
+    },
+    "steps": [
+      {
+        "move": "kick_near",
+        "label": "近K",
+        "cmd": "K（近くで）"
+      },
+      {
+        "move": "kick_near_2",
+        "label": "近K 2段目",
+        "cmd": "K"
+      },
+      {
+        "move": "special_spin",
+        "cmd": "S"
+      },
+      {
+        "move": "special_anti_air_set",
+        "cmd": "K（トリガー中に）"
+      },
+      {
+        "move": "step_forward",
+        "label": "前ダッシュ",
+        "cmd": "66"
+      },
+      {
+        "move": "punch_near",
+        "label": "近P",
+        "cmd": "P（近くで）"
+      },
+      {
+        "move": "special_anti_air",
+        "cmd": "3+S"
+      },
+      {
+        "move": "super_rush",
+        "cmd": "6+P+S"
+      },
+      {
+        "move": "max_super",
+        "cmd": "6+P+K+S"
+      }
+    ]
+  }
+]

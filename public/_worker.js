@@ -733,7 +733,7 @@ async function handleRockRanking(request, env, url, corsHeaders) {
 const SITEMAP_ORIGIN = 'https://erika.erikakataru.com';
 const SITEMAP_STATIC_PATHS = [
     '/', '/concept', '/blog', '/gallery', '/words', '/todo',
-    '/gear', '/spec', '/beat', '/rpg', '/game', '/labyrinth',
+    '/gear', '/spec', '/beat', '/rpg', '/game', '/labyrinth', '/erikakuge/',
     '/about', '/privacy', '/contact',
 ];
 // 記事ID（20261016 など）・日誌ID（20261012-task-report など）として正しい形だけを載せる
@@ -991,7 +991,14 @@ export default {
             }
 
             // 6. 静的ファイルのフォールバック
-            return env.ASSETS.fetch(request);
+            const asset = await env.ASSETS.fetch(request);
+            // ERIKAKUGE の JS・CSS・字体は名前にハッシュが付いている（中身が変われば名前も変わる）ので、長くキャッシュしてよい
+            if (path.startsWith('/erikakuge/assets/') && asset.ok) {
+                const cached = new Response(asset.body, asset);
+                cached.headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+                return cached;
+            }
+            return asset;
 
         } catch (error) {
             console.error("Worker Error:", error);
