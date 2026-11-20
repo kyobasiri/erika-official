@@ -25,6 +25,43 @@
    ],
    "on": "hitguard",
    "damagePct": 75
+  },
+  "fxPresets": {
+   "トリガーの光": [
+    {
+     "type": "crescent"
+    },
+    {
+     "type": "sparkle",
+     "x": 40,
+     "scale": 0.5,
+     "delay": 3
+    }
+   ],
+   "満月の見せ場": [
+    {
+     "type": "moon",
+     "at": "body",
+     "scale": 1.3
+    },
+    {
+     "type": "glitter",
+     "at": "body",
+     "scale": 1.5,
+     "delay": 12
+    }
+   ],
+   "強い一撃": [
+    {
+     "type": "shards",
+     "when": "hit"
+    },
+    {
+     "type": "sparkle",
+     "when": "hit",
+     "scale": 1.2
+    }
+   ]
   }
  },
  "system": {
@@ -11115,6 +11152,12 @@
        144,
        196
       ]
+     ],
+     "fx": [
+      {
+       "type": "sparkle",
+       "when": "hit"
+      }
      ]
     },
     {
@@ -11497,6 +11540,12 @@
        108,
        278
       ]
+     ],
+     "fx": [
+      {
+       "type": "sparkle",
+       "when": "hit"
+      }
      ]
     },
     {
@@ -11791,6 +11840,12 @@
       -281,
       80,
       280
+     ],
+     "fx": [
+      {
+       "type": "sparkle",
+       "when": "hit"
+      }
      ]
     },
     {
@@ -12048,6 +12103,12 @@
       -238,
       68,
       238
+     ],
+     "fx": [
+      {
+       "type": "sparkle",
+       "when": "hit"
+      }
      ]
     },
     {
@@ -12297,7 +12358,13 @@
        189
       ]
      ],
-     "throw": []
+     "throw": [],
+     "fx": [
+      {
+       "type": "sparkle",
+       "when": "hit"
+      }
+     ]
     },
     {
      "sprite": "heel_06",
@@ -12574,6 +12641,12 @@
       -211,
       60,
       210
+     ],
+     "fx": [
+      {
+       "type": "sparkle",
+       "when": "hit"
+      }
      ]
     },
     {
@@ -12827,6 +12900,12 @@
       -188,
       68,
       187
+     ],
+     "fx": [
+      {
+       "type": "sparkle",
+       "when": "hit"
+      }
      ]
     },
     {
@@ -13100,7 +13179,13 @@
        82
       ]
      ],
-     "throw": []
+     "throw": [],
+     "fx": [
+      {
+       "type": "sparkle",
+       "when": "hit"
+      }
+     ]
     },
     {
      "sprite": "18_05",
@@ -13385,6 +13470,12 @@
       -210,
       60,
       210
+     ],
+     "fx": [
+      {
+       "type": "sparkle",
+       "when": "hit"
+      }
      ]
     },
     {
@@ -13679,6 +13770,12 @@
       -243,
       72,
       243
+     ],
+     "fx": [
+      {
+       "type": "sparkle",
+       "when": "hit"
+      }
      ]
     },
     {
@@ -14362,6 +14459,14 @@
        320,
        280
       ]
+     ],
+     "fx": [
+      {
+       "preset": "トリガーの光"
+      },
+      {
+       "type": "glitter"
+      }
      ]
     },
     {
@@ -14411,6 +14516,12 @@
        314,
        333
       ]
+     ],
+     "fx": [
+      {
+       "type": "crescent",
+       "rot": 180
+      }
      ]
     },
     {
@@ -14699,6 +14810,17 @@
       -238,
       68,
       238
+     ],
+     "fx": [
+      {
+       "type": "cross",
+       "at": "body",
+       "x": 60
+      },
+      {
+       "type": "shards",
+       "x": 60
+      }
      ]
     },
     {
@@ -14852,7 +14974,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_001",
@@ -14876,7 +15004,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_002",
@@ -14900,7 +15034,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_003",
@@ -14924,7 +15064,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_004",
@@ -14948,7 +15094,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_005",
@@ -14972,7 +15124,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_006",
@@ -14996,7 +15154,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_007",
@@ -15020,7 +15184,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_008",
@@ -15044,7 +15214,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_009",
@@ -15068,7 +15244,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_010",
@@ -15092,7 +15274,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_011",
@@ -15116,7 +15304,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_012",
@@ -15140,7 +15334,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_013",
@@ -15164,7 +15364,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_014",
@@ -15188,7 +15394,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_015",
@@ -15212,7 +15424,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_016",
@@ -15236,7 +15454,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_017",
@@ -15260,7 +15484,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_018",
@@ -15284,7 +15514,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_019",
@@ -15308,7 +15544,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_020",
@@ -15332,7 +15574,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_021",
@@ -15356,7 +15604,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_022",
@@ -15380,7 +15634,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_023",
@@ -15404,7 +15664,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_024",
@@ -15428,7 +15694,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_025",
@@ -15452,7 +15724,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_026",
@@ -15476,7 +15754,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_027",
@@ -15500,7 +15784,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_028",
@@ -15524,7 +15814,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_029",
@@ -15548,7 +15844,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_030",
@@ -15572,7 +15874,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     },
     {
      "sprite": "22_rotation_031",
@@ -15596,7 +15904,13 @@
       ]
      ],
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "trail",
+       "at": "body"
+      }
+     ]
     }
    ],
    "damage": 60,
@@ -16627,6 +16941,62 @@
        242,
        552
       ]
+     ],
+     "fx": [
+      {
+       "type": "ring",
+       "scale": 0.8,
+       "delay": 3
+      },
+      {
+       "type": "ring",
+       "y": 100,
+       "scale": 0.9,
+       "delay": 4
+      },
+      {
+       "type": "ring",
+       "y": 200,
+       "delay": 5
+      },
+      {
+       "type": "ring",
+       "y": -100,
+       "scale": 0.7,
+       "delay": 1
+      },
+      {
+       "type": "orbit",
+       "y": 200,
+       "delay": 5
+      },
+      {
+       "type": "orbit",
+       "y": 100,
+       "scale": 0.9,
+       "delay": 4
+      },
+      {
+       "type": "orbit",
+       "scale": 0.8,
+       "delay": 3
+      },
+      {
+       "type": "orbit",
+       "y": -100,
+       "scale": 0.7,
+       "delay": 1
+      },
+      {
+       "type": "orbit",
+       "y": -200,
+       "scale": 0.6
+      },
+      {
+       "type": "ring",
+       "y": -200,
+       "scale": 0.6
+      }
      ]
     },
     {
@@ -16955,6 +17325,18 @@
       -251,
       68,
       238
+     ],
+     "fx": [
+      {
+       "type": "ripple",
+       "y": -180,
+       "scale": 0.75
+      },
+      {
+       "type": "orbit",
+       "y": -150,
+       "scale": 0.7
+      }
      ]
     },
     {
@@ -17036,7 +17418,14 @@
       68,
       238
      ],
-     "my": 20
+     "my": 20,
+     "fx": [
+      {
+       "type": "rise",
+       "at": "foot",
+       "follow": true
+      }
+     ]
     },
     {
      "sprite": "24v8_05",
@@ -17288,7 +17677,13 @@
       72,
       252
      ],
-     "my": -40
+     "my": -40,
+     "fx": [
+      {
+       "type": "glitter",
+       "follow": true
+      }
+     ]
     },
     {
      "sprite": "24v8_12",
@@ -17538,9 +17933,9 @@
      ],
      "push": [
       -40,
-      -245,
-      80,
-      243
+      -334,
+      85,
+      332
      ]
     },
     {
@@ -17571,9 +17966,9 @@
      ],
      "push": [
       -36,
-      -254,
-      72,
-      252
+      -310,
+      73,
+      308
      ]
     },
     {
@@ -17605,9 +18000,9 @@
      ],
      "push": [
       -36,
-      -253,
-      72,
-      252
+      -319,
+      76,
+      317
      ]
     },
     {
@@ -17639,9 +18034,9 @@
      ],
      "push": [
       -40,
-      -258,
-      72,
-      256
+      -322,
+      71,
+      320
      ]
     },
     {
@@ -17681,9 +18076,39 @@
      ],
      "push": [
       -40,
-      -262,
+      -303,
       80,
-      260
+      301
+     ],
+     "fx": [
+      {
+       "type": "shooting",
+       "at": "body",
+       "rot": 180,
+       "x": -200,
+       "y": -100,
+       "follow": true
+      },
+      {
+       "type": "blade",
+       "rot": 180,
+       "x": 100,
+       "y": 20,
+       "follow": true
+      },
+      {
+       "type": "shooting",
+       "x": -400,
+       "rot": 200,
+       "follow": true
+      },
+      {
+       "type": "shooting",
+       "rot": 220,
+       "x": -300,
+       "y": 40,
+       "follow": true
+      }
      ]
     },
     {
@@ -17726,6 +18151,36 @@
       -272,
       82,
       271
+     ],
+     "fx": [
+      {
+       "type": "shooting",
+       "at": "body",
+       "rot": 180,
+       "x": -200,
+       "y": -100,
+       "follow": true
+      },
+      {
+       "type": "blade",
+       "rot": 180,
+       "x": 100,
+       "y": 20,
+       "follow": true
+      },
+      {
+       "type": "shooting",
+       "x": -400,
+       "rot": 200,
+       "follow": true
+      },
+      {
+       "type": "shooting",
+       "rot": 220,
+       "x": -300,
+       "y": 40,
+       "follow": true
+      }
      ]
     },
     {
@@ -17764,10 +18219,10 @@
       ]
      ],
      "push": [
-      -40,
-      -278,
-      80,
-      277
+      -42,
+      -322,
+      82,
+      321
      ]
     },
     {
@@ -17806,10 +18261,10 @@
       ]
      ],
      "push": [
-      -38,
-      -277,
-      79,
-      275
+      -44,
+      -327,
+      85,
+      325
      ]
     },
     {
@@ -17848,10 +18303,10 @@
       ]
      ],
      "push": [
-      -40,
-      -281,
-      80,
-      280
+      -41,
+      -327,
+      81,
+      326
      ]
     },
     {
@@ -17890,10 +18345,10 @@
       ]
      ],
      "push": [
-      -40,
-      -279,
-      80,
-      279
+      -38,
+      -325,
+      78,
+      325
      ]
     },
     {
@@ -17932,10 +18387,10 @@
       ]
      ],
      "push": [
-      -40,
-      -276,
-      80,
-      276
+      -43,
+      -319,
+      83,
+      319
      ]
     },
     {
@@ -17964,10 +18419,10 @@
       ]
      ],
      "push": [
-      -36,
-      -253,
-      72,
-      252
+      -41,
+      -296,
+      77,
+      295
      ],
      "hit": [
       [
@@ -18006,10 +18461,10 @@
       ]
      ],
      "push": [
-      -32,
-      -234,
-      67,
-      233
+      -37,
+      -297,
+      72,
+      296
      ],
      "hit": [
       [
@@ -18048,10 +18503,10 @@
       ]
      ],
      "push": [
-      -36,
-      -253,
-      72,
-      252
+      -38,
+      -300,
+      74,
+      299
      ],
      "hit": [],
      "throw": []
@@ -18083,10 +18538,10 @@
       ]
      ],
      "push": [
-      -40,
-      -282,
-      80,
-      280
+      -44,
+      -323,
+      84,
+      321
      ]
     },
     {
@@ -18116,10 +18571,10 @@
       ]
      ],
      "push": [
-      -40,
-      -251,
-      80,
-      249
+      -43,
+      -307,
+      83,
+      305
      ]
     }
    ],
@@ -18143,10 +18598,10 @@
    "reactions": [
     {
      "type": "blowback",
-     "height": 100,
-     "dist": 600,
+     "height": 235,
+     "dist": 675,
      "juggle": true,
-     "window": 30
+     "window": 20
     }
    ],
    "cmd": {
@@ -18196,6 +18651,14 @@
       -267,
       76,
       266
+     ],
+     "fx": [
+      {
+       "preset": "満月の見せ場",
+       "scale": 0.2,
+       "x": 45,
+       "y": 150
+      }
      ]
     },
     {
@@ -18229,6 +18692,14 @@
       -267,
       76,
       266
+     ],
+     "fx": [
+      {
+       "preset": "満月の見せ場",
+       "scale": 0.2,
+       "x": 45,
+       "y": 150
+      }
      ]
     },
     {
@@ -18262,6 +18733,14 @@
       -267,
       76,
       266
+     ],
+     "fx": [
+      {
+       "preset": "満月の見せ場",
+       "scale": 0.2,
+       "x": 45,
+       "y": 150
+      }
      ]
     },
     {
@@ -18295,6 +18774,14 @@
       -267,
       76,
       266
+     ],
+     "fx": [
+      {
+       "preset": "満月の見せ場",
+       "scale": 0.2,
+       "x": 45,
+       "y": 150
+      }
      ]
     },
     {
@@ -18328,6 +18815,14 @@
       -267,
       76,
       266
+     ],
+     "fx": [
+      {
+       "preset": "満月の見せ場",
+       "scale": 0.2,
+       "x": 45,
+       "y": 150
+      }
      ]
     },
     {
@@ -18361,6 +18856,14 @@
       -267,
       76,
       266
+     ],
+     "fx": [
+      {
+       "preset": "満月の見せ場",
+       "scale": 0.2,
+       "x": 45,
+       "y": 150
+      }
      ]
     },
     {
@@ -18394,6 +18897,14 @@
       -267,
       76,
       266
+     ],
+     "fx": [
+      {
+       "preset": "満月の見せ場",
+       "scale": 0.2,
+       "x": 45,
+       "y": 150
+      }
      ]
     },
     {
@@ -18427,6 +18938,14 @@
       -270,
       77,
       269
+     ],
+     "fx": [
+      {
+       "preset": "満月の見せ場",
+       "scale": 0.2,
+       "x": 45,
+       "y": 150
+      }
      ]
     },
     {
@@ -18460,6 +18979,18 @@
       -264,
       75,
       263
+     ],
+     "fx": [
+      {
+       "type": "glitter",
+       "scale": 1.2,
+       "follow": true
+      },
+      {
+       "type": "cross",
+       "x": 50,
+       "y": 130
+      }
      ]
     },
     {
@@ -18493,6 +19024,12 @@
       -229,
       80,
       229
+     ],
+     "fx": [
+      {
+       "type": "ripple",
+       "y": -200
+      }
      ]
     },
     {
@@ -18535,6 +19072,11 @@
        194,
        372
       ]
+     ],
+     "fx": [
+      {
+       "preset": "強い一撃"
+      }
      ]
     },
     {
@@ -20974,6 +21516,14 @@
       -239,
       68,
       238
+     ],
+     "fx": [
+      {
+       "type": "glitter"
+      },
+      {
+       "type": "constellation"
+      }
      ]
     },
     {
@@ -21577,6 +22127,12 @@
        196,
        227
       ]
+     ],
+     "fx": [
+      {
+       "type": "sparkle",
+       "when": "hit"
+      }
      ]
     },
     {
@@ -21738,7 +22294,28 @@
      "inv": "strike",
      "phase": "20旋回",
      "hurt": [],
-     "push": null
+     "push": null,
+     "fx": [
+      {
+       "type": "orbit",
+       "y": 100,
+       "scale": 0.7
+      },
+      {
+       "type": "orbit",
+       "scale": 0.8
+      },
+      {
+       "type": "orbit",
+       "y": -100,
+       "scale": 0.9
+      },
+      {
+       "type": "ring",
+       "y": -200,
+       "scale": 0.8
+      }
+     ]
     },
     {
      "sprite": "52_scene_002",
@@ -21773,7 +22350,14 @@
      "state": "stand",
      "inv": "strike",
      "phase": "20旋回",
-     "hurt": [],
+     "hurt": [
+      [
+       -132,
+       -358,
+       204,
+       356
+      ]
+     ],
      "push": null
     },
     {
@@ -21899,6 +22483,18 @@
        653,
        1064
       ]
+     ],
+     "fx": [
+      {
+       "preset": "強い一撃",
+       "scale": 1.3
+      },
+      {
+       "type": "rise",
+       "y": -530,
+       "scale": 6.5,
+       "x": -30
+      }
      ]
     },
     {
@@ -22639,8 +23235,20 @@
      "state": "stand",
      "inv": "none",
      "phase": "回収",
-     "hurt": [],
-     "push": null
+     "hurt": [
+      [
+       -109,
+       -341,
+       174,
+       339
+      ]
+     ],
+     "push": [
+      -40,
+      -300,
+      80,
+      300
+     ]
     },
     {
      "sprite": "52_scene_069",
@@ -22648,8 +23256,20 @@
      "state": "stand",
      "inv": "none",
      "phase": "26指先旋回",
-     "hurt": [],
-     "push": null
+     "hurt": [
+      [
+       -109,
+       -341,
+       174,
+       339
+      ]
+     ],
+     "push": [
+      -40,
+      -300,
+      80,
+      300
+     ]
     },
     {
      "sprite": "52_scene_070",
@@ -22657,8 +23277,20 @@
      "state": "stand",
      "inv": "none",
      "phase": "26指先旋回",
-     "hurt": [],
-     "push": null
+     "hurt": [
+      [
+       -109,
+       -341,
+       174,
+       339
+      ]
+     ],
+     "push": [
+      -40,
+      -300,
+      80,
+      300
+     ]
     },
     {
      "sprite": "52_scene_071",
@@ -22666,8 +23298,20 @@
      "state": "stand",
      "inv": "none",
      "phase": "26指先旋回",
-     "hurt": [],
-     "push": null
+     "hurt": [
+      [
+       -109,
+       -341,
+       174,
+       339
+      ]
+     ],
+     "push": [
+      -40,
+      -300,
+      80,
+      300
+     ]
     },
     {
      "sprite": "52_scene_072",
@@ -22675,8 +23319,20 @@
      "state": "stand",
      "inv": "none",
      "phase": "26指先旋回",
-     "hurt": [],
-     "push": null
+     "hurt": [
+      [
+       -109,
+       -341,
+       174,
+       339
+      ]
+     ],
+     "push": [
+      -40,
+      -300,
+      80,
+      300
+     ]
     },
     {
      "sprite": "52_scene_073",
@@ -22684,8 +23340,20 @@
      "state": "stand",
      "inv": "none",
      "phase": "26指先旋回",
-     "hurt": [],
-     "push": null
+     "hurt": [
+      [
+       -109,
+       -341,
+       174,
+       339
+      ]
+     ],
+     "push": [
+      -40,
+      -300,
+      80,
+      300
+     ]
     },
     {
      "sprite": "52_scene_074",
@@ -22693,8 +23361,20 @@
      "state": "stand",
      "inv": "none",
      "phase": "26指先旋回",
-     "hurt": [],
-     "push": null
+     "hurt": [
+      [
+       -109,
+       -341,
+       174,
+       339
+      ]
+     ],
+     "push": [
+      -40,
+      -300,
+      80,
+      300
+     ]
     },
     {
      "sprite": "52_scene_075",
@@ -22702,8 +23382,20 @@
      "state": "stand",
      "inv": "none",
      "phase": "26指先旋回",
-     "hurt": [],
-     "push": null
+     "hurt": [
+      [
+       -109,
+       -341,
+       174,
+       339
+      ]
+     ],
+     "push": [
+      -40,
+      -300,
+      80,
+      300
+     ]
     },
     {
      "sprite": "52_scene_076",
@@ -22711,8 +23403,20 @@
      "state": "stand",
      "inv": "none",
      "phase": "26指先旋回",
-     "hurt": [],
-     "push": null
+     "hurt": [
+      [
+       -109,
+       -341,
+       174,
+       339
+      ]
+     ],
+     "push": [
+      -40,
+      -300,
+      80,
+      300
+     ]
     },
     {
      "sprite": "52_scene_077",
@@ -22720,8 +23424,20 @@
      "state": "stand",
      "inv": "none",
      "phase": "26指先旋回",
-     "hurt": [],
-     "push": null
+     "hurt": [
+      [
+       -109,
+       -341,
+       174,
+       339
+      ]
+     ],
+     "push": [
+      -40,
+      -300,
+      80,
+      300
+     ]
     },
     {
      "sprite": "52_scene_078",
@@ -22729,8 +23445,20 @@
      "state": "stand",
      "inv": "none",
      "phase": "ニュートラル",
-     "hurt": [],
-     "push": null
+     "hurt": [
+      [
+       -109,
+       -341,
+       174,
+       339
+      ]
+     ],
+     "push": [
+      -40,
+      -300,
+      80,
+      300
+     ]
     },
     {
      "sprite": "52_scene_079",
@@ -22738,8 +23466,20 @@
      "state": "stand",
      "inv": "none",
      "phase": "ニュートラル",
-     "hurt": [],
-     "push": null
+     "hurt": [
+      [
+       -109,
+       -341,
+       174,
+       339
+      ]
+     ],
+     "push": [
+      -40,
+      -300,
+      80,
+      300
+     ]
     },
     {
      "sprite": "52_scene_080",
@@ -22747,8 +23487,20 @@
      "state": "stand",
      "inv": "none",
      "phase": "ニュートラル",
-     "hurt": [],
-     "push": null
+     "hurt": [
+      [
+       -109,
+       -341,
+       174,
+       339
+      ]
+     ],
+     "push": [
+      -40,
+      -300,
+      80,
+      300
+     ]
     }
    ],
    "damage": 30,
