@@ -10,7 +10,7 @@ from openai import OpenAI
 # ==========================================
 SAKURA_API_KEY = os.environ.get("SAKURA_API_KEY")
 SAKURA_API_BASE = "https://api.ai.sakura.ad.jp/v1"
-SAKURA_MODEL = "preview/gemma-4-31B-it"
+SAKURA_MODEL = "preview/GLM-5.3-Flash"
 
 GALLERY_DIR = 'public/assets/images/gallery'
 # 崩れていた既存の説明文を作り直す件数の上限（1回の実行あたり）。
